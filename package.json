@@ -20,6 +20,7 @@
     "clean": "rm -rf ui/index.html server/data",
     "discover": "node discover.mjs",
     "deploy:agents": "node deploy-agents.mjs",
-    "demo": "node demo.mjs"
+    "demo": "node demo.mjs",
+    "bundle": "node bundle-airgap.mjs"
   }
 }

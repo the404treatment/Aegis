@@ -12,6 +12,8 @@ aegis-v3.html
 # hostnames, addresses, which admin ports are open on each. It does not
 # belong in a repository.
 targets*.json
+# Air-gap bundles: large, per-platform, and rebuilt on demand.
+dist/
 *.tmp
 *.log
 __pycache__/
