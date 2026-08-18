@@ -31,6 +31,7 @@ import { Sessions, LoginLimiter, makeUser, findUser, verifyPw, publicUser, can, 
 import { makeCase, patchCase, decodeEvidence, evidenceRecord, safeEvidenceName, EVIDENCE_MAX_BYTES } from './cases.mjs';
 import { buildReport, finalizeFormal } from './report.mjs';
 import { AI_DEFAULTS, aiEnabled, buildRequest as aiBuildRequest, callAnthropic } from './ai.mjs';
+import { feed as activityFeed } from './activity.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,10 +50,13 @@ function loadConfig() {
     uiDir: path.join(__dirname, '..', 'ui'),
     enrollmentToken: cfg.enrollmentToken || crypto.randomBytes(24).toString('base64url'),
     analystToken: cfg.analystToken || crypto.randomBytes(24).toString('base64url'),
-    // Named accounts are opt-in. Left false (the default), the analyst token
-    // is the only credential and behaviour is exactly as it was before
-    // accounts existed — no existing deployment changes.
-    requireLogin: false,
+    // Named accounts are ON by default: a shared token makes every action
+    // anonymous, and an incident record nobody can be attributed to is worth
+    // very little afterwards. The first account is created from the login
+    // screen itself (POST /api/auth/bootstrap), so this cannot lock you out,
+    // and the analyst token keeps working as the break-glass and automation
+    // credential. Set false for a single-analyst lab.
+    requireLogin: true,
     // agents older than this are shown as stale (seconds)
     staleAfter: 180,
     retentionEvents: 200000,
@@ -155,10 +159,33 @@ const safeEq = (a, b) => {
 };
 
 /* --------------------------------------------------------------- SSE hub */
+/* Each entry is {res, actor, since}. It carries the identity as well as the
+   socket so the console can show who else is working the incident right now —
+   an incident room where you cannot see who else is in it does not feel like
+   one. */
 const clients = new Set();
 function broadcast(type, data) {
   const msg = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const res of clients) { try { res.write(msg); } catch { clients.delete(res); } }
+  for (const c of clients) { try { c.res.write(msg); } catch { clients.delete(c); } }
+}
+
+/** Who is connected right now, one row per person (not per browser tab). */
+function presence() {
+  const byId = new Map();
+  for (const c of clients) {
+    const a = c.actor || {};
+    const id = a.id || 'unknown';
+    const cur = byId.get(id);
+    if (cur) { cur.tabs++; cur.since = Math.min(cur.since, c.since); }
+    else byId.set(id, { id, name: a.name || 'analyst', role: a.role || 'analyst', shared: !!a.shared, since: c.since, tabs: 1 });
+  }
+  return [...byId.values()].sort((a, b) => a.since - b.since);
+}
+let _presenceTimer = null;
+/** Coalesced — a page refresh is a disconnect and a connect back to back. */
+function presenceChanged() {
+  clearTimeout(_presenceTimer);
+  _presenceTimer = setTimeout(() => broadcast('presence', presence()), 120);
 }
 
 /* ------------------------------------------------------------ Splunk HEC */
@@ -468,16 +495,45 @@ const server = http.createServer(async (req, res) => {
         'Connection': 'keep-alive', 'X-Accel-Buffering': 'no',
       });
       res.write(`event: hello\ndata: ${JSON.stringify({ t: now() })}\n\n`);
-      clients.add(res);
+      const client = { res, actor: actorOf(req, u), since: now() };
+      clients.add(client);
+      // Tell the newcomer who is already here, then tell everyone else.
+      res.write(`event: presence\ndata: ${JSON.stringify(presence())}\n\n`);
+      presenceChanged();
       const ka = setInterval(() => { try { res.write(': keepalive\n\n'); } catch { } }, 25000);
-      req.on('close', () => { clearInterval(ka); clients.delete(res); });
+      req.on('close', () => { clearInterval(ka); clients.delete(client); presenceChanged(); });
       return;
     }
 
-    /* ---------------- accounts (opt-in via CFG.requireLogin) ---------------- */
-    // Advertises whether the console should present a login screen. Public by
-    // design: it leaks nothing but a boolean the login page needs to render.
-    if (p === '/api/auth/mode') return json(res, 200, { requireLogin: !!CFG.requireLogin, accounts: USERS.length });
+    /* ---------------- accounts ---------------- */
+    // Advertises whether the console should present a login screen, and whether
+    // this server has any accounts yet. Public by design: it leaks nothing but
+    // the two booleans the login page needs in order to render the right form.
+    if (p === '/api/auth/mode')
+      return json(res, 200, { requireLogin: !!CFG.requireLogin, accounts: USERS.length, needsSetup: !!CFG.requireLogin && USERS.length === 0 });
+
+    /* First-run bootstrap. A server that demands a login but has no accounts is
+       a locked door with no key cut yet, so the very first account can be
+       created without one — and ONLY that one. The moment a user exists this
+       returns 409 and account creation goes back through /api/users, which
+       requires the user.manage capability. */
+    if (p === '/api/auth/bootstrap' && req.method === 'POST') {
+      // Only open on a server that ASKED for accounts and has none yet. On a
+      // token-only deployment nobody is watching the login page, so an
+      // unauthenticated account-creation endpoint would sit open forever and
+      // hand a full session to whoever found it first.
+      if (!CFG.requireLogin) return json(res, 404, { error: 'this server does not use accounts' });
+      if (USERS.length) return json(res, 409, { error: 'this server already has accounts — sign in, or ask a lead to create one for you' });
+      const b = await readBody(req);
+      let user;
+      try { user = makeUser(b.name, b.password, 'lead'); }   // the first account leads, or nobody can create the second
+      catch (e) { return json(res, 400, { error: e.message }); }
+      USERS.push(user); saveUsers();
+      const token = SESSIONS.issue(user.id); saveSessions();
+      auditRecord(user.id, 'user.create', user.id, { name: user.name, role: user.role, bootstrap: true });
+      console.log(`[aegis] first account created: ${user.name} (lead)`);
+      return json(res, 200, { token, user: publicUser(user) });
+    }
 
     if (p === '/api/auth/login' && req.method === 'POST') {
       const b = await readBody(req);
@@ -580,6 +636,25 @@ const server = http.createServer(async (req, res) => {
         console.warn('[ai] request failed:', e.message);
         return json(res, 502, { error: { message: `could not reach the model: ${e.message}` } });
       }
+    }
+
+    /* ---------------- who is here, and what has everyone been doing ---------------- */
+    if (p === '/api/presence') return json(res, 200, presence());
+
+    if (p === '/api/activity') {
+      // Titles turn "cs_abc123" into "#1 Ransomware on FS01" so the feed reads
+      // as work rather than as identifiers.
+      const titles = {};
+      for (const c of CASES) titles[c.id] = `#${c.num} ${c.title}`;
+      for (const t of TICKETS) titles[t.id] = t.title || '';
+      // The chain records actor IDs, not names — nobody recognises `u_Kw80BJ9a`.
+      const names = { 'analyst-token': 'analyst token' };
+      for (const usr of USERS) names[usr.id] = usr.name;
+      const limit = Math.min(200, Math.max(1, Number(u.searchParams.get('limit')) || 60));
+      return json(res, 200, {
+        items: activityFeed(AUDIT.all(), { limit, titles, names }),
+        intact: AUDIT.verify(),   // the feed is only as trustworthy as the chain under it
+      });
     }
 
     /* ---------------- state for the UI ---------------- */

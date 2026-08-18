@@ -91,7 +91,12 @@ cfg = {
   dataDir: cfg.dataDir || './server/data',
   uiDir: cfg.uiDir || './ui',
   enrollmentToken, analystToken,
-  requireLogin: cfg.requireLogin ?? false,
+  // Named accounts on by default, so every action in the case file is
+  // attributable. `?? true` and not `= true`: re-running setup must not
+  // silently switch accounts back on for someone who deliberately turned
+  // them off. The first account is created from the login screen, so this
+  // cannot lock anyone out.
+  requireLogin: cfg.requireLogin ?? true,
 };
 
 fs.mkdirSync(path.dirname(CFG_PATH), { recursive: true });

@@ -50,10 +50,13 @@ const api = (base, p, opts = {}) => fetch(base + p, {
 });
 const withTok = (tok, opts = {}) => ({ ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + tok } });
 
-/* ============ 1. default config: nothing about the old behaviour changes ============ */
-section('backwards compatibility (requireLogin off — the default)');
+/* ============ 1. token-only deploys keep working ============ */
+/* Accounts are now the default, so this section pins the OTHER promise: a
+   deployment that opts out with requireLogin:false must behave exactly as it
+   did before accounts existed. */
+section('backwards compatibility (requireLogin explicitly off)');
 {
-  const S = await boot();
+  const S = await boot({ requireLogin: false });
   try {
     let r = await api(S.base, '/api/state');
     eq('no credential is still 401', r.status, 401);
@@ -67,6 +70,14 @@ section('backwards compatibility (requireLogin off — the default)');
     r = await api(S.base, '/api/auth/mode');
     const mode = await r.json();
     eq('the console is told no login is required', mode.requireLogin, false);
+    eq('...and is not offered a first-run setup it does not need', mode.needsSetup, false);
+
+    // With accounts off there is no such thing as a first account, so the
+    // bootstrap door must not be ajar.
+    r = await api(S.base, '/api/auth/bootstrap', {
+      method: 'POST', body: JSON.stringify({ name: 'sneak', password: 'pw-sneak-12345' }),
+    });
+    ok('bootstrap creates nothing when accounts are off', r.status !== 200, 'HTTP ' + r.status);
 
     // the analyst token keeps full reach, exactly as before accounts existed
     r = await api(S.base, '/api/tickets', withTok('test-analyst-token', {
@@ -86,6 +97,63 @@ section('backwards compatibility (requireLogin off — the default)');
 
     r = await api(S.base, '/api/lake?q=severity:malicious', withTok('test-analyst-token'));
     eq('the analyst token can query the lake', r.status, 200);
+  } finally { S.stop(); }
+}
+
+/* ============ 1b. first-run bootstrap ============ */
+/* Accounts are on by default, so a brand-new server demands a login it has no
+   account for. The bootstrap door exists to break that deadlock — and must
+   slam shut the instant it has been used, or it is a permanent way in. */
+section('first-run bootstrap (the default state of a new server)');
+{
+  const S = await boot();   // no config overrides: this IS the default now
+  try {
+    let r = await api(S.base, '/api/auth/mode');
+    let mode = await r.json();
+    eq('accounts are on by default', mode.requireLogin, true);
+    eq('a fresh server advertises that it needs setting up', mode.needsSetup, true);
+    eq('...and reports having no accounts', mode.accounts, 0);
+
+    // A password the auth layer would reject must not create a half-made
+    // server that can never be bootstrapped again.
+    r = await api(S.base, '/api/auth/bootstrap', {
+      method: 'POST', body: JSON.stringify({ name: 'lead', password: 'short' }),
+    });
+    eq('a weak password is refused', r.status, 400);
+    mode = await (await api(S.base, '/api/auth/mode')).json();
+    eq('...and leaves the server still bootstrappable', mode.needsSetup, true);
+
+    r = await api(S.base, '/api/auth/bootstrap', {
+      method: 'POST', body: JSON.stringify({ name: 'first', password: 'pw-first-12345' }),
+    });
+    eq('the first account is created without a credential', r.status, 200);
+    const first = await r.json();
+    eq('it is a lead, so it can create everyone else', first.user.role, 'lead');
+    ok('and it is signed straight in', !!first.token);
+
+    r = await api(S.base, '/api/state', withTok(first.token));
+    eq('the returned session works immediately', r.status, 200);
+
+    // THE point of the test: the door is now shut.
+    r = await api(S.base, '/api/auth/bootstrap', {
+      method: 'POST', body: JSON.stringify({ name: 'intruder', password: 'pw-intruder-12345' }),
+    });
+    eq('a second bootstrap is refused', r.status, 409);
+
+    mode = await (await api(S.base, '/api/auth/mode')).json();
+    eq('the console stops offering setup', mode.needsSetup, false);
+    eq('...but still asks for a login', mode.requireLogin, true);
+
+    // And the ordinary route still requires the capability.
+    r = await api(S.base, '/api/users', {
+      method: 'POST', body: JSON.stringify({ name: 'x', password: 'pw-x-123456789', role: 'lead' }),
+    });
+    eq('unauthenticated account creation is still refused', r.status, 401);
+
+    r = await api(S.base, '/api/users', withTok(first.token, {
+      method: 'POST', body: JSON.stringify({ name: 'second', password: 'pw-second-12345', role: 'analyst' }),
+    }));
+    eq('the bootstrapped lead can create the next account', r.status, 200);
   } finally { S.stop(); }
 }
 

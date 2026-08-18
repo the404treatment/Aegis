@@ -13,7 +13,7 @@
  *  - and a password change must kill live sessions, or "reset the password"
  *    is security theatre.
  */
-import { Sessions, LoginLimiter, makeUser, findUser, hashPw, verifyPw, publicUser, can, capsFor, canonRole, ROLES } from '../server/auth.mjs';
+import { Sessions, LoginLimiter, makeUser, findUser, hashPw, verifyPw, publicUser, can, capsFor, canonRole, ROLES, MIN_PASSWORD } from '../server/auth.mjs';
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -45,13 +45,19 @@ section('passwords');
 
 section('user creation');
 {
-  ok('rejects a blank name', (() => { try { makeUser('', 'pw', 'lead'); return false; } catch { return true; } })());
+  ok('rejects a blank name', (() => { try { makeUser('', 'correct-horse-battery', 'lead'); return false; } catch { return true; } })());
   ok('rejects a missing password', (() => { try { makeUser('bob', '', 'lead'); return false; } catch { return true; } })());
-  ok('rejects an unknown role', (() => { try { makeUser('bob', 'pw', 'wizard'); return false; } catch { return true; } })());
-  eq('role is canonicalised from mixed case', makeUser('bob', 'pw', 'LEAD').role, 'lead');
+  ok('rejects an unknown role', (() => { try { makeUser('bob', 'correct-horse-battery', 'wizard'); return false; } catch { return true; } })());
+  // The login screen promises a minimum. A direct API call must meet it too,
+  // or the promise is decorative.
+  ok('rejects a password under the minimum',
+    (() => { try { makeUser('bob', 'x'.repeat(MIN_PASSWORD - 1), 'lead'); return false; } catch { return true; } })());
+  ok('accepts a password at exactly the minimum',
+    (() => { try { return !!makeUser('bob', 'x'.repeat(MIN_PASSWORD), 'lead'); } catch { return false; } })());
+  eq('role is canonicalised from mixed case', makeUser('bob', 'correct-horse-battery', 'LEAD').role, 'lead');
   eq('canonRole rejects junk', canonRole('nope'), null);
 
-  const users = [makeUser('Alice', 'pw', 'lead'), makeUser('bob', 'pw', 'analyst')];
+  const users = [makeUser('Alice', 'correct-horse-battery', 'lead'), makeUser('bob', 'correct-horse-battery', 'analyst')];
   ok('lookup is case-insensitive', !!findUser(users, 'ALICE'));
   ok('lookup trims whitespace', !!findUser(users, '  alice  '));
   eq('unknown user is null', findUser(users, 'nobody'), null);

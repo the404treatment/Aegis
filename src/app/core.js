@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  window.addEventListener('touchstart',()=>document.body.classList.add('touch'),{once:true,passive:true});
  if(read('aegis-tips','on')==='off'){document.body.classList.add('no-tips');document.getElementById('tips-toggle').classList.add('off');}
  ['matrix','events','logsrc'].forEach(c=>{if(read('aegis-coach-'+c,'')==='hide')document.getElementById('coach-'+c)?.classList.add('hidden');});
- renderMatrix();renderCats();renderEvents();renderStudio();renderLogSrc();updateBadges();
+ renderMatrix();renderStudio();renderLogSrc();updateBadges();
  document.addEventListener('keydown',e=>{
   const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'');
   if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openPal();return;}
@@ -227,6 +227,6 @@ function go(v,fromHash){
 function setPlat(p){
  plat=p;
  document.querySelectorAll('#plat-seg button').forEach((b,i)=>b.classList.toggle('on',['all','windows','aws'][i]===p));
- renderMatrix();renderCats();renderEvents();updateStats();
+ renderMatrix();updateStats();
 }
-function onSearch(){if(view==='events')renderEvents();if(view==='matrix')renderMatrix();}
+function onSearch(){if(view==='matrix')renderMatrix();}

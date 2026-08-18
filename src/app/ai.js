@@ -504,13 +504,13 @@ function saveNote(){
  const p=document.getElementById('nt-plat').value;const id=document.getElementById('nt-event').value;const txt=document.getElementById('nt-text').value;
  if(!txt.trim())return;
  notes[p+'::'+id]=txt;store('aegis-notes',JSON.stringify(notes));
- document.getElementById('nt-text').value='';renderNotes();updateBadges();renderEvents();toast('Note saved');
+ document.getElementById('nt-text').value='';renderNotes();updateBadges();refreshCards();toast('Note saved');
 }
 function saveCardNote(key){
  const [p,id]=key.split('::');const ta=document.getElementById(`na-${p}-${id}`);if(!ta)return;
  notes[key]=ta.value;store('aegis-notes',JSON.stringify(notes));renderNotes();updateBadges();toast('Note saved');
 }
-function delNote(key){delete notes[key];store('aegis-notes',JSON.stringify(notes));renderNotes();updateBadges();renderEvents();}
+function delNote(key){delete notes[key];store('aegis-notes',JSON.stringify(notes));renderNotes();updateBadges();refreshCards();}
 function renderNotes(){
  if(!document.getElementById('nt-main'))return;
  const host=document.getElementById('nt-main');

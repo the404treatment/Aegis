@@ -28,7 +28,7 @@ async function liveConnect(opts){
  // bare 401 the analyst can't act on.
  if(!LIVE.token){
   const mode=await authMode(LIVE.url);
-  if(mode.requireLogin){openLogin();return;}
+  if(mode.requireLogin){_authNeedsSetup=!!mode.needsSetup;openLogin();return;}
   toast('Set the analyst token first');return;
  }
  try{
@@ -37,7 +37,7 @@ async function liveConnect(opts){
   LIVE.connected=true;LIVE.lastError='';
   liveSave();liveApplyAgents();liveApplyLinks(st.links);liveOpenStream();
   renderLogSrc();renderTickets();renderCases();liveBadge();updateBadges();
-  await authFetchMe();authRenderWho();renderChat();
+  await authFetchMe();authRenderWho();renderChat();renderActivity();activityLoad();
   if(!(opts&&opts.quiet))toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
   LIVE.connected=false;LIVE.lastError=e.message;liveBadge();
@@ -46,7 +46,7 @@ async function liveConnect(opts){
   if(/HTTP 401|unauthorized/i.test(e.message)){
    const mode=await authMode(LIVE.url);
    if(mode.requireLogin){
-    LIVE.token='';liveSave();
+    LIVE.token='';liveSave();_authNeedsSetup=!!mode.needsSetup;
     // On a silent reconnect don't ambush someone with a login box they
     // didn't ask for; the connect button is right there when they want it.
     if(!(opts&&opts.quiet))openLogin('That session has expired. Sign in again.');
@@ -58,7 +58,9 @@ async function liveConnect(opts){
 }
 function liveDisconnect(){
  if(LIVE.es){try{LIVE.es.close()}catch{}LIVE.es=null;}
- LIVE.connected=false;chatOpen=false;liveBadge();authRenderWho();renderChat();renderLogSrc();toast('Disconnected \u2014 back to local mode');
+ LIVE.connected=false;chatOpen=false;activityOpen=false;PRESENCE=[];
+ liveBadge();authRenderWho();renderChat();renderPresence();renderActivity();renderLogSrc();
+ toast('Disconnected \u2014 back to local mode');
 }
 function liveOpenStream(){
  if(LIVE.es){try{LIVE.es.close()}catch{}}
@@ -81,6 +83,7 @@ function liveOpenStream(){
   LIVE.events.push(...evs);if(LIVE.events.length>500)LIVE.events.splice(0,LIVE.events.length-500);
   evs.forEach(liveIngestEvent);
   if(view==='logsrc')renderLogSrc();
+  if(typeof siemLivePing==='function')siemLivePing();
   updateBadges();
   const bad=evs.filter(x=>x.severity==='malicious');
   if(bad.length)toast(`\u26a0 ${bad.length} malicious event${bad.length===1?'':'s'} on ${bad[0].host}`);
@@ -92,15 +95,16 @@ function liveOpenStream(){
   if(i>=0)LIVE.tickets[i]=tk;else LIVE.tickets.push(tk);
   if(view==='tickets')renderTickets();
   if(view==='cases')renderCases();
-  liveBadge();updateBadges();
+  liveBadge();updateBadges();activityPing();
  });
  es.addEventListener('case',e=>{
   csUpsert(JSON.parse(e.data));
   if(view==='cases')csRefresh();
-  updateBadges();
+  updateBadges();activityPing();
  });
  es.addEventListener('chat',e=>chatIngest(JSON.parse(e.data)));
- es.onerror=()=>{LIVE.connected=false;liveBadge();};
+ es.addEventListener('presence',e=>presenceIngest(JSON.parse(e.data)));
+ es.onerror=()=>{LIVE.connected=false;PRESENCE=[];renderPresence();liveBadge();};
  es.onopen=()=>{LIVE.connected=true;liveBadge();};
 }
 /* agents become nodes on the map, laid out in their zone, never duplicated */

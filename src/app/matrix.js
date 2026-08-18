@@ -104,41 +104,10 @@ function refreshDrawerStage(id){
  b.setAttribute('data-tip',on?'Click to remove from the Studio':'Adds this technique + all its detections to the dashboard & report');
 }
 
-/* ================= EVENTS ================= */
-const CATS={all:'All',auth:'Authentication',process:'Process',registry:'Registry',object:'Object Access',privilege:'Privilege',persistence:'Persistence',defense:'Defense Evasion',network:'Network',account:'Accounts',iam:'IAM',credential:'Credentials',discovery:'Discovery',collection:'Collection'};
-function currentEvents(){let evs=ALL();if(plat!=='all')evs=evs.filter(e=>e.plat===plat);return evs;}
-function renderCats(){
- if(!document.getElementById('cat-list'))return;
- const evs=currentEvents();const counts={all:evs.length};
- evs.forEach(e=>counts[e.cat]=(counts[e.cat]||0)+1);
- document.getElementById('cat-list').innerHTML=Object.entries(CATS).filter(([k])=>counts[k]).map(([k,v])=>`
-  <div class="fchip${cat===k?' on':''}" onclick="cat='${k}';renderCats();renderEvents()">${v}<span class="n">${counts[k]||0}</span></div>`).join('');
-}
-function togRisk(r){
- risks.has(r)?risks.delete(r):risks.add(r);
- document.getElementById('rf-hi').classList.toggle('on',risks.has('high'));
- document.getElementById('rf-md').classList.toggle('on',risks.has('med'));
- document.getElementById('rf-lo').classList.toggle('on',risks.has('low'));
- renderEvents();
-}
-function clearEvFilters(){
- if(!document.getElementById('cat-list'))return;
- risks.clear();cat='all';
- const gq=document.getElementById('gq');if(gq)gq.value='';
- ['rf-hi','rf-md','rf-lo'].forEach(id=>document.getElementById(id)?.classList.remove('on'));
- renderCats();renderEvents();toast('Filters cleared');
-}
-function filteredEvents(){
- const q=(document.getElementById('gq').value||'').toLowerCase().trim();
- return currentEvents().filter(e=>{
-  if(cat!=='all'&&e.cat!==cat)return false;
-  if(risks.size&&!risks.has(e.risk))return false;
-  if(!q)return true;
-  return e.id.toLowerCase().includes(q)||e.title.toLowerCase().includes(q)||e.desc.toLowerCase().includes(q)
-   ||e.mitre.some(m=>m.toLowerCase().includes(q)||T(m).name.toLowerCase().includes(q))
-   ||e.fields.some(f=>f[0].toLowerCase().includes(q))||e.iocs.some(i=>i[1].toLowerCase().includes(q));
- });
-}
+/* ================= EVENT CARDS =================
+   These render inside the matrix drawer (the standalone Event Intel view was
+   merged into it — its render/filter shell is gone; jump() below is the
+   surviving entry point). */
 function eventCardHTML(e,ctx){
  const key=e.plat+'::'+e.id;const open=xp.has(key);
  const riskCls=e.risk==='high'?'hi':e.risk==='med'?'md':'lo';
@@ -179,18 +148,11 @@ function eventCardHTML(e,ctx){
    </div>
   </div>`;
 }
-function renderEvents(){
- const host=document.getElementById('ev-list');if(!host)return;
- const evs=filteredEvents();
- if(!evs.length){host.innerHTML='<div class="no-match">Nothing matches these filters.</div>';return;}
- host.innerHTML=evs.map(e=>eventCardHTML(e)).join('');
-}
 function togCard(key){xp.has(key)?xp.delete(key):xp.add(key);refreshCards();}
 function setTab(key,t){tabState[key]=t;refreshCards();}
-/* re-render event cards wherever they currently live (events view or drawer) */
+/* re-render event cards where they live: the matrix drawer */
 function refreshCards(){
- if(document.getElementById('drawer')&&document.getElementById('drawer').classList.contains('open')&&_dwTech){openDrawer(_dwTech,true);return;}
- renderEvents();
+ if(document.getElementById('drawer')&&document.getElementById('drawer').classList.contains('open')&&_dwTech)openDrawer(_dwTech,true);
 }
 function copyText(btn,text){navigator.clipboard.writeText(text).then(()=>{btn.textContent='COPIED';btn.classList.add('ok');setTimeout(()=>{btn.textContent='COPY';btn.classList.remove('ok')},1800);});}
 function jump(p,id){

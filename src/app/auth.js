@@ -25,28 +25,81 @@ async function authFetchMe(){
  return ME;
 }
 
-function openLogin(msg){
+/* Whether this server has no accounts yet, so the form offers to create the
+   first one instead of asking for a password that cannot exist. */
+let _authNeedsSetup=false;
+
+function openLogin(msg,opts){
+ opts=opts||{};
+ const first=!!_authNeedsSetup;
  let v=document.getElementById('auth-veil');
  if(!v){v=document.createElement('div');v.id='auth-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
  v.innerHTML=`<div class="ls-det-sheet" style="width:min(420px,100vw)">
   <div class="ls-ne-grip" onclick="closeLogin()"></div>
-  <div class="ls-det-head">Sign in to AEGIS</div>
-  <div class="ls-det-sub">This server requires an account. Everything offline in AEGIS keeps working without one — sign in for live agent data, tickets and event search.</div>
+  <div class="ls-det-head">${first?'Create the first account':'Sign in to AEGIS'}</div>
+  <div class="ls-det-sub">${first
+    ?'This server has no accounts yet. The first one you create is a <b>lead</b>, so it can add everyone else. Work is recorded against the person who did it — that is what makes the case file worth anything later.'
+    :'Sign in for live agent data, shared tickets, cases and event search. Everything offline in AEGIS keeps working without an account.'}</div>
   ${msg?`<div class="lint err" style="margin-bottom:10px">${esc(msg)}</div>`:''}
   <label class="ls-ne-label">Server URL</label>
-  <input class="ui-dlg-input" id="auth-url" value="${esc(LIVE.url)}" placeholder="https://aegis.internal:8787">
+  <input class="ui-dlg-input" id="auth-url" value="${esc(LIVE.url||location.origin)}" placeholder="https://aegis.internal:8787">
   <label class="ls-ne-label">Name</label>
-  <input class="ui-dlg-input" id="auth-name" autocomplete="username" placeholder="your account name">
+  <input class="ui-dlg-input" id="auth-name" autocomplete="username" value="${esc(opts.name||'')}" placeholder="${first?'your name — colleagues will see it':'your account name'}">
   <label class="ls-ne-label">Password</label>
-  <input class="ui-dlg-input" id="auth-pw" type="password" autocomplete="current-password" placeholder="password"
-    onkeydown="if(event.key==='Enter')doLogin()">
-  <button class="btn violet" style="width:100%;justify-content:center;margin-top:12px" id="auth-go" onclick="doLogin()">Sign in</button>
-  <div class="ls-det-sub" style="margin-top:12px">Have an analyst token instead? <a href="#" onclick="closeLogin();openLiveSetup();return false">Use a token</a>.</div>
+  <input class="ui-dlg-input" id="auth-pw" type="password" autocomplete="${first?'new-password':'current-password'}" placeholder="${first?'at least 10 characters':'password'}"
+    onkeydown="if(event.key==='Enter')${first?'doBootstrap()':'doLogin()'}">
+  <button class="btn violet" style="width:100%;justify-content:center;margin-top:12px" id="auth-go"
+    onclick="${first?'doBootstrap()':'doLogin()'}">${first?'Create account &amp; sign in':'Sign in'}</button>
+  <div class="ls-det-sub" style="margin-top:12px">${first
+    ?'Already have an account on another server? <a href="#" onclick="authSwitchServer();return false">Change the server URL</a> above and try again.'
+    :'Automating something, or locked out? <a href="#" onclick="closeLogin();openLiveSetup();return false">Use an analyst token</a>.'}</div>
  </div>`;
  v.classList.add('open');v.onclick=(e)=>{if(e.target===v)closeLogin();};
  setTimeout(()=>{const n=document.getElementById('auth-name');if(n&&n.focus)n.focus();},60);
 }
 function closeLogin(){const v=document.getElementById('auth-veil');if(v)v.classList.remove('open');}
+
+/** Re-check the URL in the box: it may be a server that already has accounts. */
+async function authSwitchServer(){
+ const url=(document.getElementById('auth-url')||{}).value||'';
+ if(!url.trim())return;
+ const m=await authMode(url.trim());
+ _authNeedsSetup=!!m.needsSetup;
+ LIVE.url=url.trim();
+ openLogin(_authNeedsSetup?'':'That server already has accounts — sign in with yours.');
+}
+
+/** Create the first account on a fresh server, then sign straight in. */
+async function doBootstrap(){
+ const url=(document.getElementById('auth-url')||{}).value||'';
+ const name=(document.getElementById('auth-name')||{}).value||'';
+ const pw=(document.getElementById('auth-pw')||{}).value||'';
+ if(!url.trim()||!name.trim()||!pw){openLogin('Server URL, name and password are all required.',{name});return;}
+ const btn=document.getElementById('auth-go');
+ if(btn){btn.disabled=true;btn.textContent='Creating…';}
+ try{
+  const r=await fetch(url.replace(/\/$/,'')+'/api/auth/bootstrap',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({name:name.trim(),password:pw}),
+  });
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){
+   // 409 means someone else got there first — fall back to the sign-in form.
+   if(r.status===409)_authNeedsSetup=false;
+   openLogin(d.error||('Could not create the account (HTTP '+r.status+')'),{name});
+   return;
+  }
+  LIVE.url=url.trim();LIVE.token=d.token;ME=d.user||null;_authNeedsSetup=false;
+  closeLogin();liveSave();
+  await liveConnect();
+  authRenderWho();
+  toast(`Welcome, ${(ME&&ME.name)||'analyst'} — you're the lead on this server`);
+ }catch(e){
+  openLogin('Could not reach that server: '+e.message,{name});
+ }finally{
+  const b=document.getElementById('auth-go');if(b){b.disabled=false;b.textContent='Create account & sign in';}
+ }
+}
 
 async function doLogin(){
  const url=(document.getElementById('auth-url')||{}).value||'';

@@ -32,14 +32,55 @@ section('audit chain');
 
 section('tamper detection');
 {
-  const log = new AuditLog();
-  log.record('analyst', 'ticket.create', 'tk_1', { title: 'first' });
-  log.record('analyst', 'ticket.comment', 'tk_1', { commentId: 'c_1' });
-  ok('untampered chain verifies', log.verify());
-  log.events[0].data = { title: 'tampered' }; // mutate a stored field in place
-  // AuditLog doesn't store `data` directly (only dataHash), so mutate dataHash instead
+  const mk = () => {
+    const l = new AuditLog();
+    l.record('analyst', 'ticket.create', 'tk_1', { title: 'first' });
+    l.record('analyst', 'ticket.comment', 'tk_1', { commentId: 'c_1' });
+    return l;
+  };
+  ok('untampered chain verifies', mk().verify());
+
+  let log = mk();
   log.events[0].dataHash = 'deadbeef'.repeat(8);
   ok('mutating a chained field breaks verification', !log.verify());
+
+  // The body is stored, so rewriting it must break the chain too — otherwise
+  // "who changed what" would be a freely editable field on a record whose
+  // whole purpose is being unfalsifiable.
+  log = mk();
+  log.events[0].data = { title: 'tampered' };
+  ok('rewriting the stored body breaks verification', !log.verify());
+
+  // ...including deleting it outright, or the way to launder an edit would be
+  // to remove the evidence of what was there.
+  log = mk();
+  log.events[0].data = null;
+  ok('nulling the stored body breaks verification', !log.verify());
+
+  log = mk();
+  log.events[1].actorId = 'someone-else';
+  ok('reassigning an action to another person breaks verification', !log.verify());
+
+  log = mk();
+  log.events.splice(0, 1);
+  ok('deleting an event breaks the chain', !log.verify());
+
+  // A chain written before bodies were stored has no `data` at all and must
+  // still verify on its hashes alone, or upgrading the server would declare
+  // every existing log tampered.
+  log = mk();
+  log.events.forEach(e => { delete e.data; });
+  ok('a legacy chain with no stored bodies still verifies', log.verify());
+}
+
+section('stored bodies');
+{
+  const log = new AuditLog();
+  const e = log.record('sarah', 'ticket.update', 'tk_1', { status: 'closed' });
+  eq('the body is kept, not just hashed away', e.data.status, 'closed');
+  const noData = log.record('sarah', 'auth.login', 'auth', null);
+  eq('a null body round-trips as null', noData.data, null);
+  ok('...and still verifies', log.verify());
 }
 
 section('reload survival');

@@ -123,12 +123,20 @@ export class LoginLimiter {
 }
 
 /* -------------------------------------------------------------------- users */
+/* Length is the only password rule worth having: composition rules ("one
+   number, one symbol") push people towards Passw0rd! and buy nothing. The
+   login screen promises this figure, so it is enforced here rather than in the
+   UI, where a direct API call would walk straight past it. */
+export const MIN_PASSWORD = 10;
+
 export function makeUser(name, password, role) {
   const n = String(name || '').trim();
   if (!n) throw new Error('name required');
   const r = canonRole(role);
   if (!r) throw new Error('role must be one of: ' + ROLES.join(', '));
   if (!password) throw new Error('password required');
+  if (String(password).length < MIN_PASSWORD)
+    throw new Error(`password must be at least ${MIN_PASSWORD} characters`);
   const { salt, hash } = hashPw(password);
   return { id: 'u_' + crypto.randomBytes(6).toString('base64url'), name: n, role: r, salt, hash, createdAt: Date.now() };
 }

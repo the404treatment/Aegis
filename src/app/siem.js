@@ -5,6 +5,17 @@
    when offline rather than pretending to have data. */
 
 let siemQ='', siemRows=[], siemTotal=0, siemTop=null, siemChannels={}, siemBusy=false, siemErr='', siemRan=false;
+let siemLive=false, _siemLiveTimer=null;
+
+function siemLiveToggle(on){siemLive=on;renderSiem();}
+/* Called from the SSE events handler: when live-tail is on and a search is on
+   screen, re-run it. Debounced — an agent batch can be hundreds of events, and
+   one refresh at the end beats two hundred re-renders. */
+function siemLivePing(){
+ if(!siemLive||!siemRan||view!=='siem')return;
+ clearTimeout(_siemLiveTimer);
+ _siemLiveTimer=setTimeout(()=>{if(siemLive&&view==='siem'&&!siemBusy)siemRun(true);},800);
+}
 
 const SIEM_EXAMPLES=[
  ['severity:malicious','only the events the agent flagged as malicious'],
@@ -39,28 +50,49 @@ function renderSiem(){
   </div>`:''}
   ${siemRan?siemResultsHTML():''}`;
 }
+/* Same day → just the time; the full stamp lives in the row's title and the
+   detail sheet. A column of "18/08/2026, 23:32:25" repeated 200 times is noise
+   that pushes the message — the thing you actually scan — off the right edge. */
+function siemTime(ts){
+ const d=new Date(ts);
+ const sameDay=new Date().toDateString()===d.toDateString();
+ return sameDay?d.toLocaleTimeString():d.toLocaleDateString(undefined,{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString();
+}
+function siemEmptyHTML(){
+ // "No matches" means two very different things: a filter that excluded
+ // everything, or a server that has never received an event. Say which.
+ if(!siemQ.trim()&&!siemTotal)return `<div class="ls-det-sub" style="padding:16px 2px">
+   No telemetry on this server yet. Deploy an agent (<code>INSTALL.md</code> — two commands),
+   or seed a demo incident with <code>npm run demo</code> to explore with data.</div>`;
+ return '<div class="ls-det-sub" style="padding:16px 2px">No events match that query.</div>';
+}
 function siemResultsHTML(){
  const top=siemTop||{hosts:[],techniques:[]};
+ const chans=Object.entries(siemChannels||{}).sort((a,b)=>b[1]-a[1]);
  return `
   <div class="sq-sum">
     <span><b>${siemTotal}</b> match${siemTotal===1?'':'es'}${siemRows.length<siemTotal?` · showing ${siemRows.length}`:''}</span>
+    <label class="sq-live${siemLive?' on':''}" data-tip="Re-run this search automatically as new events arrive">
+      <input type="checkbox" ${siemLive?'checked':''} onchange="siemLiveToggle(this.checked)">Live</label>
     ${top.hosts.length?`<span class="sq-facet">Top hosts: ${top.hosts.slice(0,4).map(h=>`<button onclick="siemAdd('host:${esc(h.k)}')">${esc(h.k)} <i>${h.v}</i></button>`).join('')}</span>`:''}
     ${top.techniques.length?`<span class="sq-facet">Techniques: ${top.techniques.slice(0,5).map(t=>`<button onclick="siemAdd('technique:${esc(t.k)}')">${esc(t.k)} <i>${t.v}</i></button>`).join('')}</span>`:''}
+    ${chans.length?`<span class="sq-facet">Channels: ${chans.slice(0,4).map(([k,v])=>`<button onclick="siemAdd('channel:${esc(k.includes(' ')?'&quot;'+k+'&quot;':k)}')">${esc(k.split('/').pop()||k)} <i>${v}</i></button>`).join('')}</span>`:''}
   </div>
   ${siemRows.length?`<div class="sq-rows">${siemRows.map((e,i)=>`
     <div class="sq-row inc-${esc(e.severity||'info')}" onclick="siemOpen(${i})">
-      <span class="sq-t">${new Date(e.ts).toLocaleString()}</span>
+      <span class="sq-t" title="${new Date(e.ts).toLocaleString()}">${siemTime(e.ts)}</span>
       <span class="sq-host">${esc(e.host||'—')}</span>
-      <span class="sq-eid">${esc(e.eventId||'')}</span>
-      ${e.technique?`<span class="sq-tech">${esc(e.technique)}</span>`:''}
+      <span class="sq-eid" title="${esc(e.eventId||'')}">${esc(e.eventId||'—')}</span>
+      <span class="sq-tech">${e.technique?esc(e.technique):''}</span>
       <span class="sq-msg">${highlightIocs(e.message||'')}</span>
     </div>`).join('')}</div>`
-   :'<div class="ls-det-sub" style="padding:16px 2px">No events match that query.</div>'}`;
+   :siemEmptyHTML()}`;
 }
-async function siemRun(){
+async function siemRun(quiet){
  const inp=document.getElementById('sq-q');
  if(inp)siemQ=inp.value;
- siemBusy=true;siemErr='';renderSiem();
+ siemBusy=true;siemErr='';
+ if(quiet!==true)renderSiem();   // live refresh: no spinner flash, keep the page still
  try{
   const r=await liveApi('/api/lake?limit=200&q='+encodeURIComponent(siemQ));
   siemRows=r.events||[];siemTotal=r.total||0;siemTop=r.top||null;siemChannels=r.channels||{};

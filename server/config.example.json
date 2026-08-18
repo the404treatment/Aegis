@@ -8,8 +8,8 @@
   "enrollmentToken": "CHANGE-ME-generate-with-openssl-rand-base64-24",
   "analystToken": "CHANGE-ME-generate-with-openssl-rand-base64-24",
 
-  "//requireLogin": "Optional named accounts. Leave false and the analyst token above is the only credential, exactly as before. Set true to make the console ask for a name and password; the analyst token keeps working as the break-glass and automation credential either way. See deploy/README-deploy.md.",
-  "requireLogin": false,
+  "//requireLogin": "Named accounts, on by default, so every ticket, case and evidence upload is attributable to a person. The first account is created from the login screen on first run - there is nothing to set up here and no way to lock yourself out. The analyst token above keeps working as the break-glass and automation credential either way. Set false for a single-analyst lab where a shared token is enough.",
+  "requireLogin": true,
 
   "//ai": "The AI Analyst tab. The browser never sees this key - it posts to AEGIS and AEGIS calls Anthropic. Prefer setting ANTHROPIC_API_KEY in the environment over writing the key to this file; the env var wins if both are set. Leave apiKey empty and the AI tab reports itself unconfigured instead of failing.",
   "ai": {

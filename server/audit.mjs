@@ -25,7 +25,13 @@ export class AuditLog {
       seq, timestamp: new Date().toISOString(), actorId, action, targetId,
       dataHash: sha256(JSON.stringify(data ?? null)), prevHash,
     };
-    const event = { ...base, hash: AuditLog.digest(base) };
+    // `data` is kept alongside its hash, not just hashed away. Storing only
+    // the hash made the log able to prove that SOMETHING changed while being
+    // unable to say what — so every human-readable view of it had to go to
+    // another source, and a chain that verifies but explains nothing is a
+    // poor record. verify() re-derives dataHash from it, so keeping the body
+    // tightens tamper detection rather than loosening it.
+    const event = { ...base, data: data ?? null, hash: AuditLog.digest(base) };
     this.events.push(event);
     return event;
   }
@@ -41,6 +47,11 @@ export class AuditLog {
     for (const e of this.events) {
       const { hash, ...base } = e;
       if (e.prevHash !== prev || AuditLog.digest(base) !== hash) return false;
+      // Editing the stored body must break verification too, or `data` would
+      // be a freely-rewritable field hanging off a tamper-evident record.
+      // Chains written before bodies were stored have no `data` and are
+      // checked on the hash alone.
+      if (e.data !== undefined && sha256(JSON.stringify(e.data ?? null)) !== e.dataHash) return false;
       prev = hash;
     }
     return true;
