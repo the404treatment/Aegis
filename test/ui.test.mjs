@@ -91,6 +91,7 @@ const EXPORTS = [
   'ingDetect', 'ingParse', 'ingParsePcap', 'ingMapEvents', 'ingCommit',
   'getIngState:()=>ingState', 'setIngState:v=>{ingState=v}',
   'renderSiem', 'go', 'TITLES', 'siemAdvisable', 'updateBadges',
+  'renderCases', 'csTicketSelectHTML', 'csUpsert',
 ].join(',');
 
 /* ------------------------------------------------------------ data integrity */
@@ -483,6 +484,54 @@ section('event search view');
   api.LIVE.events = [{ id: 'e1' }, { id: 'e2' }, { id: 'e3' }];
   api.updateBadges();
   eq('the siem badge counts live events', els['b-siem'].textContent, 3);
+}
+
+/* -------------------------------------------------------------- cases view */
+section('cases view');
+{
+  const { api, els } = boot({}, EXPORTS);
+  ok('cases is a registered view with a title', Array.isArray(api.TITLES.cases) && api.TITLES.cases.length === 2);
+  api.renderCases();
+  const html = els['cs-main'] ? els['cs-main'].innerHTML : '';
+  ok('offline it explains it needs a server', /need a server/i.test(html));
+  ok('offline it offers the connect action', /openLiveSetup/.test(html));
+  ok('offline it renders no case cards', !/cs-card/.test(html));
+
+  // With no cases loaded the ticket sheet must not render a dangling empty
+  // dropdown — the selector only earns its space once cases exist.
+  eq('no case selector on a ticket when there are no cases', api.csTicketSelectHTML({ id: 't1', caseId: '' }), '');
+  api.LIVE.cases = [{ id: 'cs_1', num: 1, title: 'Test case', status: 'open', severity: 'high', createdBy: 'x', createdAt: 1, updatedAt: 1, evidence: [] }];
+  const sel = api.csTicketSelectHTML({ id: 't1', caseId: 'cs_1' });
+  ok('the selector appears once a case exists', /<select/.test(sel));
+  ok('the attached case is preselected', /value="cs_1" selected/.test(sel));
+  ok('detaching is always offered', /not attached/.test(sel));
+
+  api.LIVE.connected = true;
+  api.renderCases();
+  const on = els['cs-main'].innerHTML;
+  ok('connected it lists the case', /Test case/.test(on));
+  ok('connected it offers a new case', /csNew/.test(on));
+
+  api.updateBadges();
+  eq('the cases badge counts open cases', els['b-cases'].textContent, 1);
+  api.LIVE.cases[0].status = 'closed';
+  api.updateBadges();
+  eq('closed cases drop out of the badge', els['b-cases'].textContent, 0);
+
+  // The server answers the POST *and* broadcasts the same record over SSE,
+  // and the broadcast can win the race. A plain push would then show the
+  // case twice, so every local write goes through an idempotent upsert.
+  api.LIVE.cases = [];
+  const rec = { id: 'cs_9', num: 9, title: 'Raced', status: 'open', severity: 'low', evidence: [] };
+  api.csUpsert(rec);
+  api.csUpsert({ ...rec });                       // as if SSE delivered it too
+  eq('upserting the same case twice does not duplicate it', api.LIVE.cases.length, 1);
+  api.csUpsert({ ...rec, title: 'Renamed' });
+  eq('still one after an update', api.LIVE.cases.length, 1);
+  eq('and the newer copy wins', api.LIVE.cases[0].title, 'Renamed');
+  api.csUpsert(null);
+  api.csUpsert({});
+  eq('junk is ignored rather than pushed', api.LIVE.cases.length, 1);
 }
 
 /* ------------------------------------------------------------------ exports */

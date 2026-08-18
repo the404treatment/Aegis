@@ -95,7 +95,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h9"/><circle cx="18" cy="18" r="3"/><path d="m20.5 20.5 2 2"/></svg>
         Event Search<span class="rbadge" id="b-siem">0</span>
       </div>
-      <div class="rlabel">Assist</div>
+      <div class="rlabel">Respond</div>
+      <div class="ritem" id="r-cases" onclick="go('cases')" data-tip="Case files \u2014 group tickets and hashed evidence under one incident, with the write-up. Press 5." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
+        Cases<span class="rbadge" id="b-cases">0</span>
+      </div>
       <div class="ritem" id="r-tickets" onclick="go('tickets')" data-tip="Shared incident tickets \u2014 everyone working the incident sees the same queue. Press 6." data-tip-pos="right">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 5v14"/></svg>
         Tickets<span class="rbadge" id="b-tickets">0</span>
@@ -210,6 +214,9 @@
     <!-- AI -->
     <div class="view" id="v-siem">
       <div class="sq-wrap" id="sq-main"></div>
+    </div>
+    <div class="view" id="v-cases">
+      <div class="cs-wrap" id="cs-main"></div>
     </div>
     <div class="view" id="v-tickets">
       <div class="tk-wrap" id="tk-main"></div>

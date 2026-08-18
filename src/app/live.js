@@ -2,7 +2,7 @@
    Connects to an AEGIS server: agents populate the map, events land as
    observations, and tickets sync in real time over SSE. Fully optional —
    with no server configured the app stays exactly as it was, local-only. */
-let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],events:[],lastError:''};
+let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],cases:[],events:[],lastError:''};
 function liveLoad(){
  try{const c=JSON.parse(read('aegis-live','{}'));LIVE.url=c.url||'';LIVE.token=c.token||'';}catch{}
 }
@@ -24,10 +24,10 @@ async function liveConnect(){
  }
  try{
   const st=await liveApi('/api/state');
-  LIVE.agents=st.agents||[];LIVE.tickets=st.tickets||[];LIVE.events=st.events||[];
+  LIVE.agents=st.agents||[];LIVE.tickets=st.tickets||[];LIVE.cases=st.cases||[];LIVE.events=st.events||[];
   LIVE.connected=true;LIVE.lastError='';
   liveSave();liveApplyAgents();liveApplyLinks(st.links);liveOpenStream();
-  renderLogSrc();renderTickets();liveBadge();updateBadges();
+  renderLogSrc();renderTickets();renderCases();liveBadge();updateBadges();
   await authFetchMe();authRenderWho();
   toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
@@ -76,7 +76,13 @@ function liveOpenStream(){
   const i=LIVE.tickets.findIndex(x=>x.id===tk.id);
   if(i>=0)LIVE.tickets[i]=tk;else LIVE.tickets.push(tk);
   if(curView==='tickets')renderTickets();
-  liveBadge();
+  if(curView==='cases')renderCases();
+  liveBadge();updateBadges();
+ });
+ es.addEventListener('case',e=>{
+  csUpsert(JSON.parse(e.data));
+  if(curView==='cases')csRefresh();
+  updateBadges();
  });
  es.onerror=()=>{LIVE.connected=false;liveBadge();};
  es.onopen=()=>{LIVE.connected=true;liveBadge();};
@@ -252,6 +258,7 @@ async function tkOpen(id){
    <input placeholder="assignee" value="${esc(t.assignee||'')}" onchange="tkPatch('${t.id}',{assignee:this.value})">
   </div>
   ${t.host||t.technique?`<div class="tk-d-tags">${t.host?`<span>\u25a3 ${esc(t.host)}</span>`:''}${t.technique?`<span>${esc(t.technique)}</span>`:''}</div>`:''}
+  ${csTicketSelectHTML(t)}
   ${t.body?`<div class="tk-d-body">${highlightIocs(t.body).replace(/\n/g,'<br>')}</div>`:''}
   <div class="ls-mm-sec">Activity</div>
   ${(t.comments||[]).map(c=>`<div class="tk-c"><span class="tk-c-a">${esc(c.author)}</span><span class="tk-c-t">${new Date(c.at).toLocaleString()}</span><div>${esc(c.text).replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="ls-det-sub">No comments yet.</div>'}

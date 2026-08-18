@@ -22,6 +22,7 @@
     "app/ioc.js",
     "app/ingest.js",
     "app/siem.js",
+    "app/cases.js",
     "app/improvements.js",
     "app/live.js",
     "app/auth.js",

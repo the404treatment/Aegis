@@ -11,6 +11,7 @@
  * only driving the real HTTP surface can.
  */
 import { spawn } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -209,6 +210,91 @@ section('accounts enabled (requireLogin on)');
     eq('an account can be deleted', r.status, 200);
     r = await api(S.base, '/api/state', withTok(lead3.token));
     eq('a deleted account\'s session dies with it', r.status, 401);
+  } finally { S.stop(); }
+}
+
+/* ============ 2b. cases and evidence ============ */
+section('cases and evidence (over HTTP)');
+{
+  const S = await boot({ requireLogin: true });
+  try {
+    const T = withTok('test-analyst-token');
+    await api(S.base, '/api/users', withTok('test-analyst-token', {
+      method: 'POST', body: JSON.stringify({ name: 'ana', password: 'pw-ana-12345', role: 'analyst' }),
+    }));
+    await api(S.base, '/api/users', withTok('test-analyst-token', {
+      method: 'POST', body: JSON.stringify({ name: 'lead', password: 'pw-lead-12345', role: 'lead' }),
+    }));
+    const ana = await (await api(S.base, '/api/auth/login', { method: 'POST', body: JSON.stringify({ name: 'ana', password: 'pw-ana-12345' }) })).json();
+    const lead = await (await api(S.base, '/api/auth/login', { method: 'POST', body: JSON.stringify({ name: 'lead', password: 'pw-lead-12345' }) })).json();
+
+    let r = await api(S.base, '/api/cases', withTok(ana.token, { method: 'POST', body: JSON.stringify({ title: 'Ransomware on FS01' }) }));
+    eq('an analyst can open a case', r.status, 200);
+    const c = await r.json();
+    eq('case attribution comes from the session', c.createdBy, 'ana');
+    eq('a new case starts open', c.status, 'open');
+
+    r = await api(S.base, '/api/cases', withTok(ana.token, { method: 'POST', body: JSON.stringify({}) }));
+    eq('a case with no title is rejected', r.status, 400);
+
+    /* --- ownership, same rule as tickets --- */
+    r = await api(S.base, `/api/cases/${c.id}`, withTok(ana.token, { method: 'PATCH', body: JSON.stringify({ status: 'contained', execSummary: 'wrote it up' }) }));
+    eq('the owner can edit their own case', r.status, 200);
+    eq('the narrative saved', (await r.json()).execSummary, 'wrote it up');
+
+    const leadCase = await (await api(S.base, '/api/cases', withTok(lead.token, { method: 'POST', body: JSON.stringify({ title: 'lead case' }) }))).json();
+    r = await api(S.base, `/api/cases/${leadCase.id}`, withTok(ana.token, { method: 'PATCH', body: JSON.stringify({ status: 'closed' }) }));
+    eq('an analyst CANNOT edit someone else\'s case', r.status, 403);
+    r = await api(S.base, `/api/cases/${c.id}`, withTok(lead.token, { method: 'PATCH', body: JSON.stringify({ status: 'recovered' }) }));
+    eq('a lead CAN edit anyone\'s case', r.status, 200);
+
+    /* --- tickets link to cases with one optional field --- */
+    r = await api(S.base, '/api/tickets', withTok(ana.token, { method: 'POST', body: JSON.stringify({ title: 'in the case', caseId: c.id }) }));
+    const linked = await r.json();
+    eq('a ticket can be created attached to a case', linked.caseId, c.id);
+    const loose = await (await api(S.base, '/api/tickets', withTok(ana.token, { method: 'POST', body: JSON.stringify({ title: 'no case' }) }))).json();
+    eq('a ticket with no case still works exactly as before', loose.caseId, '');
+    r = await api(S.base, `/api/tickets/${loose.id}`, withTok(ana.token, { method: 'PATCH', body: JSON.stringify({ caseId: c.id }) }));
+    eq('an existing ticket can be attached later', (await r.json()).caseId, c.id);
+
+    /* --- evidence round-trip, hash verified against the bytes --- */
+    const bytes = 'evidence file contents';
+    const expected = crypto.createHash('sha256').update(Buffer.from(bytes)).digest('hex');
+    r = await api(S.base, `/api/cases/${c.id}/evidence`, withTok(ana.token, {
+      method: 'POST',
+      body: JSON.stringify({ data: 'data:text/plain;base64,' + Buffer.from(bytes).toString('base64'), name: 'notes.txt', caption: 'collected from the host' }),
+    }));
+    eq('evidence uploads', r.status, 200);
+    const ev = await r.json();
+    eq('the stored hash matches the bytes we sent', ev.sha256, expected);
+    eq('the stored filename is the hash', ev.file, expected + '.txt');
+
+    r = await api(S.base, `/api/evidence/${ev.file}`, withTok(ana.token));
+    eq('evidence can be fetched back', r.status, 200);
+    eq('the bytes round-trip unchanged', await r.text(), bytes);
+    eq('the response refuses content sniffing', r.headers.get('x-content-type-options'), 'nosniff');
+
+    r = await api(S.base, `/api/evidence/${ev.file}`);
+    eq('evidence is NOT readable without a credential', r.status, 401);
+
+    r = await api(S.base, '/api/evidence/..%2F..%2Fconfig.json', withTok(ana.token));
+    ok('a traversal attempt is refused', r.status === 400 || r.status === 404);
+
+    r = await api(S.base, `/api/cases/${c.id}/evidence`, withTok(ana.token, {
+      method: 'POST', body: JSON.stringify({ data: 'data:image/svg+xml;base64,' + Buffer.from('<svg onload=alert(1)/>').toString('base64'), name: 'x.svg' }),
+    }));
+    eq('an SVG is refused (it could run script in our origin)', r.status, 400);
+
+    r = await api(S.base, `/api/cases/nope/evidence`, withTok(ana.token, {
+      method: 'POST', body: JSON.stringify({ data: 'data:text/plain;base64,eA==' }),
+    }));
+    eq('evidence for a missing case is 404', r.status, 404);
+
+    /* --- the hash is written into the tamper-evident chain --- */
+    const cases = await (await api(S.base, '/api/cases', T)).json();
+    const stored = cases.find(x => x.id === c.id);
+    eq('the case carries its evidence', stored.evidence.length, 1);
+    eq('and it is the one we uploaded', stored.evidence[0].sha256, expected);
   } finally { S.stop(); }
 }
 

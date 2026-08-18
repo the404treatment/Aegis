@@ -37,9 +37,22 @@ src/app/studio.js      detection studio, Sigma, savedsearches, RBA
 src/app/map-*.js       zones / nodes / animation / tools / interaction
 src/app/triage.js      artifact triage wizard
 src/app/live.js        server connection + ticketing UI
+src/app/auth.js        login veil, session handling, identity chip
+src/app/cases.js       case files, evidence upload, ticket linking
+src/app/siem.js        event search console
+src/app/ingest.js      Chainsaw / Suricata / Zeek / PCAP parsers + wizard
+src/app/advisor.js     offline response playbooks
+src/app/ioc.js         IOC extraction + highlighting
+src/app/improvements.js bulk import, build-next ranking, SPL lint, scorecard, tuning log
 src/app/dialogs.js     uiConfirm / uiPrompt
 src/app/report.js      report generator
 src/app/ai.js          AI calls, incident context, tour, boot
+
+server/aegis-server.mjs  HTTP API, SSE, agent ingest, static UI
+server/auth.mjs          accounts, sessions, capabilities (opt-in)
+server/cases.mjs         case model + evidence decode/hash
+server/lake.mjs          event-search query language
+server/audit.mjs         hash-chained audit log
 ```
 
 ## Architecture

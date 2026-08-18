@@ -20,10 +20,13 @@ import crypto from 'node:crypto';
 
 /* ------------------------------------------------------------- capabilities */
 export const ROLES = ['analyst', 'lead'];
+const ANALYST_CAPS = [
+  'ticket.create', 'ticket.comment', 'ticket.editOwn', 'lake.query',
+  'case.create', 'case.editOwn', 'evidence.add',
+];
 const CAP = {
-  analyst: ['ticket.create', 'ticket.comment', 'ticket.editOwn', 'lake.query'],
-  lead: ['ticket.create', 'ticket.comment', 'ticket.editOwn', 'lake.query',
-         'ticket.editAny', 'agent.manage', 'user.manage'],
+  analyst: ANALYST_CAPS,
+  lead: [...ANALYST_CAPS, 'ticket.editAny', 'case.editAny', 'agent.manage', 'user.manage'],
 };
 export const capsFor = role => CAP[role] || [];
 export const can = (role, cap) => capsFor(role).includes(cap);

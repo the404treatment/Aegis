@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(e.key==='Escape'){closePal();closeDrawer();closeKeys();endTour();if(document.getElementById('report-veil').classList.contains('open'))closeReport();return;}
   if(typing)return;
   if(e.key==='?'){e.preventDefault();openKeys();return;}
-  const vmap={'1':'matrix','2':'logsrc','3':'studio','4':'siem','5':'ai','6':'tickets'};
+  const vmap={'1':'matrix','2':'logsrc','3':'studio','4':'siem','5':'cases','6':'tickets','7':'ai'};
   if(vmap[e.key])go(vmap[e.key]);
  });
  window.addEventListener('resize',()=>{if(tourStep>=0)placeTour();});
@@ -164,6 +164,7 @@ function updateBadges(){
  document.getElementById('b-studio').textContent=studio.size;
  const bt=document.getElementById('b-tickets');if(bt)bt.textContent=LIVE.tickets.filter(x=>x.status!=='closed').length;
  const bs=document.getElementById('b-siem');if(bs)bs.textContent=LIVE.events.length;
+ const bc=document.getElementById('b-cases');if(bc)bc.textContent=LIVE.cases.filter(c=>c.status!=='closed').length;
  const bn=document.getElementById('b-notes');if(bn)bn.textContent=Object.values(notes).filter(v=>v.trim()).length;
  updateStats();
 }
@@ -189,7 +190,7 @@ function togTips(){
 }
 
 /* ================= NAV ================= */
-const TITLES={matrix:['ATT&CK Coverage Matrix','15 tactics · full ATT&CK surface'],logsrc:['Network Map','Build · hunt · trace attacks live'],studio:['Detection Studio','Kill-chain mapping · dashboards · report'],siem:['Event Search','Field-aware search across live agent telemetry'],ai:['AI Analyst','Claude-powered detection research'],tickets:['Tickets','Shared incident queue']};
+const TITLES={matrix:['ATT&CK Coverage Matrix','15 tactics · full ATT&CK surface'],logsrc:['Network Map','Build · hunt · trace attacks live'],studio:['Detection Studio','Kill-chain mapping · dashboards · report'],siem:['Event Search','Field-aware search across live agent telemetry'],cases:['Cases','Incident files · tickets, evidence, write-up'],ai:['AI Analyst','Claude-powered detection research'],tickets:['Tickets','Shared incident queue']};
 function go(v){
  view=v;
  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
@@ -203,6 +204,7 @@ function go(v){
  if(v==='logsrc')renderLogSrc();
  if(v==='tickets')renderTickets();
  if(v==='siem')renderSiem();
+ if(v==='cases')renderCases();
  const showPlat=(v==='matrix');
  const ps=document.getElementById('plat-seg');if(ps)ps.style.display=showPlat?'':'none';
  const showSearch=(v==='matrix');

@@ -602,6 +602,38 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .ra-item-text{font-size:11.5px;color:var(--t1);line-height:1.5;}
 .ra-cmd{margin:7px 0 0;padding:8px 10px;background:var(--ink2);border:1px solid var(--line2);border-radius:7px;font-family:var(--mono);font-size:10px;color:var(--t2);white-space:pre-wrap;word-break:break-word;}
 .ra-why{margin-top:6px;font-size:10.5px;color:var(--t3);line-height:1.4;}
+/* ---- cases ---- */
+.cs-wrap{flex:1;overflow-y:auto;padding:18px 22px 40px;}
+.cs-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.cs-count{font-size:11px;color:var(--t3);}
+.cs-list{display:flex;flex-direction:column;gap:7px;}
+.cs-card{padding:11px 13px;background:var(--panel);border:1px solid var(--line2);border-left-width:3px;border-radius:var(--r);cursor:pointer;}
+.cs-card:hover{background:var(--hover);border-color:var(--line-hi);}
+.cs-card.sev-critical,.cs-card.sev-high{border-left-color:var(--magenta);}
+.cs-card.sev-medium{border-left-color:var(--amber);}
+.cs-card.sev-low{border-left-color:var(--sky);}
+.cs-card-top{display:flex;align-items:baseline;gap:9px;}
+.cs-num{font-family:var(--mono);font-size:10px;color:var(--t3);}
+.cs-title{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cs-status{font-family:var(--mono);font-size:8.5px;text-transform:uppercase;letter-spacing:.1em;padding:2px 7px;border-radius:20px;background:var(--ink2);color:var(--t2);}
+.cs-status.st-open{color:var(--amber);}
+.cs-status.st-closed{color:var(--t3);}
+.cs-status.st-recovered{color:var(--mint);}
+.cs-card-meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;font-size:10.5px;color:var(--t3);}
+.cs-sev{font-family:var(--mono);font-size:9px;text-transform:uppercase;}
+.cs-sev.sev-critical,.cs-sev.sev-high{color:var(--magenta);}
+.cs-sev.sev-medium{color:var(--amber);}
+.cs-sev.sev-low{color:var(--sky);}
+.cs-by{margin-left:auto;}
+.cs-ev{padding:9px 11px;background:var(--ink2);border:1px solid var(--line2);border-radius:var(--rs);margin-bottom:6px;}
+.cs-ev-top{display:flex;align-items:baseline;gap:10px;}
+.cs-ev-top a{color:var(--violet);font-size:11.5px;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cs-ev-top a:hover{text-decoration:underline;}
+.cs-ev-size{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--t3);white-space:nowrap;}
+.cs-ev-cap{font-size:11px;color:var(--t2);margin-top:4px;}
+.cs-ev-hash{font-family:var(--mono);font-size:8.5px;color:var(--t3);margin-top:5px;word-break:break-all;}
+.cs-ev-by{font-size:10px;color:var(--t3);margin-top:4px;}
+
 /* ---- signed-in identity chip ---- */
 .who-ind{display:none;align-items:center;gap:6px;font-size:10px;padding:3px 9px;border-radius:20px;}
 .who-ind.on,.who-ind.shared{display:inline-flex;}

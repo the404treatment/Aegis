@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { AuditLog } from './audit.mjs';
 import { query as lakeQuery } from './lake.mjs';
 import { Sessions, LoginLimiter, makeUser, findUser, verifyPw, publicUser, can, canonRole, capsFor } from './auth.mjs';
+import { makeCase, patchCase, decodeEvidence, evidenceRecord, safeEvidenceName, EVIDENCE_MAX_BYTES } from './cases.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -71,7 +72,10 @@ const F = {
   audit: path.join(CFG.dataDir, 'audit.ndjson'),
   users: path.join(CFG.dataDir, 'users.json'),
   sessions: path.join(CFG.dataDir, 'sessions.json'),
+  cases: path.join(CFG.dataDir, 'cases.json'),
 };
+const EVIDENCE_DIR = path.join(CFG.dataDir, 'evidence');
+fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
 const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
 const writeJson = (f, v) => {
   const tmp = f + '.tmp';
@@ -81,6 +85,7 @@ const writeJson = (f, v) => {
 
 let AGENTS = readJson(F.agents, {});      // id -> agent record
 let TICKETS = readJson(F.tickets, []);    // newest last
+let CASES = readJson(F.cases, []);        // incident containers, newest last
 let EVENTS = [];                          // in-memory ring for the UI
 
 // hydrate the recent event ring from disk
@@ -91,6 +96,7 @@ try {
 
 const saveAgents = () => writeJson(F.agents, AGENTS);
 const saveTickets = () => writeJson(F.tickets, TICKETS);
+const saveCases = () => writeJson(F.cases, CASES);
 const evStream = fs.createWriteStream(F.events, { flags: 'a' });
 
 // hash-chained, tamper-evident audit log — one global chain, filtered by
@@ -531,6 +537,7 @@ const server = http.createServer(async (req, res) => {
         agents: Object.values(AGENTS).map(publicAgent),
         links: LINKS,
         tickets: TICKETS.slice(-500),
+        cases: CASES.slice(-500),
         events: EVENTS.slice(-500),
         serverTime: now(),
         splunk: { enabled: !!CFG.splunk.enabled, index: CFG.splunk.index },
@@ -601,6 +608,9 @@ const server = http.createServer(async (req, res) => {
         assignee: b.assignee || '',
         host: b.host || '',
         technique: b.technique || '',
+        // The one field tickets gain for the case layer. Optional: a ticket
+        // with no case behaves exactly as it always did.
+        caseId: b.caseId || '',
         // Attribution comes from the authenticated actor, never the request
         // body — with accounts on, "who did this" is now actually verified.
         // The shared analyst token still reports as 'analyst', as before.
@@ -625,7 +635,7 @@ const server = http.createServer(async (req, res) => {
       const own = !actor.shared && t.createdById && t.createdById === actor.id;
       if (denied(res, actor, own ? 'ticket.editOwn' : 'ticket.editAny')) return;
       const b = await readBody(req);
-      for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'host', 'technique']) {
+      for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'host', 'technique', 'caseId']) {
         if (b[k] !== undefined) t[k] = b[k];
       }
       t.updatedAt = now(); saveTickets();
@@ -649,6 +659,86 @@ const server = http.createServer(async (req, res) => {
     if (mA && req.method === 'GET') {
       const events = AUDIT.all().filter(e => e.targetId === mA[1]);
       return json(res, 200, { intact: AUDIT.verify(), events });
+    }
+
+    /* ---------------- cases ---------------- */
+    if (p === '/api/cases' && req.method === 'GET') return json(res, 200, CASES);
+
+    if (p === '/api/cases' && req.method === 'POST') {
+      const actor = actorOf(req, u);
+      if (denied(res, actor, 'case.create')) return;
+      const b = await readBody(req);
+      let c;
+      try { c = makeCase(b, actor, CASES.length + 1); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      CASES.push(c); saveCases();
+      auditRecord(actor.id, 'case.create', c.id, { title: c.title, severity: c.severity });
+      broadcast('case', c);
+      return json(res, 200, c);
+    }
+
+    const mCase = p.match(/^\/api\/cases\/([^/]+)$/);
+    if (mCase && req.method === 'PATCH') {
+      const actor = actorOf(req, u);
+      const c = CASES.find(x => x.id === mCase[1]); if (!c) return json(res, 404, { error: 'no such case' });
+      // Same ownership rule as tickets: your own needs editOwn, anyone
+      // else's needs editAny. Cases created before accounts existed have no
+      // owner id, so they fall to the editAny check.
+      const own = !actor.shared && c.createdById && c.createdById === actor.id;
+      if (denied(res, actor, own ? 'case.editOwn' : 'case.editAny')) return;
+      const b = await readBody(req);
+      const applied = patchCase(c, b);
+      saveCases();
+      auditRecord(actor.id, 'case.update', c.id, applied);
+      broadcast('case', c);
+      return json(res, 200, c);
+    }
+
+    /* Evidence upload. Body limit is raised well past the 4MB default here
+       and only here: base64 inflates bytes by ~33%, so the default would
+       silently reject a ~3MB screenshot. */
+    const mEv = p.match(/^\/api\/cases\/([^/]+)\/evidence$/);
+    if (mEv && req.method === 'POST') {
+      const actor = actorOf(req, u);
+      if (denied(res, actor, 'evidence.add')) return;
+      const c = CASES.find(x => x.id === mEv[1]); if (!c) return json(res, 404, { error: 'no such case' });
+      let b;
+      try { b = await readBody(req, Math.ceil(EVIDENCE_MAX_BYTES * 1.4) + 65536); }
+      catch { return json(res, 413, { error: 'file too large' }); }
+      let decoded;
+      try { decoded = decodeEvidence(b.data); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      const rec = evidenceRecord(decoded, b.caption, b.name, actor);
+      // Content-addressed: the same bytes uploaded twice is one file on disk.
+      try { fs.writeFileSync(path.join(EVIDENCE_DIR, rec.file), decoded.buf); }
+      catch (e) { return json(res, 500, { error: 'could not store evidence: ' + e.message }); }
+      c.evidence = c.evidence || [];
+      c.evidence.push(rec);
+      c.updatedAt = now(); saveCases();
+      // The hash goes in the audit chain, so tampering with a stored file
+      // later is detectable against an entry that cannot be quietly edited.
+      auditRecord(actor.id, 'evidence.add', c.id, { evidenceId: rec.id, sha256: rec.sha256, bytes: rec.bytes, name: rec.name });
+      broadcast('case', c);
+      return json(res, 200, rec);
+    }
+
+    const mEvGet = p.match(/^\/api\/evidence\/([^/]+)$/);
+    if (mEvGet && req.method === 'GET') {
+      const safe = safeEvidenceName(mEvGet[1]);
+      if (!safe) return json(res, 400, { error: 'bad evidence name' });
+      const fp = path.join(EVIDENCE_DIR, safe);
+      if (!fs.existsSync(fp)) return json(res, 404, { error: 'no such evidence' });
+      const rec = CASES.flatMap(c => c.evidence || []).find(e => e.file === safe);
+      res.writeHead(200, {
+        'Content-Type': (rec && rec.mime) || 'application/octet-stream',
+        'Content-Disposition': `inline; filename="${safe}"`,
+        // stored bytes are analyst-supplied; never let the browser sniff or
+        // execute them, and never let them run script in our origin
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Cache-Control': 'private, max-age=3600',
+      });
+      return res.end(fs.readFileSync(fp));
     }
 
     /* ---------------- deployment helper ---------------- */
