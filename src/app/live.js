@@ -20,7 +20,7 @@ async function liveConnect(){
   LIVE.agents=st.agents||[];LIVE.tickets=st.tickets||[];LIVE.events=st.events||[];
   LIVE.connected=true;LIVE.lastError='';
   liveSave();liveApplyAgents();liveApplyLinks(st.links);liveOpenStream();
-  renderLogSrc();renderTickets();liveBadge();
+  renderLogSrc();renderTickets();liveBadge();updateBadges();
   toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
   LIVE.connected=false;LIVE.lastError=e.message;liveBadge();
@@ -52,6 +52,7 @@ function liveOpenStream(){
   LIVE.events.push(...evs);if(LIVE.events.length>500)LIVE.events.splice(0,LIVE.events.length-500);
   evs.forEach(liveIngestEvent);
   if(curView==='logsrc')renderLogSrc();
+  updateBadges();
   const bad=evs.filter(x=>x.severity==='malicious');
   if(bad.length)toast(`\u26a0 ${bad.length} malicious event${bad.length===1?'':'s'} on ${bad[0].host}`);
  });

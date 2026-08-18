@@ -91,8 +91,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
         Detection Studio<span class="rbadge" id="b-studio">0</span>
       </div>
+      <div class="ritem" id="r-siem" onclick="go('siem')" data-tip="Search every event your agents have reported \u2014 field-aware queries across the live telemetry. Press 4." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h9"/><circle cx="18" cy="18" r="3"/><path d="m20.5 20.5 2 2"/></svg>
+        Event Search<span class="rbadge" id="b-siem">0</span>
+      </div>
       <div class="rlabel">Assist</div>
-      <div class="ritem" id="r-tickets" onclick="go('tickets')" data-tip="Shared incident tickets \u2014 everyone working the incident sees the same queue. Press 5." data-tip-pos="right">
+      <div class="ritem" id="r-tickets" onclick="go('tickets')" data-tip="Shared incident tickets \u2014 everyone working the incident sees the same queue. Press 6." data-tip-pos="right">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 5v14"/></svg>
         Tickets<span class="rbadge" id="b-tickets">0</span>
       </div>
@@ -203,6 +207,9 @@
     </div>
 
     <!-- AI -->
+    <div class="view" id="v-siem">
+      <div class="sq-wrap" id="sq-main"></div>
+    </div>
     <div class="view" id="v-tickets">
       <div class="tk-wrap" id="tk-main"></div>
     </div>

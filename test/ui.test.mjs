@@ -90,6 +90,7 @@ const EXPORTS = [
   'extractIocs', 'highlightIocs', 'liveIngestEvent',
   'ingDetect', 'ingParse', 'ingParsePcap', 'ingMapEvents', 'ingCommit',
   'getIngState:()=>ingState', 'setIngState:v=>{ingState=v}',
+  'renderSiem', 'go', 'TITLES', 'siemAdvisable', 'updateBadges',
 ].join(',');
 
 /* ------------------------------------------------------------ data integrity */
@@ -455,6 +456,33 @@ section('ingest — map building and commit');
   ok('the finding is logged as an observation on a host', withObs.length > 0);
   ok('a technique from the finding is staged', api.studio.has('T1071'));
   ok('ingState is cleared after commit', api.getIngState() === null);
+}
+
+/* --------------------------------------------------------------- SIEM view */
+section('event search view');
+{
+  const { api, els } = boot({}, EXPORTS);
+  ok('siem is a registered view with a title', Array.isArray(api.TITLES.siem) && api.TITLES.siem.length === 2);
+  api.renderSiem();
+  const html = els['sq-main'] ? els['sq-main'].innerHTML : '';
+  ok('offline it explains it needs a server', /needs a server/i.test(html));
+  ok('offline it offers the connect action', /openLiveSetup/.test(html));
+  ok('offline it renders no result rows', !/sq-row/.test(html));
+
+  // Agents tag sub-techniques AEGIS tracks only at parent level; the advisor's
+  // most specific playbooks live at exactly those IDs, so the gate must accept
+  // both or the action hides precisely when it is most useful.
+  ok('T1003.001 is not a top-level MITRE key (the reason this gate exists)', !api.MITRE['T1003.001']);
+  ok('a sub-technique tracked at parent level is still advisable', api.siemAdvisable('T1003.001'));
+  ok('a plain tracked technique is advisable', api.siemAdvisable('T1078'));
+  ok('an empty technique is not advisable', !api.siemAdvisable(''));
+  ok('an unknown technique is not advisable', !api.siemAdvisable('T9999'));
+
+  // The event-count badge must reflect live telemetry, not stay at its
+  // initial 0 until some unrelated render happens to refresh it.
+  api.LIVE.events = [{ id: 'e1' }, { id: 'e2' }, { id: 'e3' }];
+  api.updateBadges();
+  eq('the siem badge counts live events', els['b-siem'].textContent, 3);
 }
 
 /* ------------------------------------------------------------------ exports */

@@ -22,6 +22,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { AuditLog } from './audit.mjs';
+import { query as lakeQuery } from './lake.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -438,6 +439,21 @@ const server = http.createServer(async (req, res) => {
       if (host) out = out.filter(e => e.host === host);
       if (sev) out = out.filter(e => e.severity === sev);
       return json(res, 200, out.slice(-500));
+    }
+
+    /* ---------------- event lake (SIEM-style query) ---------------- */
+    if (p === '/api/lake' && req.method === 'GET') {
+      const q = u.searchParams;
+      return json(res, 200, lakeQuery(EVENTS, {
+        q: q.get('q') || '',
+        channel: q.get('channel') || '',
+        severity: q.get('severity') || '',
+        host: q.get('host') || '',
+        from: q.get('from') || '',
+        to: q.get('to') || '',
+        limit: q.get('limit'),
+        offset: q.get('offset'),
+      }));
     }
 
     /* ---------------- ticketing ---------------- */

@@ -21,6 +21,7 @@
     "app/advisor.js",
     "app/ioc.js",
     "app/ingest.js",
+    "app/siem.js",
     "app/improvements.js",
     "app/live.js",
     "app/dialogs.js",
