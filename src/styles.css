@@ -457,6 +457,7 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .ls-ne-obs-sev.inc-suspicious{background:var(--amber-bg);color:var(--amber);}
 .ls-ne-obs-sev.inc-malicious{background:var(--magenta-bg);color:var(--magenta);}
 .ls-ne-obs-ev{font-family:var(--mono);font-size:9px;color:var(--violet);}
+.ls-ne-obs-tech{font-family:var(--mono);font-size:9px;color:var(--sky);}
 .ls-ne-obs-x{margin-left:auto;background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px;line-height:1;}
 .ls-ne-obs-x:hover{color:var(--magenta);}
 .ls-ne-obs-name{font-size:10px;color:var(--t2);margin-top:3px;}

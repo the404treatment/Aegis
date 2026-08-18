@@ -362,6 +362,7 @@ const server = http.createServer(async (req, res) => {
           severity: ['info', 'suspicious', 'malicious'].includes(raw.severity) ? raw.severity : 'info',
           message: String(raw.message || '').slice(0, 4000),
           fields: (raw.fields && typeof raw.fields === 'object') ? raw.fields : {},
+          technique: String(raw.technique || '').slice(0, 16),
         };
         accepted.push(ev);
         EVENTS.push(ev);

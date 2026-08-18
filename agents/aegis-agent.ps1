@@ -163,12 +163,64 @@ $EventFilter = @{
   )
   'Microsoft-Windows-Sysmon/Operational' = @(1, 3, 6, 7, 8, 10, 11, 12, 13, 15, 17, 18, 22, 23, 25)
   'Microsoft-Windows-PowerShell/Operational' = @(4103, 4104)
-  'System' = @(7045, 7031, 7034, 1074, 6008)
+  'System' = @(7045, 7031, 7034, 1074, 6008, 104)
+  'Microsoft-Windows-Windows Defender/Operational' = @(1116, 1117, 5001, 5010, 5012)
 }
 
 # IDs that are interesting enough to flag rather than file as info
-$SuspiciousIds = @(1102, 4719, 4697, 7045, 4728, 4732, 4756, 4672, 4964, 25)
+$SuspiciousIds = @(1102, 4719, 4697, 7045, 4728, 4732, 4756, 4672, 4964, 25, 104, 1116, 1117, 5001, 5010, 5012)
 $MaliciousHints = @('mimikatz', 'lsass', 'procdump', '-enc ', 'FromBase64String', 'DownloadString', 'IEX ', 'vssadmin delete', 'bcdedit', 'wevtutil cl')
+
+# suspicious command-line / dropped-file-path patterns, used both for severity
+# and for tagging a live ATT&CK technique on 4688 / Sysmon EID 1 (ported from
+# Skyhawk's EV_SUSP_CMD / EV_SUSP_PATH)
+$SuspiciousCmdlineRe = '-enc(odedcommand)?\b|frombase64string|downloadstring|iex\b|invoke-expression|-nop\b|-windowstyle\s+hidden|-noni\b|certutil.*(-urlcache|-decode)|bitsadmin|mshta|regsvr32.*http|rundll32.*(javascript|http)|nc\.exe|invoke-webrequest.*-outfile'
+$SuspiciousPathRe = '\\temp\\|\\appdata\\|\\programdata\\|\\windows\\temp\\|\\users\\public\\|\\\$recycle'
+
+# Event-ID -> ATT&CK technique. Reuses the exact mitre[0] values already
+# curated in src/data/win-events.js for IDs AEGIS's own matrix maps (4624,
+# 4625, 4688, 4698, 4720, 4732, 7045, 1102) rather than a second, potentially
+# divergent table; IDs outside AEGIS's curated matrix (Sysmon 10, PowerShell
+# 4104, System 104, Defender events, 4728/4756) use Skyhawk's own mapping
+# since there's no AEGIS value to reuse.
+function Get-EventTechnique {
+  param([string]$Channel, [string]$Id, [hashtable]$Fields)
+  $cmd = $Fields['CommandLine']
+  switch ($Channel) {
+    'Security' {
+      switch ($Id) {
+        '4624' { return 'T1078' }
+        '4625' { return 'T1110' }
+        '4688' {
+          if ($cmd -and ($cmd -imatch $SuspiciousCmdlineRe)) { return 'T1059' }
+          if ($cmd -and ($cmd -imatch $SuspiciousPathRe)) { return 'T1036' }
+          return ''
+        }
+        '4698' { return 'T1053' }
+        '4720' { return 'T1136' }
+        { $_ -in '4728', '4732', '4756' } { return 'T1098' }
+        '1102' { return 'T1070' }
+      }
+    }
+    'System' { if ($Id -eq '104') { return 'T1070.001' } }
+    'Microsoft-Windows-Sysmon/Operational' {
+      switch ($Id) {
+        '1' {
+          if ($cmd -and ($cmd -imatch $SuspiciousCmdlineRe)) { return 'T1059' }
+          if ($cmd -and ($cmd -imatch $SuspiciousPathRe)) { return 'T1036' }
+          return ''
+        }
+        '10' { if ($Fields['TargetImage'] -and ($Fields['TargetImage'] -imatch 'lsass\.exe')) { return 'T1003.001' } }
+      }
+    }
+    'Microsoft-Windows-PowerShell/Operational' { if ($Id -eq '4104') { return 'T1059.001' } }
+    'Microsoft-Windows-Windows Defender/Operational' {
+      if ($Id -in '1116', '1117') { return 'T1204' }
+      if ($Id -in '5001', '5010', '5012') { return 'T1562.001' }
+    }
+  }
+  return ''
+}
 
 function Get-NewEvents {
   param([datetime]$Since)
@@ -197,18 +249,19 @@ function Get-NewEvents {
         foreach ($d in $x.Event.EventData.Data) {
           if ($d.Name -in 'SubjectUserName','TargetUserName','NewProcessName','Image','CommandLine',
                           'ParentImage','IpAddress','LogonType','ServiceName','ImagePath','TargetFilename',
-                          'DestinationIp','DestinationPort','ObjectName') {
+                          'DestinationIp','DestinationPort','ObjectName','TargetImage') {
             if ($d.'#text') { $fields[$d.Name] = ([string]$d.'#text').Substring(0, [Math]::Min(512, ([string]$d.'#text').Length)) }
           }
         }
       } catch { }
       [void]$out.Add(@{
-        ts       = [long]([DateTimeOffset]$r.TimeCreated).ToUnixTimeMilliseconds()
-        channel  = $channel
-        eventId  = [string]$r.Id
-        severity = $sev
-        message  = $msg.Substring(0, [Math]::Min(1000, $msg.Length))
-        fields   = $fields
+        ts        = [long]([DateTimeOffset]$r.TimeCreated).ToUnixTimeMilliseconds()
+        channel   = $channel
+        eventId   = [string]$r.Id
+        severity  = $sev
+        message   = $msg.Substring(0, [Math]::Min(1000, $msg.Length))
+        fields    = $fields
+        technique = (Get-EventTechnique -Channel $channel -Id ([string]$r.Id) -Fields $fields)
       })
     }
   }

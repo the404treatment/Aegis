@@ -87,7 +87,7 @@ const EXPORTS = [
   'lsZoneRect', 'lsRunImport', 'openArtifactTriage', 'artPick', 'getArt:()=>artState',
   'parseTriage', 'lsTakeSnapshot', 'getSnaps:()=>lsSnaps', 'setPending:v=>{lsPendingChain=v}',
   'getPending:()=>lsPendingChain', 'buildAdvisory', 'adviseTechnique', 'adviseNode',
-  'extractIocs', 'highlightIocs',
+  'extractIocs', 'highlightIocs', 'liveIngestEvent',
 ].join(',');
 
 /* ------------------------------------------------------------ data integrity */
@@ -295,6 +295,9 @@ section('live mode');
   eq('discovered link drawn', api.getEdges().filter(e => e.discovered).length, 1);
   api.liveApplyLinks([{ a: 'ag1', b: 'ag2', port: 445 }]);
   eq('re-applying links does not duplicate', api.getEdges().filter(e => e.discovered).length, 1);
+
+  api.liveIngestEvent({ id: 'ev1', agentId: 'ag1', host: '', eventId: '9999', severity: 'suspicious', message: 'test', ts: Date.now(), technique: 'T1059' });
+  eq('live-ingested technique tag reaches the node observation', a.obs[0].tech, 'T1059');
 }
 
 /* ------------------------------------------------------------- response advisor */

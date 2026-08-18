@@ -49,7 +49,7 @@ function renderNodeEditor(n,t){
    <div class="ls-ne-obs-head">Observed on this host <span>${obs.length?obs.length:''}</span></div>
    ${lsPendingStage?`<div class="ls-ne-stageoffer">Detected <b>${lsPendingStage.tid} ${esc(lsPendingStage.name)}</b> — stage it in the Studio?<div class="ls-ne-stageoffer-btns"><button class="btn mint" onclick="lsAcceptStage()">Stage it</button><button class="btn" onclick="lsDismissStage()">Not now</button></div></div>`:''}
    ${obs.length?`<div class="ls-ne-obs-list">${obs.map(o=>{const ev=LOGSRC.find(e=>e.id===o.evId);return`<div class="ls-ne-obs inc-${o.sev}">
-      <div class="ls-ne-obs-top"><span class="ls-ne-obs-sev inc-${o.sev}">${SEV_META[o.sev].label}</span>${o.evId?`<span class="ls-ne-obs-ev">${o.evId}</span>`:''}<button class="ls-ne-obs-x" onclick="lsDelObs('${n.uid}','${o.id}')">×</button></div>
+      <div class="ls-ne-obs-top"><span class="ls-ne-obs-sev inc-${o.sev}">${SEV_META[o.sev].label}</span>${o.evId?`<span class="ls-ne-obs-ev">${o.evId}</span>`:''}${o.tech?`<span class="ls-ne-obs-tech">${esc(o.tech)}</span>`:''}<button class="ls-ne-obs-x" onclick="lsDelObs('${n.uid}','${o.id}')">×</button></div>
       ${ev?`<div class="ls-ne-obs-name">${ev.name}</div>`:''}
       ${o.note?`<div class="ls-ne-obs-note">${highlightIocs(o.note)}</div>`:''}
    </div>`;}).join('')}</div>`:`<div class="ls-ne-obs-empty">Nothing logged yet. Tag what you're seeing on this host below.</div>`}

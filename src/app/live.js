@@ -92,7 +92,7 @@ function liveIngestEvent(ev){
  const known=LOGSRC.some(e=>e.id===ev.eventId);
  n.obs.push({id:'o'+Date.now()+Math.floor(Math.random()*99),liveId:ev.id,
    evId:known?ev.eventId:'',note:(known?'':ev.eventId+' \u2014 ')+(ev.message||''),
-   sev:ev.severity,t:ev.ts||Date.now()});
+   sev:ev.severity,t:ev.ts||Date.now(),tech:ev.technique||''});
  if(n.obs.length>200)n.obs.splice(0,n.obs.length-200);
 }
 function liveBadge(){
