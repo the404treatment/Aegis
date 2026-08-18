@@ -1,0 +1,18 @@
+{
+  "name": "aegis",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SOC detection-engineering console with agent ingest platform",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "start": "node server/aegis-server.mjs --config ./server/config.json",
+    "serve": "npm run build && npm run start",
+    "test": "npm run build && node test/ui.test.mjs",
+    "test:ui": "node test/ui.test.mjs",
+    "lint:agent": "python3 -m py_compile agents/aegis-agent.py && echo 'python agent OK'",
+    "clean": "rm -rf ui/index.html server/data"
+  }
+}

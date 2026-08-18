@@ -1,0 +1,11 @@
+services:
+  aegis:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    ports: ["127.0.0.1:8787:8787"]   # bind localhost only; put TLS in front
+    volumes:
+      - ./data:/app/server/data
+      - ./config.json:/app/server/config.json:ro
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]

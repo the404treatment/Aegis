@@ -1,0 +1,19 @@
+{
+  "host": "127.0.0.1",
+  "port": 8787,
+  "dataDir": "./data",
+  "uiDir": "../ui",
+  "staleAfter": 180,
+
+  "enrollmentToken": "CHANGE-ME-generate-with-openssl-rand-base64-24",
+  "analystToken": "CHANGE-ME-generate-with-openssl-rand-base64-24",
+
+  "splunk": {
+    "enabled": false,
+    "url": "https://127.0.0.1:8088/services/collector/event",
+    "token": "your-HEC-token-here",
+    "index": "aegis",
+    "sourcetype": "aegis:agent",
+    "verifyTls": true
+  }
+}

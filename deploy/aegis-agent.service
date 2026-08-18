@@ -1,0 +1,8 @@
+[Unit]
+Description=AEGIS Agent
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/aegis-agent.py --server https://aegis.internal:8787 --once
+User=root

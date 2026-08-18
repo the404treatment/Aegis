@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AEGIS · Detection Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*{{STYLES}}*/
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<div class="peek" id="peek"></div>
+
+<!-- REPORT -->
+<div id="report-veil">
+  <div class="rp-actions">
+    <button class="btn mint" onclick="openReport()" data-tip="Rebuild the report from the current staged techniques and live network map — use during an active hunt as things change" data-tip-pos="bottom">↻ Refresh</button>
+    <button class="btn violet" onclick="printReport()" data-tip="Opens the system print dialog — choose 'Save as PDF' for a shareable document" data-tip-pos="bottom">Print / Save PDF</button>
+    <button class="btn ghost-violet" onclick="downloadReport()" data-tip="Standalone HTML file you can email or archive" data-tip-pos="bottom">Download HTML</button>
+    <button class="btn" onclick="closeReport()">Close ✕</button>
+  </div>
+  <div class="report" id="report"></div>
+</div>
+
+<!-- TOUR -->
+<div class="tour-veil" id="tour-veil">
+  <div class="tour-hole" id="tour-hole"></div>
+  <div class="tour-card" id="tour-card"></div>
+</div>
+
+<!-- SHORTCUTS -->
+<div class="keys-veil" id="keys-veil" onclick="if(event.target===this)closeKeys()">
+  <div class="keys">
+    <h3>Keyboard shortcuts</h3>
+    <p>Everything reachable without the mouse.</p>
+    <div class="krow"><span>Jump to anything</span><div class="ks"><kbd>⌘</kbd><kbd>K</kbd></div></div>
+    <div class="krow"><span>Switch views</span><div class="ks"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><kbd>5</kbd></div></div>
+    <div class="krow"><span>Send AI message</span><div class="ks"><kbd>⌘</kbd><kbd>↵</kbd></div></div>
+    <div class="krow"><span>Close drawer / modal</span><div class="ks"><kbd>esc</kbd></div></div>
+    <div class="krow"><span>This panel</span><div class="ks"><kbd>?</kbd></div></div>
+    <div class="krow"><span>Restart the guided tour</span><div class="ks" style="font-family:var(--mono);font-size:9px;color:var(--t3)">bottom-left</div></div>
+  </div>
+</div>
+
+<!-- PALETTE -->
+<div class="pal-veil" id="pal-veil" onclick="if(event.target===this)closePal()">
+  <div class="pal">
+    <div class="pal-in">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--t3)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="pal-input" placeholder="Jump to event, technique, or category…" oninput="renderPal()" onkeydown="palKey(event)">
+    </div>
+    <div class="pal-res" id="pal-res"></div>
+    <div class="pal-foot">
+      <span class="pal-k"><kbd>↵</kbd> open</span>
+      <span class="pal-k"><kbd>esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER -->
+<div class="drawer-veil" id="dw-veil" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="dw-head" id="dw-head"></div>
+  <div class="dw-body" id="dw-body"></div>
+</div>
+
+<div class="shell">
+  <nav class="rail">
+    <div class="brand">
+      <div class="brand-word">AEG<em>IS</em></div>
+      <div class="brand-tag">Detection Intelligence</div>
+    </div>
+    <div class="rail-nav">
+      <div class="rlabel">Operate</div>
+      <div class="ritem on" id="r-matrix" onclick="go('matrix')" data-tip="All 14 enterprise tactics, every technique colored by your telemetry coverage. Press 1." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        ATT&amp;CK Matrix<span class="rbadge" id="b-matrix">—</span>
+      </div>
+      <div class="ritem" id="r-logsrc" onclick="go('logsrc')" data-tip="Live network map — build your environment, log observations during a hunt, and watch the AI trace the attack across it. Press 3." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M12 12v4"/></svg>
+        Network Map<span class="rbadge" id="b-logsrc">—</span>
+      </div>
+      <div class="ritem" id="r-studio" onclick="go('studio')" data-tip="Staged techniques mapped on the kill chain, compiled into dashboards and a full setup report. Press 4." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+        Detection Studio<span class="rbadge" id="b-studio">0</span>
+      </div>
+      <div class="rlabel">Assist</div>
+      <div class="ritem" id="r-tickets" onclick="go('tickets')" data-tip="Shared incident tickets \u2014 everyone working the incident sees the same queue. Press 5." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 5v14"/></svg>
+        Tickets<span class="rbadge" id="b-tickets">0</span>
+      </div>
+      <div class="ritem" id="r-ai" onclick="go('ai')" data-tip="Claude-powered detection research that knows your SPL conventions. Press 5." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        AI Analyst<span class="rbadge hot">AI</span>
+      </div>
+    </div>
+    <div class="rail-foot">
+      <div class="ritem" onclick="openPal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Jump to…<span class="rkey">⌘K</span>
+      </div>
+      <div class="ritem" onclick="startTour()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Guided tour<span class="rkey">?</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="stage">
+    <div class="bar">
+      <span class="bar-title" id="bar-title">ATT&amp;CK Coverage Matrix</span>
+      <span class="saved-ind" id="saved-ind" data-tip="Everything is stored in your browser and survives a refresh">✓ saved</span>
+      <span class="live-ind" id="live-ind" onclick="openLiveSetup()" data-tip="Connect to an AEGIS server for live agent data and shared ticketing"></span>
+      <span class="bar-sub" id="bar-sub">15 tactics · full ATT&CK surface</span>
+      <div class="gsearch" id="gsearch-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="gq" placeholder="Filter current view…" oninput="onSearch()">
+      </div>
+      <div class="plat-seg" id="plat-seg">
+        <button class="on" onclick="setPlat('all')">ALL</button>
+        <button onclick="setPlat('windows')">WIN</button>
+        <button onclick="setPlat('aws')">AWS</button>
+      </div>
+      <button class="tips-toggle" id="tips-toggle" onclick="togTips()" data-tip="Toggle hover guides on / off" data-tip-pos="bottom">💡</button>
+      <div class="case-menu">
+        <button class="tips-toggle" onclick="document.getElementById('case-pop').classList.toggle('open')" data-tip="Save or load a full case (map, observations, coverage)" data-tip-pos="bottom">🗂</button>
+        <div class="case-pop" id="case-pop">
+          <button onclick="exportCase();document.getElementById('case-pop').classList.remove('open')">↓ Export case (.json)</button>
+          <button onclick="document.getElementById('case-file').click();document.getElementById('case-pop').classList.remove('open')">↑ Import case</button>
+          <button onclick="newCase();document.getElementById('case-pop').classList.remove('open')">✦ New case</button>
+          <input type="file" id="case-file" accept="application/json,.json" style="display:none" onchange="importCaseFile(this)">
+        </div>
+      </div>
+    </div>
+
+    <!-- MATRIX -->
+    <div class="view on" id="v-matrix">
+      <div class="coach" id="coach-matrix">
+        <span class="coach-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+        <span><b>Click any technique to stage it</b> (click again to remove) — stage as many as you like, then open Detection Studio to compile a dashboard and report. The <b>ⓘ</b> button opens its full strategy; hover for a quick preview.</span>
+        <button class="coach-x" onclick="dismissCoach('matrix')" data-tip="Hide this hint">×</button>
+      </div>
+      <div class="mx-head">
+        <div class="mx-titlerow">
+          <div class="mx-stats">
+            <div class="stat-pill" data-tip="Techniques in the matrix, and how many carry a written AEGIS detection strategy" data-tip-pos="bottom"><span class="k">Techniques</span><span class="v" id="ms-tech">—</span></div>
+            <div class="stat-pill" data-tip="Techniques with at least one mapped detection, on the current platform scope" data-tip-pos="bottom"><span class="k">Covered</span><span class="v" id="ms-cov">—</span></div>
+            <div class="stat-pill" data-tip="Techniques currently staged. Click to open Detection Studio." data-tip-pos="bottom" onclick="go('studio')" style="cursor:pointer"><span class="k">Staged →</span><span class="v" id="ms-staged">—</span></div>
+          </div>
+        </div>
+        <div class="mx-legend">
+          <span class="lg" data-tip="Strong coverage — three or more detections map here"><i style="background:var(--violet)"></i>3+ events</span>
+          <span class="lg" data-tip="Moderate coverage"><i style="background:var(--violet-dim)"></i>2 events</span>
+          <span class="lg" data-tip="Thin coverage — one mapped detection"><i style="background:rgba(139,123,255,.22)"></i>1 event</span>
+          <span class="lg" data-tip="No mapped telemetry yet — strategy & mitigations only. Gaps are called out in the generated report."><i style="background:var(--raised);border:1px solid var(--line2)"></i>gap</span>
+        </div>
+        <div class="mx-bulk">
+          <span class="mx-bulk-label">Quick stage</span>
+          <button class="chip-btn solid" onclick="stageAllHighRisk()" data-tip="Stage every technique that has 2+ mapped detections — a fast full-coverage baseline">All high-coverage</button>
+          <button class="chip-btn" onclick="stageScenario('ransomware')" data-tip="Stage a ready-made ransomware intrusion chain: access → persistence → credential theft → lateral movement → impact">Ransomware chain</button>
+          <button class="chip-btn" onclick="stageScenario('cloud')" data-tip="Stage a cloud account-takeover chain: console login → role abuse → IAM persistence → secret theft → S3 exfil">Cloud takeover</button>
+          <button class="chip-btn" onclick="stageScenario('insider')" data-tip="Stage an insider / data-theft chain: valid accounts → discovery → collection → exfiltration">Insider data theft</button>
+          <button class="chip-btn" id="clear-chip" onclick="clearStudio()" data-tip="Remove everything from the studio" style="margin-left:auto">Clear all</button>
+        </div>
+      </div>
+      <div class="mx-scroll"><div class="matrix" id="matrix"></div></div>
+    </div>
+
+    <!-- EVENTS -->
+    <!-- LOG SOURCES -->
+    <div class="view" id="v-logsrc">
+      <div class="coach" id="coach-logsrc" style="margin-top:14px;">
+        <span class="coach-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+        <span>This is your live <b>network map</b>. Drag in the hosts and infrastructure you have, click any node to log what you're seeing during a hunt, then hit <b>Analyse &amp; trace</b> to watch the AI reconstruct the attack across your network. <b>Build event-ID plan</b> turns the map into a tailored collection checklist.</span>
+        <button class="coach-x" onclick="dismissCoach('logsrc')">×</button>
+      </div>
+      <div class="ls-main" id="ls-main"></div>
+    </div>
+
+    <!-- STUDIO -->
+    <div class="view" id="v-studio">
+      <div class="st-wrap">
+        <aside class="st-side">
+          <div class="st-side-head">
+            <h2>Staged Techniques</h2>
+            <p>Ordered by kill-chain stage. Compile them into a dashboard or a full setup report.</p>
+          </div>
+          <div class="st-basket" id="st-basket"></div>
+          <div class="st-side-foot">
+            <button class="btn ghost-violet" style="justify-content:center;" onclick="stageAllHighRisk()" data-tip="One click stages every technique with 2+ mapped detections — the fastest route to a full coverage dashboard">+ Stage all high-coverage</button>
+            <button class="btn" style="justify-content:center;" onclick="clearStudio()" data-tip="Empty the basket">Clear all</button>
+          </div>
+        </aside>
+        <div class="st-main" id="st-main"></div>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div class="view" id="v-tickets">
+      <div class="tk-wrap" id="tk-main"></div>
+    </div>
+    <div class="view" id="v-ai">
+      <div class="ai-wrap">
+        <aside class="ai-side">
+          <div class="ai-side-head"><h2>AI Analyst</h2><p>Works from your context — the staged mapping and the live hunt map — or answers any detection question.</p></div>
+          <div class="qp-scroll">
+            <div class="side-t" style="padding:4px 4px 8px;">Active hunt</div>
+            <button class="qp qp-primary" onclick="analyzeIncident()" data-tip="Correlate every observation across your hunt map into a likely attack chain, patient zero, and next steps"><b>◎</b><span>Analyse my hunt map<br><span style="color:var(--t3);font-size:9px">Correlate observations → attack chain → next steps</span></span></button>
+            <button class="qp" onclick="go('logsrc')" data-tip="Open the network map to log what you're seeing on each host"><b>⌖</b>Open the hunt map</button>
+            <button class="qp" onclick="aiProposeMap()" data-tip="Describe your environment in a sentence and the AI lays out a starter network map"><b>⧉</b>Propose a map from a description</button>
+            <div class="side-t" style="padding:14px 4px 8px;">Your staged mapping</div>
+            <button class="qp" onclick="analyzeMapping()" data-tip="Side-by-side review of your staged techniques: coverage gaps, correlation opportunities, tuning advice"><b>▤</b>Review my staged coverage</button>
+            <button class="qp" onclick="suggestNextTechniques()" data-tip="Given what you've staged, what should you add next to close the most important gaps?"><b>+</b>What should I add next?</button>
+            <button class="qp" onclick="buildCorrelations()" data-tip="Turn your staged single-event detections into higher-fidelity multi-event correlation searches"><b>⇄</b>Build correlation searches</button>
+            <button class="qp" onclick="adviseRBA()" data-tip="How to tune the risk scores and threshold for the risk-based alerting package"><b>⚡</b>Tune my risk-based alerting</button>
+            <div class="side-t" style="padding:14px 4px 8px;">Detection engineering</div>
+            <button class="qp" onclick="aiTuner()" data-tip="Paste a noisy alert's sample rows → get the exact suppression lookup"><b>▼</b>Tune a noisy alert</button>
+            <button class="qp" onclick="aiFPExplain()" data-tip="Paste one event → benign vs malicious reasoning you can save as a note on the event"><b>?</b>Explain a false positive</button>
+            <button class="qp" onclick="aiGapDetection()" data-tip="Draft detections for your staged techniques that have no native telemetry"><b>◇</b>Fill my coverage gaps</button>
+            <div class="side-t" style="padding:14px 4px 8px;">Reference</div>
+            <button class="qp" onclick="quickAsk('Show me the exact Splunk join between 4624 and 4688 using Logon_ID fields to attribute process execution to a remote logon session, including the field name gotchas (Target_Logon_ID vs Subject_Logon_ID).')"><b>CORR</b>4624 → 4688 session join</button>
+            <button class="qp" onclick="quickAsk('I want entropy-based detection of random-named binaries in 4688 using ut_shannon_lookup. Show the SPL including the tonumber() conversion on the shannon field, and a sensible threshold.')"><b>ML</b>Entropy w/ Shannon</button>
+          </div>
+        </aside>
+        <div class="ai-main">
+          <div class="chat" id="chat">
+            <div class="chat-hello" id="chat-hello">
+              <div class="hello-orb">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+              </div>
+              <h3>Detection engineering copilot</h3>
+              <p>The AI works from your context. During a hunt, use <b>Analyse my hunt map</b> to correlate observations into an attack chain. For engineering, <b>Tune a noisy alert</b>, <b>Explain a false positive</b>, or <b>Fill my coverage gaps</b> — or ask any detection question directly below.</p>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="comp-row">
+              <textarea class="comp-in" id="comp-in" rows="1" placeholder="Ask about a technique, request a detection, or describe a scenario…" onkeydown="compKey(event)" oninput="growComp(this)"></textarea>
+              <button class="comp-send" id="comp-send" onclick="ask()" data-tip="⌘↵ also sends">SEND</button>
+            </div>
+            <div class="comp-hint">⌘↵ send · shift+↵ newline · the AI knows your staged techniques</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+
+  </div>
+</div>
+
+<script>
+/*{{SCRIPT}}*/
+</script>
+</body>
+</html>

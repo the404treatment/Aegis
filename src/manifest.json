@@ -1,0 +1,28 @@
+{
+  "order": [
+    "data/win-events.js",
+    "data/aws-events.js",
+    "data/alert-meta.js",
+    "data/logsrc.js",
+    "data/node-types.js",
+    "data/tactics.js",
+    "data/mitigations.js",
+    "data/subs.js",
+    "data/mitre.js",
+    "data/alert-meta-full.js",
+    "app/core.js",
+    "app/matrix.js",
+    "app/studio.js",
+    "app/map-zones.js",
+    "app/map-nodes.js",
+    "app/map-anim.js",
+    "app/triage.js",
+    "app/map-tools.js",
+    "app/improvements.js",
+    "app/live.js",
+    "app/dialogs.js",
+    "app/map-interact.js",
+    "app/report.js",
+    "app/ai.js"
+  ]
+}

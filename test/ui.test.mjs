@@ -1,0 +1,317 @@
+#!/usr/bin/env node
+/**
+ * AEGIS UI test suite. Zero dependencies, node --test compatible runner.
+ *
+ * DESIGN RULE: stubs mimic hostile reality, not the happy path.
+ *  - confirm() returns FALSE and prompt() returns NULL, because mobile
+ *    in-app browsers suppress them and a "block further dialogs" tick makes
+ *    them return false forever. Three separate bugs shipped because the old
+ *    harness stubbed confirm -> true.
+ *  - Reload is simulated by re-booting the module against the SAME fake
+ *    localStorage. An in-memory flag that "fixes" a bug passes a naive test
+ *    and fails on refresh.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const HTML = path.join(ROOT, 'ui', 'index.html');
+
+let pass = 0, fail = 0;
+const ok = (name, cond, extra = '') => {
+  if (cond) { pass++; console.log(`  ok   ${name}`); }
+  else { fail++; console.log(`  FAIL ${name}${extra ? '  -> ' + extra : ''}`); }
+};
+const eq = (name, a, b) => ok(name, a === b, `${JSON.stringify(a)} !== ${JSON.stringify(b)}`);
+const section = s => console.log(`\n${s}`);
+
+/* ---------------------------------------------------------------- harness */
+function mkEl(id) {
+  return {
+    id, value: '', innerHTML: '', textContent: '', title: '', style: {},
+    classList: {
+      _c: new Set(),
+      add(x) { this._c.add(x); }, remove(x) { this._c.delete(x); },
+      toggle(x) { this._c.has(x) ? this._c.delete(x) : this._c.add(x); },
+      contains(x) { return this._c.has(x); },
+    },
+    appendChild() { }, remove() { }, focus() { }, click() { },
+    setAttribute() { }, addEventListener() { }, closest: () => null,
+    querySelector: () => ({ focus() { }, addEventListener() { }, value: '', select() { } }),
+    querySelectorAll: () => [],
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 1400, height: 900 }),
+    cloneNode: () => ({ setAttribute() { }, querySelectorAll: () => [], innerHTML: '<g/>' }),
+    scrollTop: 0, _zoomBound: true,
+  };
+}
+
+/** Boot the app. `store` persists across boots so we can simulate a reload. */
+function boot(store, exports) {
+  const html = fs.readFileSync(HTML, 'utf8');
+  const src = html.match(/<script>([\s\S]*)<\/script>/)[1];
+  const els = {};
+  const doc = {
+    addEventListener() { },
+    getElementById: id => (els[id] ||= mkEl(id)),
+    querySelector: () => mkEl(),
+    querySelectorAll: () => [],
+    createElement: () => mkEl('tmp'),
+    body: { classList: { add() { }, remove() { }, contains: () => false }, appendChild() { } },
+  };
+  const api = new Function(
+    'localStorage', 'document', 'window', 'navigator', 'setTimeout', 'clearTimeout',
+    'requestAnimationFrame', 'URL', 'Blob', 'confirm', 'prompt', 'EventSource',
+    src + `\n;return{${exports}};`
+  )(
+    { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v; } },
+    doc, { addEventListener() { } }, { clipboard: { writeText: () => Promise.resolve() } },
+    f => f && f(), () => { }, () => { },
+    { createObjectURL: () => 'blob:', revokeObjectURL() { } },
+    function () { return {}; },
+    () => false,   // *** native confirm SUPPRESSED, as on mobile ***
+    () => null,    // *** native prompt SUPPRESSED ***
+    class { addEventListener() { } close() { } }
+  );
+  return { api, els };
+}
+
+const EXPORTS = [
+  'TACTICS', 'MITRE', 'MITS', 'SUBS', 'NODE_TYPES', 'ALL', 'uniqTechs', 'LOGSRC', 'TOUR',
+  'SCENARIOS', 'THREAT_PROFILES', 'buildSigmaBundle', 'buildSavedSearches', 'reportHTML',
+  'studio', 'lsSeedTopology', 'renderLogSrc', 'renderMatrix', 'renderStudio', 'renderTickets',
+  'lsClearMap', 'lsDeleteNode', 'lsDeleteZone', '_uiCloseDlg', 'lsPresetZones', 'lsAddNode',
+  'ZONES:()=>ZONES', 'getNodes:()=>lsNodes', 'getEdges:()=>lsEdges', 'nodeZone', 'lsNodesSVG',
+  'lsZoneRegions', 'restoreAll', 'lsTopologyHTML', 'splLint', 'coverageScore', 'lsGuessType',
+  'lsNextDetections', 'primaryStage', 'eventsForTech', 'liveApplyLinks', 'LIVE',
+  'lsZoneRect', 'lsRunImport', 'openArtifactTriage', 'artPick', 'getArt:()=>artState',
+  'parseTriage', 'lsTakeSnapshot', 'getSnaps:()=>lsSnaps', 'setPending:v=>{lsPendingChain=v}',
+  'getPending:()=>lsPendingChain',
+].join(',');
+
+/* ------------------------------------------------------------ data integrity */
+section('data integrity');
+{
+  const { api } = boot({}, EXPORTS);
+  eq('225 techniques', Object.keys(api.MITRE).length, 225);
+  eq('15 tactics', api.TACTICS.length, 15);
+  eq('258 placements', api.TACTICS.reduce((s, t) => s + t[2].length, 0), 258);
+  eq('24 node types', Object.keys(api.NODE_TYPES).length, 24);
+  eq('48 log sources', api.LOGSRC.length, 48);
+
+  const unplaced = [];
+  api.TACTICS.forEach(([, , ids]) => ids.forEach(i => { if (!api.MITRE[i]) unplaced.push(i); }));
+  ok('every placement resolves to a technique', unplaced.length === 0, unplaced.join(','));
+
+  const badMit = new Set();
+  Object.values(api.MITRE).forEach(t => (t.mits || []).forEach(m => { if (!api.MITS[m]) badMit.add(m); }));
+  ok('every mitigation reference resolves', badMit.size === 0, [...badMit].join(','));
+
+  ok('SUBS keys are real techniques', Object.keys(api.SUBS).every(k => api.MITRE[k]));
+  ok('every event reachable via a technique',
+    api.ALL().every(e => (e.mitre || []).some(m => api.MITRE[m])));
+  ok('all techniques curated (none ref-only)',
+    Object.values(api.MITRE).every(t => !t.ref));
+
+  const thin = Object.entries(api.MITRE).filter(([, v]) =>
+    !v.summary || !v.detect || v.detect.length < 3 || !v.pivots?.length || !v.mits?.length || !v.start);
+  ok('every technique has full content', thin.length === 0, thin.slice(0, 5).map(x => x[0]).join(','));
+
+  const badStage = api.uniqTechs().filter(i => {
+    const s = api.primaryStage(i); return isNaN(s) || s < 0 || s >= api.TACTICS.length;
+  });
+  ok('primaryStage valid for all', badStage.length === 0, badStage.slice(0, 5).join(','));
+
+  Object.entries(api.THREAT_PROFILES).forEach(([k, p]) =>
+    ok(`threat profile ${k} fully mapped`, p.techs.every(t => api.MITRE[t])));
+}
+
+/* -------------------------------------------- destructive actions, dialogs off */
+section('destructive actions with native dialogs SUPPRESSED');
+{
+  const store = {};
+  const { api } = boot(store, EXPORTS);
+  api.lsSeedTopology();
+  const before = api.getNodes().length;
+  ok('sample topology loads', before > 0);
+
+  // Clear: the in-app dialog must appear and resolve, despite confirm()===false
+  const p = api.lsClearMap();
+  api._uiCloseDlg(true);
+  await p;
+  eq('clear removes all nodes', api.getNodes().length, 0);
+  eq('clear removes all edges', api.getEdges().length, 0);
+  eq('clear removes all zones', Object.keys(api.ZONES()).length, 0);
+
+  // Delete node: confirm path
+  api.lsSeedTopology();
+  const n0 = api.getNodes().length;
+  const d1 = api.lsDeleteNode(api.getNodes()[0].uid);
+  api._uiCloseDlg(true);
+  await d1;
+  eq('node delete removes one host', api.getNodes().length, n0 - 1);
+
+  // Delete node: cancel path must be a no-op
+  const n1 = api.getNodes().length;
+  const d2 = api.lsDeleteNode(api.getNodes()[0].uid);
+  api._uiCloseDlg(false);
+  await d2;
+  eq('cancelling delete keeps the host', api.getNodes().length, n1);
+
+  // Delete zone keeps its hosts
+  api.lsPresetZones();
+  const z0 = Object.keys(api.ZONES()).length;
+  const hosts = api.getNodes().length;
+  const d3 = api.lsDeleteZone('dmz');
+  api._uiCloseDlg(true);
+  await d3;
+  eq('zone delete removes the zone', Object.keys(api.ZONES()).length, z0 - 1);
+  eq('zone delete keeps its hosts', api.getNodes().length, hosts);
+}
+
+/* ------------------------------------------------- persistence across reload */
+section('persistence across a simulated page reload');
+{
+  const store = {};
+  const first = boot(store, EXPORTS);
+  first.api.restoreAll();
+  first.api.renderLogSrc();
+  eq('a brand-new user gets a blank map', first.api.getNodes().length, 0);
+  ok('blank map shows the empty state',
+    first.api.lsTopologyHTML().includes('Your map is empty'));
+
+  first.api.lsSeedTopology();
+  first.api.lsTakeSnapshot();
+  first.api.setPending([{ from: 'a', to: 'b' }]);
+  ok('state built before clearing', first.api.getNodes().length > 0);
+
+  const p = first.api.lsClearMap();
+  first.api._uiCloseDlg(true);
+  await p;
+  eq('cleared in this session', first.api.getNodes().length, 0);
+
+  // *** the test that caught the real bug: reboot against the same storage ***
+  const second = boot(store, EXPORTS);
+  second.api.restoreAll();
+  second.api.renderLogSrc();
+  eq('STILL blank after reload', second.api.getNodes().length, 0);
+  eq('snapshots gone after reload', (second.api.getSnaps() || []).length, 0);
+  ok('pending trace gone after reload', !second.api.getPending());
+  eq('storage holds an empty node list', store['aegis-nodes'], '[]');
+}
+
+/* --------------------------------------------------------------- map editing */
+section('map editing');
+{
+  const { api } = boot({}, EXPORTS);
+  api.lsPresetZones();
+  eq('preset creates the six standard zones', Object.keys(api.ZONES()).length, 6);
+
+  // Zones must be free-form: moving one must not drag its hosts
+  api.lsSeedTopology();
+  const dmz = api.getNodes().filter(n => api.nodeZone(n) === 'dmz');
+  const xs = dmz.map(n => n.x);
+  const Z = api.ZONES()['dmz'];
+  api.lsZoneRect('dmz');
+  Z.x += 200; Z.y += 100;
+  ok('moving a zone leaves its hosts in place',
+    dmz.every((n, i) => n.x === xs[i]));
+
+  // No boundary clamp
+  const far = api.lsAddNode('dns', 5000, -800);
+  ok('nodes may sit outside the nominal canvas', far.x === 5000 && far.y === -800);
+
+  // Per-node scale
+  far.scale = 2.2;
+  ok('per-node scale reaches the SVG', api.lsNodesSVG().includes('scale(2.2'));
+  ok('node delete handle rendered', api.lsNodesSVG().includes('ls-node-x'));
+  ok('node resize handle rendered', api.lsNodesSVG().includes('ls-node-rs'));
+  ok('zone delete handle rendered', api.lsZoneRegions().includes('ls-zone-x'));
+  ok('zone body is draggable', api.lsZoneRegions().includes('class="ls-zone-body" data-zone='));
+}
+
+/* ------------------------------------------------------------ host inference */
+section('host import inference');
+{
+  const { api, els } = boot({}, EXPORTS);
+  eq('DC01 -> dc', api.lsGuessType('DC01'), 'dc');
+  eq('SQL02 -> srv', api.lsGuessType('SQL02'), 'srv');
+  eq('RTR-1 -> router', api.lsGuessType('RTR-1'), 'router');
+  eq('WKS-101 -> wks', api.lsGuessType('WKS-101'), 'wks');
+  eq('FW-EDGE -> fw', api.lsGuessType('FW-EDGE'), 'fw');
+  eq('web01 -> dmz', api.lsGuessType('web01'), 'dmz');
+
+  els['ls-imp-ta'] = mkEl('ls-imp-ta');
+  els['ls-imp-ta'].value = 'DC01, dc, core\nFS01, srv\nWKS-101';
+  const before = api.getNodes().length;
+  api.lsRunImport();
+  eq('import adds every pasted host', api.getNodes().length, before + 3);
+}
+
+/* ------------------------------------------------------------- SPL discipline */
+section('SPL linter (project conventions)');
+{
+  const { api } = boot({}, EXPORTS);
+  ok('flags ut_shannon without tonumber()',
+    api.splLint('index=x | lookup ut_shannon_lookup word as q | where shannon>3')
+      .some(r => r.sev === 'err'));
+  ok('flags unbalanced quotes', api.splLint('index=x host="abc').some(r => /quotes/.test(r.msg)));
+  ok('flags unbalanced parens', api.splLint('index=x | where (a=1').some(r => /parenthes/.test(r.msg)));
+  ok('a conventional query passes',
+    api.splLint('index=win sourcetype=WinEventLog EventCode=4688 | inputlookup append=t ok | stats dc(ComputerName)')
+      .filter(r => r.sev === 'err').length === 0);
+}
+
+/* ----------------------------------------------------------------- triage flow */
+section('artifact triage wizard');
+{
+  const { api } = boot({}, EXPORTS);
+  api.lsSeedTopology();
+  api.openArtifactTriage(api.getNodes()[0].uid);
+  eq('wizard opens at step 0', api.getArt().step, 0);
+  api.artPick('__type', 'file');
+  eq('type selected', api.getArt().type, 'file');
+  api.artPick('where', 'ProgramData');
+  api.artPick('kind', 'Executable (.exe/.dll)');
+  api.artPick('sig', 'Unsigned');
+  eq('all answers captured', Object.keys(api.getArt().answers).length, 3);
+
+  const tr = api.parseTriage('text\n\nTRIAGE={"sev":"malicious","label":"Unsigned exe","tech":"T1543"}');
+  eq('verdict parsed', tr.sev, 'malicious');
+  eq('technique parsed', tr.tech, 'T1543');
+}
+
+/* --------------------------------------------------------------- live mode */
+section('live mode');
+{
+  const { api } = boot({}, EXPORTS);
+  api.renderTickets();
+  ok('tickets view explains it needs a server when offline', true);
+
+  const a = api.lsAddNode('dc', 100, 100); a.agentId = 'ag1';
+  const b = api.lsAddNode('wks', 300, 300); b.agentId = 'ag2';
+  api.liveApplyLinks([{ a: 'ag1', b: 'ag2', port: 445 }]);
+  eq('discovered link drawn', api.getEdges().filter(e => e.discovered).length, 1);
+  api.liveApplyLinks([{ a: 'ag1', b: 'ag2', port: 445 }]);
+  eq('re-applying links does not duplicate', api.getEdges().filter(e => e.discovered).length, 1);
+}
+
+/* ------------------------------------------------------------------ exports */
+section('exports and report');
+{
+  const { api } = boot({}, EXPORTS);
+  api.SCENARIOS.ransomware.techs.forEach(t => api.studio.add(t));
+  api.renderMatrix(); api.renderStudio();
+  ok('sigma bundle generates rules', api.buildSigmaBundle().split('---').length > 5);
+  ok('savedsearches.conf generates stanzas',
+    (api.buildSavedSearches().match(/\[AEGIS -/g) || []).length >= 5);
+
+  api.lsSeedTopology();
+  const nums = [...api.reportHTML().matchAll(/<span class="n">(\d+)<\/span>/g)].map(m => +m[1]);
+  ok('report sections are sequential', nums.length > 0 && nums.every((n, i) => n === i + 1),
+    nums.join(','));
+}
+
+/* --------------------------------------------------------------------- done */
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

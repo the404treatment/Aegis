@@ -1,0 +1,28 @@
+[Unit]
+Description=AEGIS Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aegis
+Group=aegis
+WorkingDirectory=/opt/aegis/server
+ExecStart=/usr/bin/node /opt/aegis/server/aegis-server.mjs --config /opt/aegis/server/config.json
+Restart=on-failure
+RestartSec=5
+
+# hardening — the server needs nothing but its own data dir
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/aegis/server/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

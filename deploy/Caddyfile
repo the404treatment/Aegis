@@ -1,0 +1,7 @@
+# TLS termination in front of AEGIS.
+aegis.internal {
+    encode gzip
+    reverse_proxy 127.0.0.1:8787 {
+        flush_interval -1   # required: SSE must not be buffered
+    }
+}

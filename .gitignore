@@ -1,0 +1,10 @@
+node_modules/
+server/data/
+server/config.json
+deploy/data/
+deploy/config.json
+ui/index.html
+*.tmp
+*.log
+__pycache__/
+.DS_Store
