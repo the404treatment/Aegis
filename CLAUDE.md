@@ -22,7 +22,7 @@ npm run lint:agent # python agent syntax
 - **Server**: Node 18+ ESM, **zero dependencies** (`node:http/https/fs/path/crypto`). JSON + NDJSON store.
 - **Realtime**: Server-Sent Events. No WebSocket library.
 - **Agents**: PowerShell 5.1+ (Windows), Python 3.8+ stdlib (Linux/macOS). No third-party modules.
-- **AI**: `fetch` → `https://api.anthropic.com/v1/messages`, model `claude-sonnet-4-6`, `max_tokens: 1000`. Never embed an API key.
+- **AI**: the browser posts to `POST /api/ai`; the server (`server/ai.mjs`) calls `https://api.anthropic.com/v1/messages`. Model and token ceiling come from `CFG.ai`, never the client. The key lives in `ANTHROPIC_API_KEY` or `config.json` — **never embed an API key in `src/`**: `ui/index.html` is published. Falls back to a direct browser fetch, which authenticates only inside the claude.ai Artifacts sandbox.
 - **Integrations**: Splunk HEC out, Slack/Teams webhook out.
 
 ## Layout

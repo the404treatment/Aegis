@@ -373,6 +373,51 @@ async function ask(){
  chatLog.push({role:'user',content:pre?`${pre}\n\n[My question]\n${msg}`:msg});
  runAI();
 }
+/* Where the AI Analyst sends its requests.
+ *
+ * Two modes, in preference order:
+ *
+ *  1. Through your AEGIS server (`POST /api/ai`). The API key lives on the
+ *     server and is never sent to the browser, the request is same-origin so
+ *     there is no CORS, and the model and token ceiling are set server-side.
+ *     This is the mode to use on a real deployment.
+ *  2. Straight to api.anthropic.com. This only authenticates inside the
+ *     claude.ai Artifacts sandbox, which injects credentials for you. Opened
+ *     from disk or served from GitHub Pages it cannot work — kept as the path
+ *     that makes the hosted build's AI tab work when running in claude.ai.
+ *
+ * A key is never embedded in the client. That is deliberate: ui/index.html is
+ * a public artefact and anything in it is published.
+ */
+function aiVia(){
+ return (typeof LIVE!=='undefined'&&LIVE&&LIVE.connected&&LIVE.url&&LIVE.token)?'server':'sandbox';
+}
+function aiFetch(){
+ const body=JSON.stringify({system:SYS,messages:chatLog.slice(-12)});
+ if(aiVia()==='server')
+  return fetch(LIVE.url.replace(/\/$/,'')+'/api/ai',{method:'POST',headers:liveHeaders(),body});
+ return fetch('https://api.anthropic.com/v1/messages',{
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  // The sandbox fills in model/max_tokens defaults it accepts; keep this
+  // request minimal so it stays valid there.
+  body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,system:SYS,messages:chatLog.slice(-12)})
+ });
+}
+/** What to tell the analyst when the call fails, given how they're running. */
+function aiUnreachableMsg(err){
+ const detail=err&&err.message?` ${esc(err.message)}`:'';
+ if(aiVia()==='server')
+  return `**The AI Analyst couldn't reach your AEGIS server.**${detail}\n\n`
+   +'Check the connection indicator in the top bar. If the server is up, it may not have '
+   +'an API key: set `ANTHROPIC_API_KEY` in its environment (or `ai.apiKey` in '
+   +'`server/config.json`) and restart it. Everything else in AEGIS works without this.';
+ return `**The AI Analyst has nowhere to send this.**${detail}\n\n`
+  +'Connect the console to an AEGIS server that has an API key configured — click the '
+  +'connection indicator in the top bar. Without a server, the AI tab only works inside '
+  +'claude.ai, which supplies credentials for it.\n\nThe matrix, hunt map, studio, triage, '
+  +'ingest, response playbooks and the report all work fully offline.';
+}
 async function runAI(opts){
  opts=opts||{};
  if(busy)return;
@@ -381,16 +426,7 @@ async function runAI(opts){
  load.className='m a';load.innerHTML=`<div class="m-tag">AEGIS AI</div><div class="think"><i></i><i></i><i></i></div>`;
  c.appendChild(load);c.scrollTop=c.scrollHeight;
  try{
-  const r=await fetch('https://api.anthropic.com/v1/messages',{
-   method:'POST',
-   headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({
-    model:'claude-sonnet-4-6',
-    max_tokens:1000,
-    system:SYS,
-    messages:chatLog.slice(-12)
-   })
-  });
+  const r=await aiFetch();
   const data=await r.json();
   load.remove();
   if(data&&Array.isArray(data.content)&&data.content.length){
@@ -427,13 +463,16 @@ async function runAI(opts){
    }
    else addMsg('assistant','The model returned an empty response. Try rephrasing, or ask a more specific detection question.');
   }else if(data&&data.error){
-   addMsg('assistant',`**API error:** ${esc(data.error.message||JSON.stringify(data.error))}`);
+   // The server returns {error:"..."} for its own refusals (no key configured)
+   // and passes Anthropic's {error:{message}} straight through.
+   const em=typeof data.error==='string'?data.error:(data.error.message||JSON.stringify(data.error));
+   addMsg('assistant',`**AI Analyst unavailable.** ${esc(em)}`);
   }else{
    addMsg('assistant','**Unexpected response shape from the API.** Please try again.');
   }
  }catch(err){
   load.remove();
-  addMsg('assistant',`**The AI Analyst couldn't reach the model.** ${esc(err.message||'')}\n\nThe AI tab calls the Anthropic API through the claude.ai Artifacts sandbox. It works when you're running AEGIS inside claude.ai. If you've downloaded the file and opened it from your desktop, the AI tab can't connect — but the matrix, Log Sources, Studio, dashboards, RBA, and report all work fully offline.`);
+  addMsg('assistant',aiUnreachableMsg(err));
  }
  finally{busy=false;if(sendBtn)sendBtn.disabled=false;}
 }

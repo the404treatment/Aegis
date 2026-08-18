@@ -178,6 +178,29 @@ Then AEGIS runs unchanged. To check nothing is quietly reaching out, pull the
 network and use it — everything except the AI Analyst (which calls the Anthropic
 API by design) works exactly the same.
 
+## Turning on the AI Analyst
+
+Optional, and the only part of AEGIS that talks to the internet. The **server**
+holds the key and makes the call, so it is never sent to a browser and never
+ends up in the published `ui/index.html`.
+
+Get a key from <https://console.anthropic.com>, then either set it in the
+environment before starting the server:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...      # Windows: $env:ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+or put it in `server/config.json` (which is gitignored):
+
+```json
+"ai": { "enabled": true, "apiKey": "sk-ant-...", "model": "claude-opus-5" }
+```
+
+The env var wins if both are set. Restart the server — the banner then reads
+`AI analyst  claude-opus-5` instead of `disabled`. Leave it unset and the AI tab
+says so plainly; nothing else is affected.
+
 ## Part 3 — Check it's working
 
 1. In the console, open **Network Map**. Enrolled hosts appear automatically.

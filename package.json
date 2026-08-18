@@ -15,7 +15,7 @@
     "serve": "npm run build && npm run start",
     "test": "npm run build && npm run test:ui && npm run test:server",
     "test:ui": "node test/ui.test.mjs",
-    "test:server": "node test/server-audit.test.mjs && node test/server-lake.test.mjs && node test/server-auth.test.mjs && node test/server-cases.test.mjs && node test/server-report.test.mjs && node test/server-api.test.mjs",
+    "test:server": "node test/server-audit.test.mjs && node test/server-lake.test.mjs && node test/server-auth.test.mjs && node test/server-cases.test.mjs && node test/server-report.test.mjs && node test/server-ai.test.mjs && node test/server-api.test.mjs",
     "lint:agent": "python3 -m py_compile agents/aegis-agent.py && echo 'python agent OK'",
     "clean": "rm -rf ui/index.html server/data",
     "discover": "node discover.mjs",
