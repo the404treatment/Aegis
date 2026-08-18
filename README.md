@@ -1,6 +1,12 @@
 # AEGIS
 
+[![test](https://github.com/the404treatment/Aegis/actions/workflows/test.yml/badge.svg)](https://github.com/the404treatment/Aegis/actions/workflows/test.yml)
+
 SOC detection-engineering console with an incident-response platform.
+
+**[Try it in the browser →](https://the404treatment.github.io/Aegis/)** — no install,
+no signup, nothing to configure. The console is fully functional offline, so the
+hosted build is the real app rather than a demo.
 
 ```bash
 npm run build     # src/ -> ui/index.html

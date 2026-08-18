@@ -1,0 +1,57 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # lets the Pages workflow depend on a known-good build
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # package.json declares >=18; test the floor and a current release so
+        # a syntax or API assumption newer than the floor is caught here
+        # rather than by whoever runs it on 18.
+        node: ['18', '22']
+    name: node ${{ matrix.node }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          # no cache: the project has zero dependencies, so there is no
+          # lockfile and nothing to restore.
+
+      # No `npm ci`/`npm install` on purpose — AEGIS has no dependencies.
+      # If that ever changes, this step is where it breaks loudly.
+      - name: Assert the project is still dependency-free
+        run: |
+          if node -e "const p=require('./package.json');process.exit((p.dependencies&&Object.keys(p.dependencies).length)||(p.devDependencies&&Object.keys(p.devDependencies).length)?1:0)"; then
+            echo "no dependencies, as expected"
+          else
+            echo "::error::package.json now declares dependencies — add an install step to this workflow"
+            exit 1
+          fi
+
+      - name: Build and run the full suite
+        run: npm test
+
+      - name: Python agent syntax
+        run: python3 -m py_compile agents/aegis-agent.py
+
+      - name: PowerShell agent syntax
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "$PWD/agents/aegis-agent.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Host "::error::$($_.Message)" }
+            exit 1
+          }
+          Write-Host "PowerShell agent parses cleanly"

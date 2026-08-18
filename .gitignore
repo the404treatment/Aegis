@@ -4,6 +4,10 @@ server/config.json
 deploy/data/
 deploy/config.json
 ui/index.html
+# Pre-refactor monolith, superseded by src/ + the generated ui/index.html.
+# Kept on disk as a reference but never committed; delete it when you no
+# longer want it locally.
+aegis-v3.html
 *.tmp
 *.log
 __pycache__/

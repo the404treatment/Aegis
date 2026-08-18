@@ -2,31 +2,23 @@
 
 Priority-ordered roadmap for AEGIS. Top item first.
 
-## 1. Zero-friction onboarding — get a live demo up with no install
+## 1. Zero-friction onboarding — ✅ workflow added, one setting left
 
-**Problem:** `ui/index.html` is the entire app, but it's build-generated and gitignored
-(see `CLAUDE.md`). Anyone landing on the GitHub repo today has to install Node 18+,
-clone, and run `npm run build` before they can open anything. That's a hard stop for
-"try it in 10 seconds."
+`.github/workflows/pages.yml` builds `src/` and publishes the console on every push to
+`main`, gated on the test suite passing. Because the console is fully functional with no
+backend, the static deploy is the real app rather than a preview.
 
-**Fix — GitHub Pages via Actions:**
-- Add `.github/workflows/pages.yml`: on push to `main`, run `node build.mjs`, publish
-  `ui/index.html` to a `gh-pages` branch (or Pages' native build artifact flow).
-- The console already runs fully offline/local-only against `localStorage` (see
-  CLAUDE.md → Architecture), so a static Pages deploy is a fully working demo, not a
-  stripped-down one. No server, no backend, nothing to configure.
-- Result: `https://the404treatment.github.io/Aegis/` opens the working console
-  directly. Zero install for anyone who just wants the ATT&CK matrix, hunt map, and
-  detection studio.
+**One manual step remains** (it cannot be done from a workflow): in the repo, open
+**Settings → Pages** and set **Source** to **GitHub Actions**. The next push to `main`
+then publishes to `https://the404treatment.github.io/Aegis/`.
 
-**Secondary — trim the README quickstart** for people who *do* want the local
-server + agent stack (live map, tickets):
+For anyone who wants the full server + agent stack instead:
 ```bash
 git clone https://github.com/the404treatment/Aegis.git
 cd Aegis
 npm run serve   # build + start on :8787
 ```
-No `npm install` step needed — the project has zero dependencies.
+No `npm install` step — the project has zero dependencies.
 
 ## 2. Skyhawk feature port — ✅ complete
 
@@ -76,23 +68,25 @@ have meant reworking it.
 - Evidence retention/GC — files are content-addressed and never pruned today.
 - Regulatory notification clocks, if the deadlines matter to your reporting obligations.
 
-## 3. CI on every push/PR
+## 3. CI on every push/PR — ✅ done
 
-No workflow currently runs `npm test`. Add `.github/workflows/test.yml` (Node 18,
-`npm test`) so a broken build or a failed data-integrity assertion is caught before
-merge instead of discovered later. Natural pairing with the Pages workflow in #1 —
-gate the Pages publish on tests passing.
+`.github/workflows/test.yml` runs the full suite on push and PR across Node 18 (the
+declared floor) and 22, plus syntax checks on both agent scripts. It also asserts the
+project is still dependency-free, so if that ever changes the workflow fails loudly
+rather than silently skipping an install step.
 
-## 4. Repo hygiene (uncommitted / stray files found in the working tree)
+## 4. Repo hygiene — mostly resolved
 
-- `aegis-v3.html` (untracked, 7255 lines) — looks like a pre-refactor monolith left
-  over from before the `src/` modular split. Decide: delete, or move to an `archive/`
-  folder if it's kept intentionally as a reference.
-- `ui.test.mjs` (untracked, repo root) — byte-identical duplicate of
-  `test/ui.test.mjs`. Remove the stray root copy.
-- `deploy/install-agent.sh` — working copy lost its executable bit (755 → 644).
-  Restore with `chmod +x deploy/install-agent.sh` before it's committed, or the
-  deploy step breaks for anyone who pulls it as-is.
+- ~~`ui.test.mjs` (stray root duplicate)~~ — removed. It was byte-identical to
+  `test/ui.test.mjs` at `3960e86`, so the content remains in git history.
+- `aegis-v3.html` — the pre-refactor monolith. **Left on disk deliberately**: it was
+  never committed, so deleting it is irreversible and that is your call, not a
+  cleanup script's. It is now gitignored so it no longer clutters `git status`.
+  Delete it locally whenever you're satisfied nothing in it is still wanted.
+- `deploy/install-agent.sh` — the working copy still shows a mode change (755 → 644),
+  a Windows checkout artifact rather than a real edit. It has been left unstaged
+  throughout. If you ever commit it, run `git update-index --chmod=+x
+  deploy/install-agent.sh` first so the executable bit survives for Linux users.
 
 ## 5. Documentation drift
 

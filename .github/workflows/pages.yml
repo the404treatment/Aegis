@@ -1,0 +1,62 @@
+name: pages
+
+# Publishes the console as a live, zero-install demo. ui/index.html is a
+# build artifact (gitignored), so it is built here rather than committed.
+#
+# The console is fully functional with no backend — offline is a first-class
+# mode, not a degraded one — so a static deploy is the real app, not a
+# stripped-down preview. Anything needing the server (live agents, cases,
+# chat) shows its usual "connect to a server" state.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never publish a broken console: let a run finish, but drop superseded
+# queued runs rather than racing them.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # Gate the deploy on the same suite that guards every push.
+  test:
+    uses: ./.github/workflows/test.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build the console
+        run: npm run build
+
+      - name: Stage the site
+        run: |
+          mkdir -p _site
+          cp ui/index.html _site/index.html
+          # Pages serves this straight from a CDN; there is no Jekyll step to
+          # run and no underscore-prefixed paths to protect, but .nojekyll
+          # keeps that explicit.
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
