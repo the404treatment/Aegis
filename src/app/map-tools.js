@@ -164,6 +164,7 @@ function openLsMapMenu(){
    ${row('\u2637','Arrange hosts','lsArrange();lsCloseMapMenu()',false,'Tidy every host into its zone')}
    ${row('\u229f','Auto-link by tier','lsAutoEdges();lsCloseMapMenu()')}
    <div class="ls-mm-sec">Detection</div>
+   ${row('\u2913','Ingest a tool export','openLsIngest();lsCloseMapMenu()',false,'Chainsaw, Suricata eve.json, Zeek logs, or a PCAP \u2014 parsed offline, right here')}
    ${row('\u2726','What to build next','openLsNext();lsCloseMapMenu()',false,'Ranked by telemetry, your map, and real groups')}
    ${row('\u25d4','Coverage scorecard','openScorecard();lsCloseMapMenu()',false,'An honest read on where you stand')}
    ${row('\u26a0','Logging posture','openLoggingGaps();lsCloseMapMenu()',false,'Which hosts are missing Sysmon, 4104, 5145')}

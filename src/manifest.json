@@ -20,6 +20,7 @@
     "app/map-tools.js",
     "app/advisor.js",
     "app/ioc.js",
+    "app/ingest.js",
     "app/improvements.js",
     "app/live.js",
     "app/dialogs.js",

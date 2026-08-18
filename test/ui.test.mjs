@@ -88,6 +88,8 @@ const EXPORTS = [
   'parseTriage', 'lsTakeSnapshot', 'getSnaps:()=>lsSnaps', 'setPending:v=>{lsPendingChain=v}',
   'getPending:()=>lsPendingChain', 'buildAdvisory', 'adviseTechnique', 'adviseNode',
   'extractIocs', 'highlightIocs', 'liveIngestEvent',
+  'ingDetect', 'ingParse', 'ingParsePcap', 'ingMapEvents', 'ingCommit',
+  'getIngState:()=>ingState', 'setIngState:v=>{ingState=v}',
 ].join(',');
 
 /* ------------------------------------------------------------ data integrity */
@@ -346,6 +348,113 @@ section('IOC extraction');
   const html = api.highlightIocs('<script>alert(1)</script> reached 203.0.113.5');
   ok('escapes HTML before highlighting', !html.includes('<script>'));
   ok('wraps the IOC in a span', html.includes('ioc-ip'));
+}
+
+/* ------------------------------------------------------------------- ingest */
+function buildMiniPcap() {
+  // one Ethernet+IPv4+TCP packet, no payload: global header + one record.
+  const buf = new ArrayBuffer(24 + 16 + 54);
+  const dv = new DataView(buf);
+  const u8 = new Uint8Array(buf);
+  dv.setUint32(0, 0xa1b2c3d4, true);  // magic (LE, microsecond precision)
+  dv.setUint16(4, 2, true); dv.setUint16(6, 4, true); // version 2.4
+  dv.setUint32(8, 0, true); dv.setUint32(12, 0, true); // thiszone, sigfigs
+  dv.setUint32(16, 65535, true); // snaplen
+  dv.setUint32(20, 1, true); // linktype = Ethernet
+  let off = 24;
+  dv.setUint32(off, 1700000000, true); dv.setUint32(off + 4, 0, true); // ts
+  dv.setUint32(off + 8, 54, true); dv.setUint32(off + 12, 54, true);   // incl/orig len
+  off += 16;
+  // Ethernet: 6 dst + 6 src + 2 ethertype(0x0800)
+  u8[off + 12] = 0x08; u8[off + 13] = 0x00;
+  const l3 = off + 14;
+  u8[l3] = 0x45; // version 4, IHL 5
+  dv.setUint16(l3 + 2, 40, true); // total length
+  u8[l3 + 9] = 6; // protocol = TCP
+  u8[l3 + 12] = 203; u8[l3 + 13] = 0; u8[l3 + 14] = 113; u8[l3 + 15] = 10;   // saddr
+  u8[l3 + 16] = 198; u8[l3 + 17] = 51; u8[l3 + 18] = 100; u8[l3 + 19] = 20; // daddr
+  const l4 = l3 + 20;
+  dv.setUint16(l4, 4444, false); dv.setUint16(l4 + 2, 443, false); // ports (big-endian on the wire)
+  return buf;
+}
+
+section('ingest — format auto-detection');
+{
+  const { api } = boot({}, EXPORTS);
+  eq('detects Chainsaw CSV by header', api.ingDetect('timestamp,detections\n2024-01-01,Test', 'export.csv'), 'chainsaw');
+  eq('detects Suricata eve.json by event_type', api.ingDetect('{"event_type":"alert","src_ip":"1.2.3.4"}', 'eve.json'), 'suricata');
+  eq('detects Zeek by #fields header', api.ingDetect('#separator \\x09\n#fields\tts\tuid\n1700000000\tC1', 'notice.log'), 'zeek');
+  eq('detects PCAP by filename extension', api.ingDetect('', 'capture.pcap'), 'pcap');
+  eq('unrecognised text has no profile', api.ingDetect('just some random text', ''), null);
+}
+
+section('ingest — Chainsaw');
+{
+  const { api } = boot({}, EXPORTS);
+  const csv = 'timestamp,detections,Computer,User,Source IP,Event ID,Command Line,level,tags\n'
+    + '2024-01-01T00:00:00Z,Suspicious PowerShell,WKS01,jdoe,203.0.113.5,4688,powershell -enc AAA,high,T1059';
+  const parsed = api.ingParse(csv, 'chainsaw.csv');
+  eq('profile resolved', parsed.profile, 'chainsaw');
+  eq('one finding grouped by rule', parsed.findings.length, 1);
+  eq('severity carried through', parsed.findings[0].severity, 'high');
+  ok('technique extracted from the row', parsed.findings[0].attack.includes('T1059'));
+  ok('IOC extracted from the source IP field', parsed.iocs.some(x => x.value === '203.0.113.5'));
+}
+
+section('ingest — Suricata');
+{
+  const { api } = boot({}, EXPORTS);
+  const line = JSON.stringify({ timestamp: '2024-01-01T00:00:00.000Z', event_type: 'alert', src_ip: '203.0.113.5', src_port: 4444,
+    dest_ip: '198.51.100.20', dest_port: 443, proto: 'TCP',
+    alert: { signature: 'ET MALWARE Test', severity: 1, category: 'Malware', metadata: { mitre_technique_id: ['T1071'] } } });
+  const parsed = api.ingParse(line, 'eve.json');
+  eq('profile resolved', parsed.profile, 'suricata');
+  eq('one finding for the alert', parsed.findings.length, 1);
+  eq('severity mapped from Suricata scale (1 -> high)', parsed.findings[0].severity, 'high');
+  ok('technique pulled from alert metadata', parsed.findings[0].attack.includes('T1071'));
+  eq('one network event carries saddr/daddr', parsed.events.length, 1);
+  eq('event source address captured', parsed.events[0].saddr, '203.0.113.5');
+}
+
+section('ingest — Zeek');
+{
+  const { api } = boot({}, EXPORTS);
+  const tsv = '#separator \\x09\n#fields\tts\tuid\tid.orig_h\tid.orig_p\tid.resp_h\tid.resp_p\tnote\tmsg\n'
+    + '1700000000.000000\tCabc123\t203.0.113.5\t4444\t198.51.100.20\t443\tSSH::Password_Guessing\tPossible brute force';
+  const parsed = api.ingParse(tsv, 'notice.log');
+  eq('profile resolved', parsed.profile, 'zeek');
+  eq('one finding per notice type', parsed.findings.length, 1);
+  ok('notice title includes the note type', parsed.findings[0].title.includes('Password_Guessing'));
+}
+
+section('ingest — PCAP');
+{
+  const { api } = boot({}, EXPORTS);
+  const parsed = api.ingParsePcap(buildMiniPcap());
+  ok('no parse error on a well-formed capture', !parsed.error);
+  eq('one flow extracted', parsed.events.length, 1);
+  eq('source address decoded correctly', parsed.events[0].saddr, '203.0.113.10');
+  eq('dest address decoded correctly', parsed.events[0].daddr, '198.51.100.20');
+  eq('protocol decoded as tcp', parsed.events[0].proto, 'tcp');
+}
+
+section('ingest — map building and commit');
+{
+  const { api } = boot({}, EXPORTS);
+  const before = api.getNodes().length;
+  const parsed = api.ingParse(
+    JSON.stringify({ timestamp: '2024-01-01T00:00:00.000Z', event_type: 'alert', src_ip: '203.0.113.5', src_port: 4444,
+      dest_ip: '198.51.100.20', dest_port: 443, proto: 'TCP',
+      alert: { signature: 'ET MALWARE Test', severity: 1, category: 'Malware', metadata: { mitre_technique_id: ['T1071'] } } }),
+    'eve.json');
+  api.setIngState(parsed);
+  api.ingCommit();
+  eq('committing adds a host per IP seen', api.getNodes().length, before + 2);
+  eq('committing adds an edge between them', api.getEdges().length, 1);
+  const withObs = api.getNodes().filter(n => (n.obs || []).length);
+  ok('the finding is logged as an observation on a host', withObs.length > 0);
+  ok('a technique from the finding is staged', api.studio.has('T1071'));
+  ok('ingState is cleared after commit', api.getIngState() === null);
 }
 
 /* ------------------------------------------------------------------ exports */
