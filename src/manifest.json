@@ -25,6 +25,7 @@
     "app/cases.js",
     "app/chat.js",
     "app/team.js",
+    "app/companion.js",
     "app/improvements.js",
     "app/live.js",
     "app/auth.js",

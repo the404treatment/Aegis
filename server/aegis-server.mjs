@@ -32,6 +32,8 @@ import { makeCase, patchCase, decodeEvidence, evidenceRecord, safeEvidenceName, 
 import { buildReport, finalizeFormal } from './report.mjs';
 import { AI_DEFAULTS, aiEnabled, buildRequest as aiBuildRequest, callAnthropic } from './ai.mjs';
 import { feed as activityFeed } from './activity.mjs';
+import { LLM_DEFAULTS, resolveProvider, complete as llmComplete, detect as llmDetect,
+         COMPANION_SYSTEM, briefEvents, WATCH_PROMPT } from './llm.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -65,6 +67,9 @@ function loadConfig() {
     // The AI Analyst calls Anthropic through this server so the key stays here
     // and never reaches a browser. Off until a key is present.
     ai: { ...AI_DEFAULTS },
+    // The local companion talks to an inference server on this machine. No
+    // key, no internet, nothing leaves the host.
+    llm: { ...LLM_DEFAULTS },
     maxEventFileMB: 256,
   };
   return {
@@ -72,6 +77,7 @@ function loadConfig() {
     splunk: { ...def.splunk, ...(cfg.splunk || {}) },
     webhook: { ...def.webhook, ...(cfg.webhook || {}) },
     ai: { ...def.ai, ...(cfg.ai || {}) },
+    llm: { ...def.llm, ...(cfg.llm || {}) },
   };
 }
 const CFG = loadConfig();
@@ -186,6 +192,65 @@ let _presenceTimer = null;
 function presenceChanged() {
   clearTimeout(_presenceTimer);
   _presenceTimer = setTimeout(() => broadcast('presence', presence()), 120);
+}
+
+/* ------------------------------------------------------- local companion */
+/* Resolved once at boot and re-resolved on demand, because probing five ports
+   on every request would add latency to work that has nothing to do with the
+   model. */
+let LLM_PROVIDER = null;
+
+/* The proactive half of the companion, and the reason it exists.
+ *
+ * An assistant you have to prompt is an assistant you use when you already
+ * know what to ask — which during an incident is exactly when you don't. This
+ * watches telemetry as it lands and offers an assessment unasked.
+ *
+ * Three things keep it from becoming noise:
+ *   - it only wakes for events worth waking for (malicious, or a burst),
+ *   - it debounces, so a storm of 200 events is one assessment and not 200,
+ *   - it will not start a second assessment while one is still running, so a
+ *     slow local model degrades to fewer opinions rather than a queue that
+ *     never drains.
+ */
+let _watchTimer = null, _watchBusy = false, _watchQueue = [];
+function watchEvents(events) {
+  if (!CFG.llm.watch || !LLM_PROVIDER) return;
+  const worth = events.filter(e => e.severity === 'malicious' || e.severity === 'suspicious');
+  if (!worth.length) return;
+  _watchQueue.push(...worth);
+  if (_watchQueue.length > 200) _watchQueue = _watchQueue.slice(-200);
+  clearTimeout(_watchTimer);
+  _watchTimer = setTimeout(runWatch, Number(CFG.llm.watchDebounceMs) || 4000);
+}
+async function runWatch() {
+  if (_watchBusy || !_watchQueue.length || !LLM_PROVIDER) return;
+  const batch = _watchQueue.splice(0, _watchQueue.length);
+  _watchBusy = true;
+  try {
+    const brief = briefEvents(batch, { limit: 25 });
+    const r = await llmComplete(LLM_PROVIDER, {
+      system: COMPANION_SYSTEM,
+      messages: [{ role: 'user', content: `${brief}\n\n${WATCH_PROMPT}` }],
+      maxTokens: CFG.llm.maxTokens,
+      timeoutMs: CFG.llm.timeoutMs,
+    });
+    if (r.ok) {
+      broadcast('companion', {
+        id: uid('cp_'), at: now(), text: r.text, model: r.model,
+        events: batch.length,
+        hosts: [...new Set(batch.map(e => e.host).filter(Boolean))].slice(0, 6),
+        worst: batch.some(e => e.severity === 'malicious') ? 'malicious' : 'suspicious',
+      });
+    } else {
+      // A local model that is down should not spam the incident room. Log it
+      // and let /api/llm/status be the place anyone goes to find out why.
+      console.warn('[companion]', r.error);
+    }
+  } finally {
+    _watchBusy = false;
+    if (_watchQueue.length) _watchTimer = setTimeout(runWatch, 1500);
+  }
 }
 
 /* ------------------------------------------------------------ Splunk HEC */
@@ -479,7 +544,7 @@ const server = http.createServer(async (req, res) => {
       a.eventCount = (a.eventCount || 0) + accepted.length;
       a.lastSeen = now();
       saveAgents();
-      if (accepted.length) broadcast('events', accepted);
+      if (accepted.length) { broadcast('events', accepted); watchEvents(accepted); }
       const bad = accepted.filter(e => e.severity === 'malicious');
       if (bad.length) notify(bad, a);
       return json(res, 200, { accepted: accepted.length });
@@ -636,6 +701,35 @@ const server = http.createServer(async (req, res) => {
         console.warn('[ai] request failed:', e.message);
         return json(res, 502, { error: { message: `could not reach the model: ${e.message}` } });
       }
+    }
+
+    /* ---------------- local LLM companion ----------------
+       Runs against an inference server on this machine. No key, no internet.
+       Analyst-gated like everything else below the auth check. */
+    if (p === '/api/llm/status') {
+      const prov = await resolveProvider(CFG.llm);
+      return json(res, 200, prov
+        ? { available: true, name: prov.name, model: prov.model, models: prov.models || [], endpoint: prov.base, watch: !!CFG.llm.watch }
+        : { available: false, hint: 'No local model server found. Start Ollama (or LM Studio, llama.cpp, Jan) and reload. See LOCAL-AI.md.' });
+    }
+    if (p === '/api/llm/detect') {
+      // Re-probe on demand: someone starting Ollama should not have to restart
+      // AEGIS to be noticed.
+      const found = await llmDetect();
+      LLM_PROVIDER = await resolveProvider(CFG.llm);
+      return json(res, 200, { found: found.map(f => ({ name: f.name, endpoint: f.base, models: f.models })) });
+    }
+    if (p === '/api/llm' && req.method === 'POST') {
+      const prov = LLM_PROVIDER || await resolveProvider(CFG.llm);
+      if (!prov) return json(res, 503, { error: 'no local model is running. See LOCAL-AI.md for a one-command setup.' });
+      const b = await readBody(req);
+      const r = await llmComplete({ ...prov, model: b.model || prov.model }, {
+        system: b.system || COMPANION_SYSTEM,
+        messages: b.messages,
+        maxTokens: CFG.llm.maxTokens,
+        timeoutMs: CFG.llm.timeoutMs,
+      });
+      return json(res, r.ok ? 200 : 502, r);
     }
 
     /* ---------------- who is here, and what has everyone been doing ---------------- */
@@ -1021,6 +1115,13 @@ server.listen(CFG.port, CFG.host, () => {
   console.log(`  data          ${CFG.dataDir}`);
   console.log(`  splunk HEC    ${CFG.splunk.enabled ? CFG.splunk.url : 'disabled'}`);
   console.log(`  AI analyst    ${aiEnabled(CFG.ai) ? CFG.ai.model : 'disabled (no ANTHROPIC_API_KEY)'}`);
+  // Probe for a local model in the background: a cold Ollama can take a moment
+  // and nothing should wait on it to serve the first page.
+  resolveProvider(CFG.llm).then(prov => {
+    LLM_PROVIDER = prov;
+    if (prov) console.log(`  local AI      ${prov.name} · ${prov.model || '(no model pulled yet)'}${CFG.llm.watch ? ' · watching' : ''}`);
+    else console.log('  local AI      none detected  (see LOCAL-AI.md — optional)');
+  }).catch(() => {});
   console.log(`\n  enrollment token : ${CFG.enrollmentToken}`);
   console.log(`  analyst token    : ${CFG.analystToken}`);
   if (CFG.requireLogin) {

@@ -37,7 +37,7 @@ async function liveConnect(opts){
   LIVE.connected=true;LIVE.lastError='';
   liveSave();liveApplyAgents();liveApplyLinks(st.links);liveOpenStream();
   renderLogSrc();renderTickets();renderCases();liveBadge();updateBadges();
-  await authFetchMe();authRenderWho();renderChat();renderActivity();activityLoad();
+  await authFetchMe();authRenderWho();renderChat();renderActivity();activityLoad();coStatus();
   if(!(opts&&opts.quiet))toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
   LIVE.connected=false;LIVE.lastError=e.message;liveBadge();
@@ -58,8 +58,9 @@ async function liveConnect(opts){
 }
 function liveDisconnect(){
  if(LIVE.es){try{LIVE.es.close()}catch{}LIVE.es=null;}
- LIVE.connected=false;chatOpen=false;activityOpen=false;PRESENCE=[];
- liveBadge();authRenderWho();renderChat();renderPresence();renderActivity();renderLogSrc();
+ LIVE.connected=false;chatOpen=false;activityOpen=false;coOpen=false;PRESENCE=[];
+ CO={available:false,name:'',model:'',watch:false};
+ liveBadge();authRenderWho();renderChat();renderPresence();renderActivity();renderCompanion();renderLogSrc();
  toast('Disconnected \u2014 back to local mode');
 }
 function liveOpenStream(){
@@ -104,6 +105,7 @@ function liveOpenStream(){
  });
  es.addEventListener('chat',e=>chatIngest(JSON.parse(e.data)));
  es.addEventListener('presence',e=>presenceIngest(JSON.parse(e.data)));
+ es.addEventListener('companion',e=>coIngest(JSON.parse(e.data)));
  es.onerror=()=>{LIVE.connected=false;PRESENCE=[];renderPresence();liveBadge();};
  es.onopen=()=>{LIVE.connected=true;liveBadge();};
 }
