@@ -51,7 +51,7 @@ function renderNodeEditor(n,t){
    ${obs.length?`<div class="ls-ne-obs-list">${obs.map(o=>{const ev=LOGSRC.find(e=>e.id===o.evId);return`<div class="ls-ne-obs inc-${o.sev}">
       <div class="ls-ne-obs-top"><span class="ls-ne-obs-sev inc-${o.sev}">${SEV_META[o.sev].label}</span>${o.evId?`<span class="ls-ne-obs-ev">${o.evId}</span>`:''}<button class="ls-ne-obs-x" onclick="lsDelObs('${n.uid}','${o.id}')">×</button></div>
       ${ev?`<div class="ls-ne-obs-name">${ev.name}</div>`:''}
-      ${o.note?`<div class="ls-ne-obs-note">${esc(o.note)}</div>`:''}
+      ${o.note?`<div class="ls-ne-obs-note">${highlightIocs(o.note)}</div>`:''}
    </div>`;}).join('')}</div>`:`<div class="ls-ne-obs-empty">Nothing logged yet. Tag what you're seeing on this host below.</div>`}
 
    <div class="ls-ne-addobs">
@@ -72,6 +72,7 @@ function renderNodeEditor(n,t){
    </div>
 
    ${obs.length?`<button class="btn ghost-violet" style="width:100%;justify-content:center;margin-top:8px" onclick="lsTriageNode('${n.uid}')" data-tip="Ask the AI Analyst what this host's observations mean and what to check next">◎ AI: triage this host</button>`:''}
+   <button class="btn ghost-violet" style="width:100%;justify-content:center;margin-top:8px" onclick="openAdvisor(null,'${n.uid}')" data-tip="Offline, deterministic containment/eradication/recovery commands for this host — no network, no LLM">▤ Response playbook</button>
    ${status==='malicious'?`<div class="ls-ne-contain">
      <div class="ls-ne-contain-h">⚠ Containment — ${esc(n.label)}</div>
      <label class="ls-contain-item"><input type="checkbox"> Isolate host from the network (EDR contain / switch ACL)</label>

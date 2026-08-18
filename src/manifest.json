@@ -18,6 +18,8 @@
     "app/map-anim.js",
     "app/triage.js",
     "app/map-tools.js",
+    "app/advisor.js",
+    "app/ioc.js",
     "app/improvements.js",
     "app/live.js",
     "app/dialogs.js",

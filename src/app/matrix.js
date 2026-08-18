@@ -76,6 +76,7 @@ function openDrawer(id,keepScroll){
   <div class="dw-actions">
     <button class="btn ${studio.has(id)?'mint':'violet'}" id="dw-stage-btn" onclick="togStudio('${id}');refreshDrawerStage('${id}')" data-tip="${studio.has(id)?'Click to remove from the Studio':'Adds this technique + all its detections to the dashboard & report'}">${studio.has(id)?'✓ Staged — click to remove':'+ Stage in Detection Studio'}</button>
     <button class="btn ghost-violet" onclick="askAboutTech('${id}')" data-tip="Opens the AI Analyst pre-loaded with a deep-dive prompt for this technique">Ask AI Analyst</button>
+    <button class="btn ghost-violet" onclick="openAdvisor('${id}')" data-tip="Offline, deterministic containment/eradication/recovery commands for this technique — no network, no LLM">Response playbook</button>
     ${t.unverified?'':`<a class="btn" href="https://attack.mitre.org/techniques/${id.replace('.','/')}/" target="_blank" rel="noopener" data-tip="Open the official MITRE page in a new tab">MITRE ↗</a>`}
   </div>`;
  document.getElementById('dw-body').innerHTML=`

@@ -21,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { AuditLog } from './audit.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -58,6 +59,7 @@ const F = {
   agents: path.join(CFG.dataDir, 'agents.json'),
   tickets: path.join(CFG.dataDir, 'tickets.json'),
   events: path.join(CFG.dataDir, 'events.ndjson'),
+  audit: path.join(CFG.dataDir, 'audit.ndjson'),
 };
 const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
 const writeJson = (f, v) => {
@@ -79,6 +81,21 @@ try {
 const saveAgents = () => writeJson(F.agents, AGENTS);
 const saveTickets = () => writeJson(F.tickets, TICKETS);
 const evStream = fs.createWriteStream(F.events, { flags: 'a' });
+
+// hash-chained, tamper-evident audit log — one global chain, filtered by
+// targetId per view. actorId is whatever the client asserts (createdBy/
+// author/'analyst') until per-user auth exists — not identity-verified.
+const AUDIT = new AuditLog();
+try {
+  const raw = fs.existsSync(F.audit) ? fs.readFileSync(F.audit, 'utf8').trim().split('\n') : [];
+  AUDIT.load(raw.filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean));
+} catch { /* start with an empty chain */ }
+const auditStream = fs.createWriteStream(F.audit, { flags: 'a' });
+function auditRecord(actorId, action, targetId, data) {
+  const e = AUDIT.record(actorId, action, targetId, data);
+  auditStream.write(JSON.stringify(e) + '\n');
+  return e;
+}
 
 /* -------------------------------------------------------------------- util */
 const uid = (p = '') => p + crypto.randomBytes(9).toString('base64url');
@@ -442,6 +459,7 @@ const server = http.createServer(async (req, res) => {
         comments: [],
       };
       TICKETS.push(t); saveTickets();
+      auditRecord(t.createdBy, 'ticket.create', t.id, { title: t.title, severity: t.severity });
       broadcast('ticket', t);
       return json(res, 200, t);
     }
@@ -453,7 +471,9 @@ const server = http.createServer(async (req, res) => {
       for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'host', 'technique']) {
         if (b[k] !== undefined) t[k] = b[k];
       }
-      t.updatedAt = now(); saveTickets(); broadcast('ticket', t);
+      t.updatedAt = now(); saveTickets();
+      auditRecord(b.updatedBy || 'analyst', 'ticket.update', t.id, b);
+      broadcast('ticket', t);
       return json(res, 200, t);
     }
     const mC = p.match(/^\/api\/tickets\/([^/]+)\/comments$/);
@@ -461,8 +481,15 @@ const server = http.createServer(async (req, res) => {
       const t = TICKETS.find(x => x.id === mC[1]); if (!t) return json(res, 404, { error: 'no such ticket' });
       const b = await readBody(req);
       const c = { id: uid('c_'), author: b.author || 'analyst', text: String(b.text || '').slice(0, 8000), at: now() };
-      t.comments.push(c); t.updatedAt = now(); saveTickets(); broadcast('ticket', t);
+      t.comments.push(c); t.updatedAt = now(); saveTickets();
+      auditRecord(c.author, 'ticket.comment', t.id, { commentId: c.id });
+      broadcast('ticket', t);
       return json(res, 200, c);
+    }
+    const mA = p.match(/^\/api\/tickets\/([^/]+)\/audit$/);
+    if (mA && req.method === 'GET') {
+      const events = AUDIT.all().filter(e => e.targetId === mA[1]);
+      return json(res, 200, { intact: AUDIT.verify(), events });
     }
 
     /* ---------------- deployment helper ---------------- */

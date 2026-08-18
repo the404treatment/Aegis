@@ -86,7 +86,8 @@ const EXPORTS = [
   'lsNextDetections', 'primaryStage', 'eventsForTech', 'liveApplyLinks', 'LIVE',
   'lsZoneRect', 'lsRunImport', 'openArtifactTriage', 'artPick', 'getArt:()=>artState',
   'parseTriage', 'lsTakeSnapshot', 'getSnaps:()=>lsSnaps', 'setPending:v=>{lsPendingChain=v}',
-  'getPending:()=>lsPendingChain',
+  'getPending:()=>lsPendingChain', 'buildAdvisory', 'adviseTechnique', 'adviseNode',
+  'extractIocs', 'highlightIocs',
 ].join(',');
 
 /* ------------------------------------------------------------ data integrity */
@@ -294,6 +295,54 @@ section('live mode');
   eq('discovered link drawn', api.getEdges().filter(e => e.discovered).length, 1);
   api.liveApplyLinks([{ a: 'ag1', b: 'ag2', port: 445 }]);
   eq('re-applying links does not duplicate', api.getEdges().filter(e => e.discovered).length, 1);
+}
+
+/* ------------------------------------------------------------- response advisor */
+section('response advisor');
+{
+  const { api } = boot({}, EXPORTS);
+  const withKb = api.adviseTechnique('T1078'); // has a specific RA_TECH entry
+  const containEradicate = withKb.sections.filter(s => s.key === 'contain' || s.key === 'eradicate');
+  ok('technique with a KB entry produces contain/eradicate items',
+    containEradicate.some(s => s.items.length > 0));
+
+  const noKb = api.adviseTechnique('T1595'); // Reconnaissance, no RA_TECH entry -> tactic fallback
+  ok('technique with no KB entry still gets tactic-fallback items',
+    noKb.sections.some(s => s.items.length > 0));
+
+  const hosted = api.buildAdvisory({ techniques: ['T1078'], hosts: [{ host: 'TESTHOST01', ip: '10.1.1.1', type: 'wks', os: 'windows' }], iocs: [] });
+  const hostText = hosted.sections.flatMap(s => s.items).map(i => i.text + i.cmd).join('\n');
+  ok('host-specific commands name the literal hostname', hostText.includes('TESTHOST01'));
+
+  api.lsSeedTopology();
+  const n = api.getNodes()[0];
+  n.obs = [{ id: 'o1', evId: '', note: 'beaconed out to 8.8.8.8', sev: 'suspicious', t: Date.now() }];
+  const nodeAdv = api.adviseNode(n.uid);
+  ok('adviseNode pulls IOCs from observation notes into the block phase',
+    nodeAdv.sections.some(s => s.key === 'block' && s.items.length > 0));
+}
+
+/* ------------------------------------------------------------------- IOC extraction */
+section('IOC extraction');
+{
+  const { api } = boot({}, EXPORTS);
+  const text = 'host 203.0.113.5 (not 10.0.0.5) hit evil-domain.com via https://evil-domain.com/a?b=1, '
+    + 'dropped a3f5e6c1b2a3f5e6c1b2a3f5e6c1b2a3f5e6c1b2a3f5e6c1b2a3f5e6c1b2a3f5, and used CVE-2024-12345';
+  const iocs = api.extractIocs(text);
+  const types = iocs.map(i => i.type);
+  ok('extracts a public IPv4', types.includes('ipv4'));
+  ok('excludes the private IPv4', !iocs.some(i => i.value === '10.0.0.5'));
+  ok('extracts a domain', types.includes('domain'));
+  ok('extracts a URL', types.includes('url'));
+  ok('extracts a sha256 hash', types.includes('sha256'));
+  ok('extracts a CVE', types.includes('cve'));
+
+  const dup = api.extractIocs('203.0.113.5 seen twice: 203.0.113.5');
+  eq('dedupes repeated indicators', dup.filter(i => i.value === '203.0.113.5').length, 1);
+
+  const html = api.highlightIocs('<script>alert(1)</script> reached 203.0.113.5');
+  ok('escapes HTML before highlighting', !html.includes('<script>'));
+  ok('wraps the IOC in a span', html.includes('ioc-ip'));
 }
 
 /* ------------------------------------------------------------------ exports */

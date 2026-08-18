@@ -237,7 +237,7 @@ async function tkOpen(id){
    <input placeholder="assignee" value="${esc(t.assignee||'')}" onchange="tkPatch('${t.id}',{assignee:this.value})">
   </div>
   ${t.host||t.technique?`<div class="tk-d-tags">${t.host?`<span>\u25a3 ${esc(t.host)}</span>`:''}${t.technique?`<span>${esc(t.technique)}</span>`:''}</div>`:''}
-  ${t.body?`<div class="tk-d-body">${esc(t.body).replace(/\n/g,'<br>')}</div>`:''}
+  ${t.body?`<div class="tk-d-body">${highlightIocs(t.body).replace(/\n/g,'<br>')}</div>`:''}
   <div class="ls-mm-sec">Activity</div>
   ${(t.comments||[]).map(c=>`<div class="tk-c"><span class="tk-c-a">${esc(c.author)}</span><span class="tk-c-t">${new Date(c.at).toLocaleString()}</span><div>${esc(c.text).replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="ls-det-sub">No comments yet.</div>'}
   <textarea id="tk-c-in" class="art-ta" style="min-height:70px;margin-top:8px" placeholder="Add an update\u2026"></textarea>
