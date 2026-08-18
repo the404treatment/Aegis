@@ -51,6 +51,18 @@ function boot(store, exports) {
   const html = fs.readFileSync(HTML, 'utf8');
   const src = html.match(/<script>([\s\S]*)<\/script>/)[1];
   const els = {};
+  // A stub that only swallows listeners proves nothing: the SSE handlers
+  // shipped for months with an undefined variable in them because nothing
+  // ever ran their bodies. This one records handlers so a test can deliver
+  // a frame and watch what actually happens.
+  const sse = [];
+  class FakeEventSource {
+    constructor(url) { this.url = url; this.handlers = {}; this.closed = false; sse.push(this); }
+    addEventListener(type, fn) { (this.handlers[type] ||= []).push(fn); }
+    close() { this.closed = true; }
+    /** Deliver a frame exactly as the browser would: data is a JSON string. */
+    emit(type, data) { (this.handlers[type] || []).forEach(fn => fn({ data: JSON.stringify(data) })); }
+  }
   const doc = {
     addEventListener() { },
     getElementById: id => (els[id] ||= mkEl(id)),
@@ -71,9 +83,9 @@ function boot(store, exports) {
     function () { return {}; },
     () => false,   // *** native confirm SUPPRESSED, as on mobile ***
     () => null,    // *** native prompt SUPPRESSED ***
-    class { addEventListener() { } close() { } }
+    FakeEventSource
   );
-  return { api, els };
+  return { api, els, sse };
 }
 
 const EXPORTS = [
@@ -94,6 +106,7 @@ const EXPORTS = [
   'renderCases', 'csTicketSelectHTML', 'csUpsert',
   'renderChat', 'chatIngest', 'chatToggle',
   'getChatOpen:()=>chatOpen', 'getChatUnread:()=>chatUnread', 'setME:v=>{ME=v}',
+  'liveOpenStream', 'setView:v=>{view=v}',
 ].join(',');
 
 /* ------------------------------------------------------------ data integrity */
@@ -459,6 +472,47 @@ section('ingest — map building and commit');
   ok('the finding is logged as an observation on a host', withObs.length > 0);
   ok('a technique from the finding is staged', api.studio.has('T1071'));
   ok('ingState is cleared after commit', api.getIngState() === null);
+}
+
+/* ------------------------------------------------------- SSE frame handling */
+section('live SSE frames actually run');
+{
+  const { api, sse } = boot({}, EXPORTS);
+  api.LIVE.url = 'http://x'; api.LIVE.token = 't';
+  api.liveOpenStream();
+  eq('a stream was opened', sse.length, 1);
+  const es = sse[0];
+
+  // Every one of these handler bodies referenced an undefined `curView` and
+  // threw on the first frame, which silently killed the re-render and the
+  // badge update that follow it. Deliver one of each and require they run.
+  const fired = [];
+  const guard = (name, fn) => { try { fn(); fired.push(name); } catch (e) { fired.push(name + ' THREW: ' + e.message); } };
+
+  guard('agent', () => es.emit('agent', { id: 'ag1', hostname: 'DC01', nodeType: 'dc', zone: 'core', ip: '10.0.0.1' }));
+  guard('events', () => es.emit('events', [{ id: 'e1', agentId: 'ag1', host: 'DC01', eventId: '4625', severity: 'suspicious', message: 'x', ts: Date.now(), technique: 'T1110' }]));
+  guard('links', () => es.emit('links', []));
+  guard('ticket', () => es.emit('ticket', { id: 'tk1', num: 1, title: 't', status: 'open', severity: 'low', comments: [] }));
+  guard('case', () => es.emit('case', { id: 'cs1', num: 1, title: 'c', status: 'open', severity: 'low', evidence: [] }));
+  guard('chat', () => es.emit('chat', { id: 'm1', from: 'a', fromId: 'u1', text: 'hi', at: Date.now() }));
+  guard('agentRemoved', () => es.emit('agentRemoved', { id: 'ag1' }));
+
+  const threw = fired.filter(f => f.includes('THREW'));
+  ok('no SSE handler throws', threw.length === 0, threw.join(' | '));
+
+  // and the state they are supposed to maintain is actually maintained
+  eq('the ticket frame landed', api.LIVE.tickets.length, 1);
+  eq('the case frame landed', api.LIVE.cases.length, 1);
+  eq('the chat frame landed', api.LIVE.chat.length, 1);
+  eq('the agentRemoved frame removed it', api.LIVE.agents.length, 0);
+
+  // handlers gate re-renders on the current view; that variable must exist
+  api.setView('tickets');
+  let rethrew = false;
+  try { es.emit('ticket', { id: 'tk2', num: 2, title: 't2', status: 'open', severity: 'low', comments: [] }); }
+  catch { rethrew = true; }
+  ok('a frame arriving while its view is open still does not throw', !rethrew);
+  eq('and it was recorded', api.LIVE.tickets.length, 2);
 }
 
 /* --------------------------------------------------------------- SIEM view */

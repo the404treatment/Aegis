@@ -155,7 +155,16 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(!e.target.closest('.case-menu')){const p=document.getElementById('case-pop');if(p)p.classList.remove('open');}
   if(!e.target.closest('.exp-menu')){const p=document.getElementById('exp-pop');if(p)p.classList.remove('open');}
  });
+ // Open on the view named in the URL, so a link to #logsrc lands there.
+ const hv=location.hash.slice(1);
+ if(hv&&TITLES[hv])go(hv,true);
+ window.addEventListener('hashchange',()=>{
+  const h=location.hash.slice(1);
+  if(h&&TITLES[h]&&h!==view)go(h,true);
+ });
  if(read('aegis-toured','')!=='yes')setTimeout(startTour,600);
+ // Reconnect to the server we were last using, if any.
+ liveAutoConnect();
 });
 function updateBadges(){
  document.getElementById('b-matrix').textContent=uniqTechs().length;
@@ -191,8 +200,12 @@ function togTips(){
 
 /* ================= NAV ================= */
 const TITLES={matrix:['ATT&CK Coverage Matrix','15 tactics · full ATT&CK surface'],logsrc:['Network Map','Build · hunt · trace attacks live'],studio:['Detection Studio','Kill-chain mapping · dashboards · report'],siem:['Event Search','Field-aware search across live agent telemetry'],cases:['Cases','Incident files · tickets, evidence, write-up'],ai:['AI Analyst','Claude-powered detection research'],tickets:['Tickets','Shared incident queue']};
-function go(v){
+function go(v,fromHash){
+ if(!TITLES[v])return;
  view=v;
+ // Keep the address bar in step so a view can be bookmarked or shared, and
+ // the browser's back button does what everyone expects it to.
+ if(!fromHash){try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch{}}
  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
  document.querySelectorAll('.rail-nav .ritem').forEach(x=>x.classList.remove('on'));
  document.getElementById('v-'+v).classList.add('on');

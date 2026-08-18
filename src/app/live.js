@@ -13,7 +13,16 @@ async function liveApi(path,opts){
  if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||('HTTP '+r.status));
  return r.json();
 }
-async function liveConnect(){
+/* Reconnect on load when we already hold credentials. Without this a refresh
+   silently drops the analyst into offline mode with a stored token sitting
+   right there — the data looks gone rather than disconnected. Quiet by
+   design: failure just leaves the console offline, which is a supported
+   state, not an error worth interrupting anyone over. */
+async function liveAutoConnect(){
+ if(!LIVE.url||!LIVE.token)return;
+ try{await liveConnect({quiet:true});}catch{}
+}
+async function liveConnect(opts){
  if(!LIVE.url){toast('Set the server URL first');return;}
  // A server with accounts on should ask for one rather than failing with a
  // bare 401 the analyst can't act on.
@@ -29,16 +38,22 @@ async function liveConnect(){
   liveSave();liveApplyAgents();liveApplyLinks(st.links);liveOpenStream();
   renderLogSrc();renderTickets();renderCases();liveBadge();updateBadges();
   await authFetchMe();authRenderWho();renderChat();
-  toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
+  if(!(opts&&opts.quiet))toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
   LIVE.connected=false;LIVE.lastError=e.message;liveBadge();
   // A stale/rejected credential against an accounts server means sign in
   // again, not "your server is broken".
   if(/HTTP 401|unauthorized/i.test(e.message)){
    const mode=await authMode(LIVE.url);
-   if(mode.requireLogin){LIVE.token='';liveSave();openLogin('That session has expired. Sign in again.');return;}
+   if(mode.requireLogin){
+    LIVE.token='';liveSave();
+    // On a silent reconnect don't ambush someone with a login box they
+    // didn't ask for; the connect button is right there when they want it.
+    if(!(opts&&opts.quiet))openLogin('That session has expired. Sign in again.');
+    return;
+   }
   }
-  toast('Connection failed: '+e.message);
+  if(!(opts&&opts.quiet))toast('Connection failed: '+e.message);
  }
 }
 function liveDisconnect(){
@@ -53,35 +68,35 @@ function liveOpenStream(){
   const a=JSON.parse(e.data);
   const i=LIVE.agents.findIndex(x=>x.id===a.id);
   if(i>=0)LIVE.agents[i]=a;else LIVE.agents.push(a);
-  liveApplyAgents();if(curView==='logsrc')renderLogSrc();liveBadge();
+  liveApplyAgents();if(view==='logsrc')renderLogSrc();liveBadge();
  });
  es.addEventListener('agentRemoved',e=>{
   const {id}=JSON.parse(e.data);
   LIVE.agents=LIVE.agents.filter(a=>a.id!==id);
   lsNodes=lsNodes.filter(n=>n.agentId!==id);
-  if(curView==='logsrc')renderLogSrc();
+  if(view==='logsrc')renderLogSrc();
  });
  es.addEventListener('events',e=>{
   const evs=JSON.parse(e.data);
   LIVE.events.push(...evs);if(LIVE.events.length>500)LIVE.events.splice(0,LIVE.events.length-500);
   evs.forEach(liveIngestEvent);
-  if(curView==='logsrc')renderLogSrc();
+  if(view==='logsrc')renderLogSrc();
   updateBadges();
   const bad=evs.filter(x=>x.severity==='malicious');
   if(bad.length)toast(`\u26a0 ${bad.length} malicious event${bad.length===1?'':'s'} on ${bad[0].host}`);
  });
- es.addEventListener('links',e=>{liveApplyLinks(JSON.parse(e.data));if(curView==='logsrc')renderLogSrc();});
+ es.addEventListener('links',e=>{liveApplyLinks(JSON.parse(e.data));if(view==='logsrc')renderLogSrc();});
  es.addEventListener('ticket',e=>{
   const tk=JSON.parse(e.data);
   const i=LIVE.tickets.findIndex(x=>x.id===tk.id);
   if(i>=0)LIVE.tickets[i]=tk;else LIVE.tickets.push(tk);
-  if(curView==='tickets')renderTickets();
-  if(curView==='cases')renderCases();
+  if(view==='tickets')renderTickets();
+  if(view==='cases')renderCases();
   liveBadge();updateBadges();
  });
  es.addEventListener('case',e=>{
   csUpsert(JSON.parse(e.data));
-  if(curView==='cases')csRefresh();
+  if(view==='cases')csRefresh();
   updateBadges();
  });
  es.addEventListener('chat',e=>chatIngest(JSON.parse(e.data)));

@@ -8,6 +8,21 @@ SOC detection-engineering console with an incident-response platform.
 no signup, nothing to configure. The console is fully functional offline, so the
 hosted build is the real app rather than a demo.
 
+<p align="center">
+  <img src="assets/matrix.png" alt="ATT&CK coverage matrix showing telemetry coverage per technique" width="860">
+</p>
+
+<table>
+  <tr>
+    <td><img src="assets/huntmap.png" alt="Hunt map showing an intrusion traced across zones"></td>
+    <td><img src="assets/studio.png" alt="Detection studio with staged techniques on the kill chain"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Hunt map — the intrusion traced across your estate</sub></td>
+    <td align="center"><sub>Detection studio — staged techniques, mapped to the kill chain</sub></td>
+  </tr>
+</table>
+
 ## Run it on your own network
 
 Install [Node.js 18+](https://nodejs.org), then:
