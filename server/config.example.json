@@ -8,6 +8,9 @@
   "enrollmentToken": "CHANGE-ME-generate-with-openssl-rand-base64-24",
   "analystToken": "CHANGE-ME-generate-with-openssl-rand-base64-24",
 
+  "//requireLogin": "Optional named accounts. Leave false and the analyst token above is the only credential, exactly as before. Set true to make the console ask for a name and password; the analyst token keeps working as the break-glass and automation credential either way. See deploy/README-deploy.md.",
+  "requireLogin": false,
+
   "splunk": {
     "enabled": false,
     "url": "https://127.0.0.1:8088/services/collector/event",

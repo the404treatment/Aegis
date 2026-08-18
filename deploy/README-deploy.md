@@ -56,6 +56,49 @@ Set-AuthenticodeSignature -FilePath aegis-agent.ps1 -Certificate $cert -Timestam
 Then set execution policy to `AllSigned` on the endpoints rather than using
 `-ExecutionPolicy Bypass`.
 
+## Enabling named accounts (optional)
+
+By default the analyst token is the only console credential — one shared
+secret, no user identity. That is unchanged and still supported.
+
+To get per-user logins, roles and real attribution, set `requireLogin: true`
+in `config.json` and restart. Nothing breaks when you do: **the analyst token
+keeps working** as the break-glass and automation credential, so you cannot
+lock yourself out, and scripts or integrations using it need no changes.
+
+Create the first account with the analyst token:
+
+```bash
+curl -X POST http://127.0.0.1:8787/api/users \
+  -H "Authorization: Bearer $ANALYST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"you","password":"a-real-password","role":"lead"}'
+```
+
+The server prints this command on startup when accounts are on and none exist.
+
+Two roles:
+
+| Role | Can |
+|------|-----|
+| `analyst` | search events, create tickets, comment, edit **their own** tickets |
+| `lead` | all of the above, plus edit **any** ticket, remove agents, manage accounts |
+
+Notes:
+
+- Sessions are bearer tokens, not cookies — the console already authenticates
+  that way, and `EventSource` (the live feed) cannot send custom headers.
+- Sessions last 7 days. Changing or deleting an account revokes its live
+  sessions immediately.
+- Failed logins are rate-limited per IP and name: five attempts in fifteen
+  minutes triggers a fifteen-minute lockout, which holds even for the correct
+  password.
+- Passwords are scrypt-hashed with a per-user salt. Accounts live in
+  `data/users.json`, sessions in `data/sessions.json` — both inside `dataDir`,
+  so back them up (and protect them) with the rest of it.
+- There is still no TLS in the server itself. Put the reverse proxy in front
+  **before** anyone types a password into it.
+
 ## Rotate the enrollment token after rollout
 
 It is only needed at first contact. Once agents hold their own keys, change

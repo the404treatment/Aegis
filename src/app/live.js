@@ -14,22 +14,36 @@ async function liveApi(path,opts){
  return r.json();
 }
 async function liveConnect(){
- if(!LIVE.url||!LIVE.token){toast('Set the server URL and analyst token first');return;}
+ if(!LIVE.url){toast('Set the server URL first');return;}
+ // A server with accounts on should ask for one rather than failing with a
+ // bare 401 the analyst can't act on.
+ if(!LIVE.token){
+  const mode=await authMode(LIVE.url);
+  if(mode.requireLogin){openLogin();return;}
+  toast('Set the analyst token first');return;
+ }
  try{
   const st=await liveApi('/api/state');
   LIVE.agents=st.agents||[];LIVE.tickets=st.tickets||[];LIVE.events=st.events||[];
   LIVE.connected=true;LIVE.lastError='';
   liveSave();liveApplyAgents();liveApplyLinks(st.links);liveOpenStream();
   renderLogSrc();renderTickets();liveBadge();updateBadges();
+  await authFetchMe();authRenderWho();
   toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
   LIVE.connected=false;LIVE.lastError=e.message;liveBadge();
+  // A stale/rejected credential against an accounts server means sign in
+  // again, not "your server is broken".
+  if(/HTTP 401|unauthorized/i.test(e.message)){
+   const mode=await authMode(LIVE.url);
+   if(mode.requireLogin){LIVE.token='';liveSave();openLogin('That session has expired. Sign in again.');return;}
+  }
   toast('Connection failed: '+e.message);
  }
 }
 function liveDisconnect(){
  if(LIVE.es){try{LIVE.es.close()}catch{}LIVE.es=null;}
- LIVE.connected=false;liveBadge();renderLogSrc();toast('Disconnected \u2014 back to local mode');
+ LIVE.connected=false;liveBadge();authRenderWho();renderLogSrc();toast('Disconnected \u2014 back to local mode');
 }
 function liveOpenStream(){
  if(LIVE.es){try{LIVE.es.close()}catch{}}

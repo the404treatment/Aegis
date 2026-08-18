@@ -24,6 +24,7 @@
     "app/siem.js",
     "app/improvements.js",
     "app/live.js",
+    "app/auth.js",
     "app/dialogs.js",
     "app/map-interact.js",
     "app/report.js",

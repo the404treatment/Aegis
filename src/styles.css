@@ -602,6 +602,16 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .ra-item-text{font-size:11.5px;color:var(--t1);line-height:1.5;}
 .ra-cmd{margin:7px 0 0;padding:8px 10px;background:var(--ink2);border:1px solid var(--line2);border-radius:7px;font-family:var(--mono);font-size:10px;color:var(--t2);white-space:pre-wrap;word-break:break-word;}
 .ra-why{margin-top:6px;font-size:10.5px;color:var(--t3);line-height:1.4;}
+/* ---- signed-in identity chip ---- */
+.who-ind{display:none;align-items:center;gap:6px;font-size:10px;padding:3px 9px;border-radius:20px;}
+.who-ind.on,.who-ind.shared{display:inline-flex;}
+.who-ind.on{background:var(--violet-soft);border:1px solid var(--line-hi);cursor:pointer;}
+.who-ind.on:hover{background:var(--hover);}
+.who-ind.shared{background:var(--ink2);border:1px solid var(--line2);}
+.who-name{color:var(--t1);font-weight:600;}
+.who-role{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);}
+.who-ind.on .who-role{color:var(--violet);}
+
 /* ---- event search (SIEM) ---- */
 .sq-wrap{flex:1;overflow-y:auto;padding:18px 22px 40px;}
 .sq-bar{display:flex;gap:8px;margin-bottom:12px;}
