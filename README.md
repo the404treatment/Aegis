@@ -14,6 +14,7 @@ server for live agent data and shared ticketing.
 - `CLAUDE.md` — architecture, conventions, hard rules (read this first)
 - `deploy/README-deploy.md` — server + agent deployment
 - `splunk/aegis_hec_setup.md` — HEC config and starting searches
+- `NEXT_STEPS.md` — priority-ordered roadmap
 
 ## Security posture
 
