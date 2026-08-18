@@ -42,7 +42,7 @@ being ported — AEGIS's agents stay push-only with no remote-exec channel by de
 | 1 | Agent event-ID enrichment → live technique tagging (`agents/aegis-agent.ps1` → `/api/events` → hunt-map badge) | ✅ done |
 | 2 | Client-side ingest parsers (Chainsaw/Suricata/Zeek/PCAP) — runs in-browser, offline, feeding the hunt map | ✅ done |
 | 3 | Event lake + SIEM query tab (global scope, not per-case — no case entity exists yet) | ✅ done |
-| 4 | Auth/RBAC + login, additive/opt-in (`CFG.requireLogin`, default off) — existing `analystToken` deploys keep working unmodified | not started |
+| 4 | Auth/RBAC + login, additive/opt-in (`CFG.requireLogin`, default off) — existing `analystToken` deploys keep working unmodified | ✅ done |
 | 5 | Case-file layer + evidence upload — a lightweight `Case` container (not a retrofit of tickets into Skyhawk's 6-state approval workflow); tickets gain one optional `caseId` field | not started |
 | 6 | Formal report freeze/sign — extends `src/app/report.js`'s live `reportHTML()` with a Manager-gated, anonymized, version-stamped snapshot | not started |
 | 7 | Team chat — reuses the server's existing SSE `broadcast()`, not Skyhawk's 2.5s polling | not started |
