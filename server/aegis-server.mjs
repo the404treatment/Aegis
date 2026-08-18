@@ -28,6 +28,7 @@ import { AuditLog } from './audit.mjs';
 import { query as lakeQuery } from './lake.mjs';
 import { Sessions, LoginLimiter, makeUser, findUser, verifyPw, publicUser, can, canonRole, capsFor } from './auth.mjs';
 import { makeCase, patchCase, decodeEvidence, evidenceRecord, safeEvidenceName, EVIDENCE_MAX_BYTES } from './cases.mjs';
+import { buildReport, finalizeFormal } from './report.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -611,6 +612,10 @@ const server = http.createServer(async (req, res) => {
         // The one field tickets gain for the case layer. Optional: a ticket
         // with no case behaves exactly as it always did.
         caseId: b.caseId || '',
+        // Formal-report opt-in. A ticket reaches the client-facing report
+        // only when a lead flags it AND writes a plain-language summary.
+        includeInFormal: false,
+        formalSummary: '',
         // Attribution comes from the authenticated actor, never the request
         // body — with accounts on, "who did this" is now actually verified.
         // The shared analyst token still reports as 'analyst', as before.
@@ -637,6 +642,14 @@ const server = http.createServer(async (req, res) => {
       const b = await readBody(req);
       for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'host', 'technique', 'caseId']) {
         if (b[k] !== undefined) t[k] = b[k];
+      }
+      // Curating what reaches a client-facing report is a lead's call, not
+      // the raising analyst's — so these two need report.finalize, whether
+      // or not the ticket is your own.
+      if (b.includeInFormal !== undefined || b.formalSummary !== undefined) {
+        if (denied(res, actor, 'report.finalize')) return;
+        if (b.includeInFormal !== undefined) t.includeInFormal = !!b.includeInFormal;
+        if (b.formalSummary !== undefined) t.formalSummary = String(b.formalSummary).slice(0, 20000);
       }
       t.updatedAt = now(); saveTickets();
       auditRecord(actor.id, 'ticket.update', t.id, b);
@@ -720,6 +733,30 @@ const server = http.createServer(async (req, res) => {
       auditRecord(actor.id, 'evidence.add', c.id, { evidenceId: rec.id, sha256: rec.sha256, bytes: rec.bytes, name: rec.name });
       broadcast('case', c);
       return json(res, 200, rec);
+    }
+
+    /* ---------------- case reports ---------------- */
+    const mRep = p.match(/^\/api\/cases\/([^/]+)\/report$/);
+    if (mRep && req.method === 'GET') {
+      const c = CASES.find(x => x.id === mRep[1]); if (!c) return json(res, 404, { error: 'no such case' });
+      const kind = u.searchParams.get('kind') === 'formal' ? 'formal' : 'technical';
+      return json(res, 200, buildReport(c, TICKETS, kind));
+    }
+
+    /* Freezing is what turns the formal report from a view into a
+       deliverable, so it is a lead's signature, not an analyst's. */
+    const mFin = p.match(/^\/api\/cases\/([^/]+)\/finalize$/);
+    if (mFin && req.method === 'POST') {
+      const actor = actorOf(req, u);
+      if (denied(res, actor, 'report.finalize')) return;
+      const c = CASES.find(x => x.id === mFin[1]); if (!c) return json(res, 404, { error: 'no such case' });
+      const snap = finalizeFormal(c, TICKETS, actor.shared ? 'analyst token' : actor.name);
+      c.updatedAt = now(); saveCases();
+      // The snapshot hash goes in the chain, so a frozen report altered on
+      // disk afterwards no longer matches what was signed.
+      auditRecord(actor.id, 'report.finalize', c.id, { version: snap.version, sha256: snap.sha256, blocks: snap.blocks.length });
+      broadcast('case', c);
+      return json(res, 200, snap);
     }
 
     const mEvGet = p.match(/^\/api\/evidence\/([^/]+)$/);

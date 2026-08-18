@@ -120,7 +120,130 @@ function csDetailHTML(c){
   </div>`).join(''):'<div class="ls-det-sub">Nothing collected yet.</div>'}
   <input type="file" id="cs-ev-file" style="margin-top:8px" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt" onchange="csUpload('${c.id}',this)">
   <input class="dash-input" id="cs-ev-cap" style="width:100%;margin-top:6px" placeholder="Caption (optional) — set this before choosing the file">
+
+  ${csReportHTML(c,tks)}
  </div>`;
+}
+
+/* ---- formal report: curation, preview, freeze ---- */
+function csReportHTML(c,tks){
+ const frozen=c.formalFrozen;
+ const canFinalize=authCan('report.finalize');
+ const eligible=tks.filter(t=>t.includeInFormal&&String(t.formalSummary||'').trim());
+ return `
+  <div class="ls-mm-sec">Formal report</div>
+  ${frozen?`<div class="cs-frozen">
+     <div class="cs-frozen-h">✓ Frozen · version ${frozen.version}</div>
+     <div class="cs-frozen-b">Signed by ${esc(frozen.frozenBy)} · ${new Date(frozen.frozenAt).toLocaleString()}<br>
+       <span class="cs-frozen-hash">${esc(frozen.sha256||'')}</span></div>
+     <div class="cs-frozen-n">This snapshot no longer tracks the case. Re-freezing publishes a new version.</div>
+   </div>`
+  :`<div class="ls-det-sub">Not frozen. The formal report is a live preview until a lead signs it.</div>`}
+
+  <div class="ls-det-sub" style="margin-top:8px">A ticket reaches the client-facing report only when it is flagged <b>and</b> has a plain-language summary. Analyst names and raw technical detail are omitted by policy.</div>
+  ${tks.length?tks.map(t=>`<div class="cs-fm ${t.includeInFormal?'on':''}">
+    <label class="cs-fm-top">
+      <input type="checkbox" ${t.includeInFormal?'checked':''} ${canFinalize?'':'disabled'}
+        onchange="csSetFormal('${t.id}',{includeInFormal:this.checked})">
+      <span>#${t.num} ${esc(t.title)}</span>
+    </label>
+    ${t.includeInFormal?`<textarea class="art-ta" style="min-height:56px;margin-top:6px" ${canFinalize?'':'disabled'}
+      placeholder="Plain-language summary for the client-facing report — this replaces the technical detail."
+      onchange="csSetFormal('${t.id}',{formalSummary:this.value})">${esc(t.formalSummary||'')}</textarea>
+      ${String(t.formalSummary||'').trim()?'':'<div class="cs-fm-warn">Needs a summary before it can appear.</div>'}`:''}
+  </div>`).join(''):'<div class="ls-det-sub">No tickets attached, so there is nothing to report on yet.</div>'}
+
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button class="btn" style="flex:1;justify-content:center" onclick="csPreview('${c.id}','technical')">Technical preview</button>
+    <button class="btn" style="flex:1;justify-content:center" onclick="csPreview('${c.id}','formal')">Formal preview</button>
+  </div>
+  ${canFinalize?`<button class="btn violet" style="width:100%;justify-content:center;margin-top:8px"
+     onclick="csFinalize('${c.id}')" ${eligible.length?'':'disabled'}>
+     ${frozen?`Re-freeze as version ${frozen.version+1}`:'Freeze &amp; sign the formal report'}
+     ${eligible.length?` · ${eligible.length} item${eligible.length===1?'':'s'}`:' · nothing eligible yet'}
+   </button>`
+  :`<div class="ls-det-sub" style="margin-top:8px">Freezing the formal report needs the lead role.</div>`}`;
+}
+
+async function csSetFormal(ticketId,patch){
+ try{
+  const t=await liveApi('/api/tickets/'+ticketId,{method:'PATCH',body:JSON.stringify(patch)});
+  const i=LIVE.tickets.findIndex(x=>x.id===t.id);
+  if(i>=0)LIVE.tickets[i]=t;else LIVE.tickets.push(t);
+  csRefresh();
+ }catch(e){toast('Could not save: '+e.message);}
+}
+
+async function csFinalize(id){
+ const c=csById(id);if(!c)return;
+ const again=!!c.formalFrozen;
+ const msg=again
+  ? `Re-freeze this report as version ${c.formalFrozen.version+1}? The current signed version will be replaced.`
+  : 'Freeze and sign this formal report? It becomes an immutable snapshot that stops tracking the case.';
+ if(!await uiConfirm(msg,{title:'Freeze formal report',ok:again?'Re-freeze':'Freeze & sign'}))return;
+ try{
+  const snap=await liveApi('/api/cases/'+id+'/finalize',{method:'POST'});
+  c.formalFrozen=snap;csRefresh();
+  toast(`Formal report frozen · version ${snap.version}`);
+ }catch(e){toast('Could not freeze: '+e.message);}
+}
+
+async function csPreview(id,kind){
+ try{
+  const r=await liveApi('/api/cases/'+id+'/report?kind='+kind);
+  let v=document.getElementById('cs-rep-veil');
+  if(!v){v=document.createElement('div');v.id='cs-rep-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
+  v.innerHTML=`<div class="ls-det-sheet" style="width:min(720px,100vw)">
+   <div class="ls-ne-grip" onclick="csClosePreview()"></div>
+   <div id="cs-rep-body">${csReportDocHTML(r)}</div>
+   <div style="display:flex;gap:8px;margin-top:12px">
+     <button class="btn" style="flex:1;justify-content:center" onclick="csClosePreview()">Close</button>
+     <button class="btn violet" style="flex:1;justify-content:center" onclick="csDownloadReport()">Download</button>
+   </div>
+  </div>`;
+  v.classList.add('open');v.onclick=(e)=>{if(e.target===v)csClosePreview();};
+ }catch(e){toast('Could not build the report: '+e.message);}
+}
+function csClosePreview(){const v=document.getElementById('cs-rep-veil');if(v)v.classList.remove('open');}
+
+function csReportDocHTML(r){
+ const sec=(t,b)=>b&&b.trim()?`<div class="rp-sec"><h3>${t}</h3><p>${esc(b).replace(/\n/g,'<br>')}</p></div>`:'';
+ return `<div class="rp-doc">
+  <div class="rp-kind">${r.kind==='formal'?'Formal report':'Technical report'}${r.frozen?` · frozen v${r.version}`:' · live'}</div>
+  <h2>#${r.caseNum} ${esc(r.title)}</h2>
+  ${r.frozen?`<div class="rp-signed">Signed by ${esc(r.frozenBy)} · ${new Date(r.frozenAt).toLocaleString()}</div>`:''}
+  ${r.kind==='formal'?'<div class="rp-notice">Analyst names and raw technical detail are omitted by policy.</div>':''}
+  ${sec('Executive summary',r.execSummary)}
+  ${sec('Scope',r.scope)}
+  ${sec('Remediation',r.remediation)}
+  <div class="rp-sec"><h3>Findings · ${r.blocks.length}</h3>
+   ${r.blocks.length?r.blocks.map(b=>`<div class="rp-block">
+     <div class="rp-block-h"><b>#${b.num} ${esc(b.title)}</b> <span class="rp-sev">${esc(b.severity||'')}</span></div>
+     ${b.host||b.technique?`<div class="rp-meta">${b.host?esc(b.host):''}${b.host&&b.technique?' · ':''}${b.technique?esc(b.technique):''}</div>`:''}
+     ${b.body?`<div class="rp-body">${esc(b.body).replace(/\n/g,'<br>')}</div>`:''}
+     ${b.raisedBy?`<div class="rp-by">raised by ${esc(b.raisedBy)}</div>`:''}
+   </div>`).join(''):'<p class="rp-empty">Nothing qualifies yet.</p>'}
+  </div>
+ </div>`;
+}
+
+function csDownloadReport(){
+ const body=document.getElementById('cs-rep-body');if(!body)return;
+ const html=`<!doctype html><meta charset="utf-8"><title>AEGIS report</title>
+<style>body{font:14px/1.6 system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#111}
+h2{margin:0 0 4px}h3{margin:22px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#555}
+.rp-kind{font:11px monospace;color:#666;text-transform:uppercase;letter-spacing:.12em}
+.rp-signed{color:#0a7;font-size:12px;margin:6px 0}
+.rp-notice{background:#f4f4f6;border-left:3px solid #888;padding:8px 12px;font-size:12px;margin:12px 0}
+.rp-block{border:1px solid #ddd;border-radius:6px;padding:10px 12px;margin-bottom:8px}
+.rp-sev{font:10px monospace;text-transform:uppercase;color:#a00}
+.rp-meta{font:11px monospace;color:#666;margin-top:2px}
+.rp-body{margin-top:6px}.rp-by{font-size:11px;color:#777;margin-top:6px}
+</style>${body.innerHTML}`;
+ const blob=new Blob([html],{type:'text/html'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+ a.download='aegis-report.html';a.click();
+ URL.revokeObjectURL(a.href);
 }
 
 async function csPatch(id,patch){

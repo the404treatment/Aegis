@@ -298,6 +298,97 @@ section('cases and evidence (over HTTP)');
   } finally { S.stop(); }
 }
 
+/* ============ 2c. formal report curation and freeze ============ */
+section('formal report freeze (over HTTP)');
+{
+  const S = await boot({ requireLogin: true });
+  try {
+    await api(S.base, '/api/users', withTok('test-analyst-token', {
+      method: 'POST', body: JSON.stringify({ name: 'ana', password: 'pw-ana-12345', role: 'analyst' }),
+    }));
+    await api(S.base, '/api/users', withTok('test-analyst-token', {
+      method: 'POST', body: JSON.stringify({ name: 'lead', password: 'pw-lead-12345', role: 'lead' }),
+    }));
+    const ana = await (await api(S.base, '/api/auth/login', { method: 'POST', body: JSON.stringify({ name: 'ana', password: 'pw-ana-12345' }) })).json();
+    const lead = await (await api(S.base, '/api/auth/login', { method: 'POST', body: JSON.stringify({ name: 'lead', password: 'pw-lead-12345' }) })).json();
+
+    const c = await (await api(S.base, '/api/cases', withTok(lead.token, {
+      method: 'POST', body: JSON.stringify({ title: 'Incident', execSummary: 'the summary' }),
+    }))).json();
+    const t = await (await api(S.base, '/api/tickets', withTok(ana.token, {
+      method: 'POST', body: JSON.stringify({ title: 'Finding one', body: 'RAW-TECHNICAL-DETAIL', caseId: c.id, severity: 'high' }),
+    }))).json();
+
+    /* --- curation is a lead's call, not the raising analyst's --- */
+    let r = await api(S.base, `/api/tickets/${t.id}`, withTok(ana.token, {
+      method: 'PATCH', body: JSON.stringify({ includeInFormal: true }),
+    }));
+    eq('an analyst CANNOT flag their own ticket into the formal report', r.status, 403);
+    r = await api(S.base, `/api/tickets/${t.id}`, withTok(ana.token, {
+      method: 'PATCH', body: JSON.stringify({ formalSummary: 'sneaking a summary in' }),
+    }));
+    eq('an analyst CANNOT write the formal summary either', r.status, 403);
+    r = await api(S.base, `/api/tickets/${t.id}`, withTok(ana.token, {
+      method: 'PATCH', body: JSON.stringify({ status: 'contained' }),
+    }));
+    eq('but an analyst can still edit their own ticket normally', r.status, 200);
+
+    /* --- freezing needs the lead role --- */
+    r = await api(S.base, `/api/cases/${c.id}/finalize`, withTok(ana.token, { method: 'POST' }));
+    eq('an analyst CANNOT freeze the formal report', r.status, 403);
+
+    /* --- the two-part gate, over the wire --- */
+    r = await api(S.base, `/api/cases/${c.id}/report?kind=formal`, withTok(lead.token));
+    eq('nothing qualifies before curation', (await r.json()).blocks.length, 0);
+
+    await api(S.base, `/api/tickets/${t.id}`, withTok(lead.token, { method: 'PATCH', body: JSON.stringify({ includeInFormal: true }) }));
+    r = await api(S.base, `/api/cases/${c.id}/report?kind=formal`, withTok(lead.token));
+    eq('flagged but unwritten still does not qualify', (await r.json()).blocks.length, 0);
+
+    await api(S.base, `/api/tickets/${t.id}`, withTok(lead.token, { method: 'PATCH', body: JSON.stringify({ formalSummary: 'A system was affected and restored.' }) }));
+    r = await api(S.base, `/api/cases/${c.id}/report?kind=formal`, withTok(lead.token));
+    const formalLive = await r.json();
+    eq('flagged AND written qualifies', formalLive.blocks.length, 1);
+    ok('the raw technical detail never reaches the formal report', !JSON.stringify(formalLive).includes('RAW-TECHNICAL-DETAIL'));
+    ok('the analyst name never reaches the formal report', !JSON.stringify(formalLive).includes('"ana"'));
+
+    r = await api(S.base, `/api/cases/${c.id}/report?kind=technical`, withTok(ana.token));
+    const tech = await r.json();
+    ok('the technical report DOES carry the raw detail', JSON.stringify(tech).includes('RAW-TECHNICAL-DETAIL'));
+    eq('and credits the analyst', tech.blocks[0].raisedBy, 'ana');
+
+    /* --- freeze, then prove it stopped tracking --- */
+    r = await api(S.base, `/api/cases/${c.id}/finalize`, withTok(lead.token, { method: 'POST' }));
+    eq('a lead CAN freeze', r.status, 200);
+    const snap = await r.json();
+    eq('first freeze is version 1', snap.version, 1);
+    eq('signed by the lead', snap.frozenBy, 'lead');
+    ok('carries a snapshot hash', /^[a-f0-9]{64}$/.test(snap.sha256));
+
+    await api(S.base, `/api/tickets/${t.id}`, withTok(lead.token, { method: 'PATCH', body: JSON.stringify({ formalSummary: 'CHANGED AFTER FREEZING' }) }));
+    r = await api(S.base, `/api/cases/${c.id}/report?kind=formal`, withTok(lead.token));
+    const afterEdit = await r.json();
+    eq('the frozen report ignores later edits', afterEdit.blocks[0].body, 'A system was affected and restored.');
+    eq('and still reports as frozen', afterEdit.frozen, true);
+
+    // The technical report tracks the ticket body (the working detail), not
+    // the lead's formal summary — so edit the body to prove it stays live.
+    await api(S.base, `/api/tickets/${t.id}`, withTok(lead.token, { method: 'PATCH', body: JSON.stringify({ body: 'DETAIL-UPDATED-AFTER-FREEZING' }) }));
+    r = await api(S.base, `/api/cases/${c.id}/report?kind=technical`, withTok(lead.token));
+    ok('while the technical view moved on', JSON.stringify(await r.json()).includes('DETAIL-UPDATED-AFTER-FREEZING'));
+    r = await api(S.base, `/api/cases/${c.id}/report?kind=formal`, withTok(lead.token));
+    ok('and the frozen formal report did not', !JSON.stringify(await r.json()).includes('DETAIL-UPDATED-AFTER-FREEZING'));
+
+    r = await api(S.base, `/api/cases/${c.id}/finalize`, withTok(lead.token, { method: 'POST' }));
+    const snap2 = await r.json();
+    eq('re-freezing bumps to version 2', snap2.version, 2);
+    eq('and publishes the newer text', snap2.blocks[0].body, 'CHANGED AFTER FREEZING');
+
+    r = await api(S.base, '/api/cases/nope/finalize', withTok(lead.token, { method: 'POST' }));
+    eq('freezing a missing case is 404', r.status, 404);
+  } finally { S.stop(); }
+}
+
 /* ============ 3. lockout over real HTTP ============ */
 section('login lockout (over HTTP)');
 {

@@ -26,7 +26,7 @@ const ANALYST_CAPS = [
 ];
 const CAP = {
   analyst: ANALYST_CAPS,
-  lead: [...ANALYST_CAPS, 'ticket.editAny', 'case.editAny', 'agent.manage', 'user.manage'],
+  lead: [...ANALYST_CAPS, 'ticket.editAny', 'case.editAny', 'report.finalize', 'agent.manage', 'user.manage'],
 };
 export const capsFor = role => CAP[role] || [];
 export const can = (role, cap) => capsFor(role).includes(cap);
