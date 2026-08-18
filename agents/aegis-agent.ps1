@@ -43,6 +43,32 @@ $ErrorActionPreference = 'Stop'
 $AgentVersion = '1.0.0'
 $StateDir = Join-Path $env:ProgramData 'AEGIS'
 $StateFile = Join-Path $StateDir 'agent.json'
+
+# The agent needs elevation for two reasons: its identity lives under
+# ProgramData (ACL'd to SYSTEM/Administrators so a normal user cannot steal
+# the agent key), and the Security log is unreadable without it. Without this
+# check the first failure is a raw UnauthorizedAccessException from
+# Set-Content, which tells the operator nothing useful.
+function Test-Elevated {
+  try {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return (New-Object Security.Principal.WindowsPrincipal($id)).IsInRole(
+      [Security.Principal.WindowsBuiltInRole]::Administrator)
+  } catch { return $false }
+}
+if (-not (Test-Elevated)) {
+  Write-Host ''
+  Write-Host '  AEGIS agent must run as Administrator.' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host '  It needs elevation to read the Security event log and to store its'
+  Write-Host '  agent key under ProgramData with restricted permissions.'
+  Write-Host ''
+  Write-Host '  Right-click PowerShell -> "Run as administrator", then re-run:'
+  Write-Host ("    .\aegis-agent.ps1 -Server {0} -EnrollmentToken <token>" -f
+    $(if ($Server) { $Server } else { '<server-url>' })) -ForegroundColor Cyan
+  Write-Host ''
+  exit 1
+}
 $LogFile = Join-Path $StateDir 'agent.log'
 
 function Write-Log {

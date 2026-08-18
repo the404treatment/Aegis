@@ -6,6 +6,7 @@
   "description": "SOC detection-engineering console with agent ingest platform",
   "engines": { "node": ">=18" },
   "scripts": {
+    "setup": "node setup.mjs",
     "build": "node build.mjs",
     "dev": "node build.mjs --watch",
     "start": "node server/aegis-server.mjs --config ./server/config.json",

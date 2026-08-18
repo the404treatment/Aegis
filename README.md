@@ -8,14 +8,24 @@ SOC detection-engineering console with an incident-response platform.
 no signup, nothing to configure. The console is fully functional offline, so the
 hosted build is the real app rather than a demo.
 
-```bash
-npm run build     # src/ -> ui/index.html
-npm test          # build + full suite (UI, server, end-to-end HTTP)
-npm run serve     # build + server on http://127.0.0.1:8787
-```
+## Run it on your own network
 
-No dependencies to install — the console is vanilla JS and the server is
-Node's standard library only.
+Install [Node.js 18+](https://nodejs.org), then:
+
+**Windows** — double-click **`start.cmd`**
+**Linux/macOS** — `./start.sh`
+
+First run generates your tokens, builds the console, starts the server and opens
+it. Nothing to `npm install` — AEGIS has no dependencies.
+
+Then point agents at the "Agents report to" address it prints, and they start
+feeding the console. **[Full step-by-step guide →](INSTALL.md)**
+
+```bash
+npm run setup     # regenerate config + rebuild (keeps your tokens)
+npm start         # start the server
+npm test          # build + full suite (UI, server, end-to-end HTTP)
+```
 
 **Offline** (open `ui/index.html` directly, no backend): ATT&CK coverage
 matrix, hunt map, detection studio, artifact triage, offline response
@@ -27,6 +37,7 @@ case files with SHA-256 hashed evidence, signed formal reports, a
 tamper-evident audit chain, and team chat. Named accounts with roles are
 opt-in — without them the shared analyst token works exactly as before.
 
+- `INSTALL.md` — step-by-step install: server, agents, firewall, verification
 - `CLAUDE.md` — architecture, conventions, hard rules (read this first)
 - `deploy/README-deploy.md` — server + agent deployment
 - `splunk/aegis_hec_setup.md` — HEC config and starting searches

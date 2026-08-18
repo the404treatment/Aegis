@@ -21,6 +21,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -864,8 +865,46 @@ setInterval(() => {
 
 process.on('SIGINT', () => { console.log('\n[aegis] shutting down'); saveAgents(); saveTickets(); evStream.end(); process.exit(0); });
 
+/** Addresses an agent could actually reach us on. 0.0.0.0 is not a URL. */
+function reachableUrls() {
+  if (CFG.host !== '0.0.0.0' && CFG.host !== '::') return [`http://${CFG.host}:${CFG.port}`];
+  const out = [`http://127.0.0.1:${CFG.port}`];
+  for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+    for (const a of addrs || []) {
+      if (a.family !== 'IPv4' || a.internal) continue;
+      const virtual = /vmware|virtualbox|hyper-v|vethernet|nord|wireguard|tailscale|zerotier|docker|wsl/i.test(name);
+      out.push(`http://${a.address}:${CFG.port}${virtual ? '   (virtual adapter)' : ''}`);
+    }
+  }
+  return out;
+}
+
+// A stack trace is the wrong answer for the two failures people actually hit.
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n  Port ${CFG.port} is already in use.`);
+    console.error('  AEGIS is probably already running — check http://127.0.0.1:' + CFG.port);
+    console.error(`  If not, stop whatever is using the port, or set a different`);
+    console.error('  "port" in server/config.json.\n');
+    process.exit(1);
+  }
+  if (err.code === 'EACCES') {
+    console.error(`\n  Not allowed to listen on port ${CFG.port}.`);
+    console.error('  Ports below 1024 need root/Administrator. Pick a higher');
+    console.error('  "port" in server/config.json (8787 is the default).\n');
+    process.exit(1);
+  }
+  console.error('\n  Server failed to start:', err.message, '\n');
+  process.exit(1);
+});
+
 server.listen(CFG.port, CFG.host, () => {
-  console.log(`\n  AEGIS server  http://${CFG.host}:${CFG.port}`);
+  const urls = reachableUrls();
+  console.log(`\n  AEGIS server  ${urls[0]}`);
+  if (urls.length > 1) {
+    console.log('  agents can reach it on:');
+    urls.slice(1).forEach(u => console.log(`                ${u}`));
+  }
   console.log(`  data          ${CFG.dataDir}`);
   console.log(`  splunk HEC    ${CFG.splunk.enabled ? CFG.splunk.url : 'disabled'}`);
   console.log(`\n  enrollment token : ${CFG.enrollmentToken}`);
