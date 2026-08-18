@@ -11,6 +11,7 @@
     "data/mitre.js",
     "data/alert-meta-full.js",
     "app/core.js",
+    "app/dash.js",
     "app/matrix.js",
     "app/studio.js",
     "app/map-zones.js",

@@ -279,11 +279,16 @@ things to fix before this is more than a lab:
    team sharing one login is the same as no accounts at all. Add one per person
    from the console; the analyst token stays as break-glass. See the "Enabling
    named accounts" section of `deploy/README-deploy.md`.
-3. **Rotate the enrollment token after rollout.** It's only needed at first
-   contact; enrolled agents hold their own keys and keep working.
+3. **Stop matching the published defaults.** Everything about a stock install —
+   service name, port, paths, endpoints — is in a public repo. One command
+   changes all of it and rotates the tokens:
    ```bash
-   node setup.mjs --rotate    # regenerates both tokens
+   node harden.mjs --name svc-telemetry --port 9443 --rotate
    ```
+   Then read `docs/DEFENDING-AEGIS.md`, which is the point of doing it: once
+   you're not on `aegis`:8787, anything probing for `aegis` on 8787 is not you.
+   It covers the five attack stages against AEGIS itself with the detection
+   commands for each.
 
 ---
 
@@ -301,6 +306,10 @@ things to fix before this is more than a lab:
 | `npm start` | Start the server |
 | `npm test` | Run the full test suite |
 | `npm run bundle -- --target linux-x64` | Build a self-contained air-gap bundle |
+| `npm run ai:setup` | Set up the local AI companion (optional — see LOCAL-AI.md) |
+| `npm run ai:check` | Report what local model servers AEGIS can find |
+| `node harden.mjs --show` | Show the service name and port this deployment uses |
+| `node harden.mjs --name X --port N --rotate` | Stop matching the published defaults |
 
 Config lives in `server/config.json`; data in `server/data/`. Back up both — the
 data directory holds tickets, cases, evidence and the audit chain.

@@ -1,5 +1,5 @@
 /* ================= STATE ================= */
-let plat='all',view='matrix',cat='all',risks=new Set(),xp=new Set(),tabState={},studio=new Set(),notes={},chatLog=[],busy=false,stTab='chain',maturity={};
+let plat='all',view='dash',cat='all',risks=new Set(),xp=new Set(),tabState={},studio=new Set(),notes={},chatLog=[],busy=false,stTab='chain',maturity={};
 
 const T=id=>MITRE[id]||{name:id,tactic:"—",summary:"",detect:[],pivots:[],mits:[],start:{}};
 const ALL=()=>[...WIN.map(e=>({...e,plat:'windows'})),...AWS.map(e=>({...e,plat:'aws'}))];
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(e.key==='Escape'){closePal();closeDrawer();closeKeys();endTour();if(document.getElementById('report-veil').classList.contains('open'))closeReport();return;}
   if(typing)return;
   if(e.key==='?'){e.preventDefault();openKeys();return;}
-  const vmap={'1':'matrix','2':'logsrc','3':'studio','4':'siem','5':'cases','6':'tickets','7':'ai'};
+  const vmap={'1':'dash','2':'matrix','3':'logsrc','4':'studio','5':'siem','6':'cases','7':'tickets','8':'ai'};
   if(vmap[e.key])go(vmap[e.key]);
  });
  window.addEventListener('resize',()=>{if(tourStep>=0)placeTour();});
@@ -163,11 +163,16 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(h&&TITLES[h]&&h!==view)go(h,true);
  });
  if(read('aegis-toured','')!=='yes')setTimeout(startTour,600);
+ dashLoad();renderDash();dashTick();
  // Reconnect to the server we were last using, if any.
  liveAutoConnect();
 });
 function updateBadges(){
  document.getElementById('b-matrix').textContent=uniqTechs().length;
+ // The dashboard badge counts what needs attention now, not a library size.
+ const bd=document.getElementById('b-dash');
+ if(bd){const rec=(LIVE.events||[]).filter(e=>e.severity==='malicious'&&(e.ts||0)>Date.now()-3600e3).length;
+  bd.textContent=rec||'—';bd.className='rbadge'+(rec?' hot':'');}
  const be=document.getElementById('b-events');if(be)be.textContent=WIN.length+AWS.length;
  const bl=document.getElementById('b-logsrc');if(bl)bl.textContent=LOGSRC.length;
  document.getElementById('b-studio').textContent=studio.size;
@@ -199,7 +204,8 @@ function togTips(){
 }
 
 /* ================= NAV ================= */
-const TITLES={matrix:['ATT&CK Coverage Matrix','15 tactics · full ATT&CK surface'],logsrc:['Network Map','Build · hunt · trace attacks live'],studio:['Detection Studio','Kill-chain mapping · dashboards · report'],siem:['Event Search','Field-aware search across live agent telemetry'],cases:['Cases','Incident files · tickets, evidence, write-up'],ai:['AI Analyst','Claude-powered detection research'],tickets:['Tickets','Shared incident queue']};
+const TITLES={dash:['Dashboard','Live — what is happening right now'],
+ matrix:['ATT&CK Coverage Matrix','15 tactics · full ATT&CK surface'],logsrc:['Network Map','Build · hunt · trace attacks live'],studio:['Detection Studio','Kill-chain mapping · dashboards · report'],siem:['Event Search','Field-aware search across live agent telemetry'],cases:['Cases','Incident files · tickets, evidence, write-up'],ai:['AI Analyst','Claude-powered detection research'],tickets:['Tickets','Shared incident queue']};
 function go(v,fromHash){
  if(!TITLES[v])return;
  view=v;
@@ -213,6 +219,7 @@ function go(v,fromHash){
  document.getElementById('bar-title').innerHTML=TITLES[v][0];
  document.getElementById('bar-sub').textContent=TITLES[v][1];
  document.getElementById('gq').value='';
+ if(v==='dash')renderDash();
  if(v==='studio')renderStudio();
  if(v==='logsrc')renderLogSrc();
  if(v==='tickets')renderTickets();

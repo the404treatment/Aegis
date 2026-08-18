@@ -66,6 +66,43 @@ Deployment is dry-run by default, only touches hosts you list, and never handles
 your password — Windows and ssh prompt for that themselves.
 **[Full step-by-step guide →](INSTALL.md)**
 
+## What you see first
+
+A **live dashboard**, not a reference chart. Threat level for the last hour,
+malicious events as they land, which hosts are noisiest, which ATT&CK techniques
+have actually been *observed*, and which agents have gone quiet.
+
+You choose the cards — a triage shift and a detection-engineering afternoon want
+different first screens, so the layout is yours and is remembered per browser.
+
+Reference material (the full ATT&CK matrix, the log-source catalogue, the
+technique library) is still there, one click away. It just no longer sits in
+front of someone walking up to a screen mid-incident.
+
+## A local AI that speaks first
+
+Optional, entirely local, no API key:
+
+```bash
+npm run ai:setup
+```
+
+It finds an inference server already on the host — **Ollama**, LM Studio,
+llama.cpp, Jan, vLLM or TGI — pulls a model from **Hugging Face** if you have
+none, and wires it in. Models are GGUF; the default is Llama 3.2 3B at Q4, which
+runs on a laptop with no GPU.
+
+The point is that **it doesn't wait to be asked.** It reads telemetry as it
+lands and posts an assessment unprompted:
+
+> **UNPROMPTED · 41 EVENTS · DC01**
+> Password-spray burst against DC01 — 40 failed logons (4625) inside a minute
+> from one source, then a success. Treat as likely compromise. Next: pull 4624
+> for that account and check the source IP against your VPN pool.
+
+You can ask it things directly too. Nothing leaves the machine.
+**[Setup guide →](LOCAL-AI.md)**
+
 ## Working an incident together
 
 Accounts are on by default, because a case file nobody can be attributed to is
@@ -119,6 +156,8 @@ the key and makes the call, so it is never sent to a browser and never ends up i
 the published `ui/index.html`.
 
 - `INSTALL.md` — step-by-step: server, agents, firewall, verification
+- `LOCAL-AI.md` — the local companion: setup, model choice, air-gapped use
+- `docs/DEFENDING-AEGIS.md` — attacks on AEGIS itself, with the detections
 - `CLAUDE.md` — architecture, conventions, hard rules (read this first)
 - `deploy/README-deploy.md` — server + agent deployment
 - `splunk/aegis_hec_setup.md` — HEC config and starting searches
@@ -131,5 +170,17 @@ command channel, no download path, no exec — there is **no remote-exec channel
 design**. Read `agents/aegis-agent.ps1` before deploying it anywhere.
 
 The server speaks plain HTTP: terminate TLS in front of it (there is a ready-made
-`deploy/Caddyfile`) before it crosses a network you do not trust. Rotate the
-enrollment token after rollout with `node setup.mjs --rotate`.
+`deploy/Caddyfile`) before it crosses a network you do not trust.
+
+**AEGIS is itself a target** — it holds the incident record. Everything about a
+stock install is public because this repo is public, so stop matching the docs:
+
+```bash
+node harden.mjs --name svc-telemetry --port 9443 --rotate
+```
+
+That renames the service, moves the port, rotates the tokens and re-registers
+the service. It is a delaying tactic, not a control — its real value is that
+once you are not on `aegis`:8787, anything probing for `aegis` on 8787 is not
+you, which is a detection you could not write before.
+**[The full threat model, with detections →](docs/DEFENDING-AEGIS.md)**

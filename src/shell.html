@@ -79,7 +79,11 @@
     </div>
     <div class="rail-nav">
       <div class="rlabel">Operate</div>
-      <div class="ritem on" id="r-matrix" onclick="go('matrix')" data-tip="All 14 enterprise tactics, every technique colored by your telemetry coverage. Press 1." data-tip-pos="right">
+      <div class="ritem on" id="r-dash" onclick="go('dash')" data-tip="What is happening right now, live. Choose your own cards. Press 1." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="10" rx="1"/><rect x="13" y="3" width="8" height="6" rx="1"/><rect x="13" y="11" width="8" height="10" rx="1"/><rect x="3" y="15" width="8" height="6" rx="1"/></svg>
+        Dashboard<span class="rbadge" id="b-dash">—</span>
+      </div>
+      <div class="ritem" id="r-matrix" onclick="go('matrix')" data-tip="All 14 enterprise tactics, every technique colored by your telemetry coverage. Press 1." data-tip-pos="right">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         ATT&amp;CK Matrix<span class="rbadge" id="b-matrix">—</span>
       </div>
@@ -154,7 +158,18 @@
     </div>
 
     <!-- MATRIX -->
-    <div class="view on" id="v-matrix">
+    <div class="view on" id="v-dash">
+      <div class="dash-head">
+        <div>
+          <div class="dash-t">What's happening</div>
+          <div class="dash-s" id="dash-when">Live from your agents. Everything here updates as telemetry lands.</div>
+        </div>
+        <button class="btn ghost-violet" onclick="dashCustomise()" data-tip="Choose which cards you see">⚙ Customise</button>
+      </div>
+      <div class="dash-grid" id="dash-grid"></div>
+    </div>
+
+    <div class="view" id="v-matrix">
       <div class="coach" id="coach-matrix">
         <span class="coach-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
         <span><b>Click any technique to stage it</b> (click again to remove) — stage as many as you like, then open Detection Studio to compile a dashboard and report. The <b>ⓘ</b> button opens its full strategy; hover for a quick preview.</span>

@@ -29,6 +29,7 @@ function coIngest(item){
  if(coItems.length>60)coItems=coItems.slice(-60);
  if(!coOpen)coUnread++;
  renderCompanion();
+ if(view==='dash')renderDash();
  // A malicious verdict is worth interrupting for; a suspicious one is not.
  if(item.worst==='malicious'&&!coOpen)toast('Companion flagged malicious telemetry');
 }

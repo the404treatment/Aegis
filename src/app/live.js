@@ -36,7 +36,10 @@ async function liveConnect(opts){
   LIVE.agents=st.agents||[];LIVE.tickets=st.tickets||[];LIVE.cases=st.cases||[];LIVE.chat=st.chat||[];LIVE.events=st.events||[];
   LIVE.connected=true;LIVE.lastError='';
   liveSave();liveApplyAgents();liveApplyLinks(st.links);liveOpenStream();
-  renderLogSrc();renderTickets();renderCases();liveBadge();updateBadges();
+  // The dashboard is rendered at boot, before this resolves, so it starts out
+  // showing the offline state. Without this it would sit there claiming to be
+  // disconnected while live telemetry streamed in behind it.
+  renderLogSrc();renderTickets();renderCases();renderDash();liveBadge();updateBadges();
   await authFetchMe();authRenderWho();renderChat();renderActivity();activityLoad();coStatus();
   if(!(opts&&opts.quiet))toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
@@ -60,7 +63,7 @@ function liveDisconnect(){
  if(LIVE.es){try{LIVE.es.close()}catch{}LIVE.es=null;}
  LIVE.connected=false;chatOpen=false;activityOpen=false;coOpen=false;PRESENCE=[];
  CO={available:false,name:'',model:'',watch:false};
- liveBadge();authRenderWho();renderChat();renderPresence();renderActivity();renderCompanion();renderLogSrc();
+ liveBadge();authRenderWho();renderChat();renderPresence();renderActivity();renderCompanion();renderLogSrc();renderDash();
  toast('Disconnected \u2014 back to local mode');
 }
 function liveOpenStream(){
@@ -84,6 +87,7 @@ function liveOpenStream(){
   LIVE.events.push(...evs);if(LIVE.events.length>500)LIVE.events.splice(0,LIVE.events.length-500);
   evs.forEach(liveIngestEvent);
   if(view==='logsrc')renderLogSrc();
+  if(view==='dash')renderDash();
   if(typeof siemLivePing==='function')siemLivePing();
   updateBadges();
   const bad=evs.filter(x=>x.severity==='malicious');
@@ -96,6 +100,7 @@ function liveOpenStream(){
   if(i>=0)LIVE.tickets[i]=tk;else LIVE.tickets.push(tk);
   if(view==='tickets')renderTickets();
   if(view==='cases')renderCases();
+  if(view==='dash')renderDash();
   liveBadge();updateBadges();activityPing();
  });
  es.addEventListener('case',e=>{
