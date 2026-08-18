@@ -2,7 +2,7 @@
    Connects to an AEGIS server: agents populate the map, events land as
    observations, and tickets sync in real time over SSE. Fully optional —
    with no server configured the app stays exactly as it was, local-only. */
-let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],cases:[],events:[],lastError:''};
+let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],cases:[],chat:[],events:[],lastError:''};
 function liveLoad(){
  try{const c=JSON.parse(read('aegis-live','{}'));LIVE.url=c.url||'';LIVE.token=c.token||'';}catch{}
 }
@@ -24,11 +24,11 @@ async function liveConnect(){
  }
  try{
   const st=await liveApi('/api/state');
-  LIVE.agents=st.agents||[];LIVE.tickets=st.tickets||[];LIVE.cases=st.cases||[];LIVE.events=st.events||[];
+  LIVE.agents=st.agents||[];LIVE.tickets=st.tickets||[];LIVE.cases=st.cases||[];LIVE.chat=st.chat||[];LIVE.events=st.events||[];
   LIVE.connected=true;LIVE.lastError='';
   liveSave();liveApplyAgents();liveApplyLinks(st.links);liveOpenStream();
   renderLogSrc();renderTickets();renderCases();liveBadge();updateBadges();
-  await authFetchMe();authRenderWho();
+  await authFetchMe();authRenderWho();renderChat();
   toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
   LIVE.connected=false;LIVE.lastError=e.message;liveBadge();
@@ -43,7 +43,7 @@ async function liveConnect(){
 }
 function liveDisconnect(){
  if(LIVE.es){try{LIVE.es.close()}catch{}LIVE.es=null;}
- LIVE.connected=false;liveBadge();authRenderWho();renderLogSrc();toast('Disconnected \u2014 back to local mode');
+ LIVE.connected=false;chatOpen=false;liveBadge();authRenderWho();renderChat();renderLogSrc();toast('Disconnected \u2014 back to local mode');
 }
 function liveOpenStream(){
  if(LIVE.es){try{LIVE.es.close()}catch{}}
@@ -84,6 +84,7 @@ function liveOpenStream(){
   if(curView==='cases')csRefresh();
   updateBadges();
  });
+ es.addEventListener('chat',e=>chatIngest(JSON.parse(e.data)));
  es.onerror=()=>{LIVE.connected=false;liveBadge();};
  es.onopen=()=>{LIVE.connected=true;liveBadge();};
 }

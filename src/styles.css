@@ -660,6 +660,30 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .rp-by{font-size:10px;color:var(--t3);margin-top:5px;}
 .rp-empty{color:var(--t3);font-size:11px;}
 
+/* ---- team chat ---- */
+.chat-ind{display:none;align-items:center;gap:5px;font-size:10px;padding:3px 10px;border-radius:20px;cursor:pointer;background:var(--ink2);border:1px solid var(--line2);color:var(--t2);}
+.chat-ind.on{display:inline-flex;}
+.chat-ind:hover{border-color:var(--line-hi);color:var(--t1);}
+.chat-ind.unread{border-color:var(--violet);color:var(--violet);}
+.chat-ind i{font-style:normal;font-family:var(--mono);font-size:8.5px;background:var(--violet);color:#0a0a12;border-radius:20px;padding:1px 5px;}
+.chat-panel{position:fixed;right:16px;bottom:16px;width:min(340px,calc(100vw - 32px));max-height:min(520px,70vh);display:none;flex-direction:column;background:var(--panel);border:1px solid var(--line-hi);border-radius:var(--r);box-shadow:var(--sh-hi,0 12px 40px rgba(0,0,0,.5));z-index:60;overflow:hidden;}
+.chat-panel.open{display:flex;}
+.chat-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;font-weight:600;color:var(--t1);}
+.chat-head button{background:none;border:none;color:var(--t3);font-size:15px;cursor:pointer;line-height:1;}
+.chat-head button:hover{color:var(--t1);}
+.chat-body{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:9px;}
+.chat-msg{max-width:92%;}
+.chat-msg.mine{align-self:flex-end;text-align:right;}
+.chat-meta{display:flex;gap:7px;align-items:baseline;font-size:9.5px;color:var(--t3);}
+.chat-msg.mine .chat-meta{justify-content:flex-end;}
+.chat-meta b{color:var(--violet);font-weight:600;}
+.chat-text{font-size:11.5px;color:var(--t1);line-height:1.5;margin-top:3px;padding:6px 9px;background:var(--ink2);border:1px solid var(--line2);border-radius:9px;word-break:break-word;text-align:left;}
+.chat-msg.mine .chat-text{background:var(--violet-soft);border-color:var(--line-hi);}
+.chat-empty{font-size:11px;color:var(--t3);line-height:1.5;}
+.chat-compose{display:flex;gap:7px;padding:9px 10px;border-top:1px solid var(--line2);}
+.chat-in{flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--rs);padding:7px 10px;color:var(--t1);font-size:11.5px;outline:none;}
+.chat-in:focus{border-color:var(--line-hi);}
+
 /* ---- signed-in identity chip ---- */
 .who-ind{display:none;align-items:center;gap:6px;font-size:10px;padding:3px 9px;border-radius:20px;}
 .who-ind.on,.who-ind.shared{display:inline-flex;}

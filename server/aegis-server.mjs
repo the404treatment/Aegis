@@ -74,6 +74,7 @@ const F = {
   users: path.join(CFG.dataDir, 'users.json'),
   sessions: path.join(CFG.dataDir, 'sessions.json'),
   cases: path.join(CFG.dataDir, 'cases.json'),
+  chat: path.join(CFG.dataDir, 'chat.ndjson'),
 };
 const EVIDENCE_DIR = path.join(CFG.dataDir, 'evidence');
 fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
@@ -114,6 +115,18 @@ function auditRecord(actorId, action, targetId, data) {
   auditStream.write(JSON.stringify(e) + '\n');
   return e;
 }
+
+/* --------------------------------------------------------------- chat */
+/* Append-only, same pattern as events.ndjson, with a bounded in-memory tail
+   for the UI. Delivery rides the SSE hub the server already runs — Skyhawk
+   polls twice a second for this, which we simply don't need to do. */
+const CHAT_KEEP = 300;
+let CHAT = [];
+try {
+  const raw = fs.existsSync(F.chat) ? fs.readFileSync(F.chat, 'utf8').trim().split('\n') : [];
+  CHAT = raw.filter(Boolean).slice(-CHAT_KEEP).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+} catch { CHAT = []; }
+const chatStream = fs.createWriteStream(F.chat, { flags: 'a' });
 
 /* ------------------------------------------------------------ accounts */
 let USERS = readJson(F.users, []);
@@ -539,6 +552,7 @@ const server = http.createServer(async (req, res) => {
         links: LINKS,
         tickets: TICKETS.slice(-500),
         cases: CASES.slice(-500),
+        chat: CHAT.slice(-100),
         events: EVENTS.slice(-500),
         serverTime: now(),
         splunk: { enabled: !!CFG.splunk.enabled, index: CFG.splunk.index },
@@ -776,6 +790,33 @@ const server = http.createServer(async (req, res) => {
         'Cache-Control': 'private, max-age=3600',
       });
       return res.end(fs.readFileSync(fp));
+    }
+
+    /* ---------------- team chat ---------------- */
+    if (p === '/api/chat' && req.method === 'GET') {
+      const limit = Math.min(Math.max(1, Number(u.searchParams.get('limit')) || 100), CHAT_KEEP);
+      return json(res, 200, CHAT.slice(-limit));
+    }
+    if (p === '/api/chat' && req.method === 'POST') {
+      const actor = actorOf(req, u);
+      const b = await readBody(req);
+      const text = String(b.text || '').trim().slice(0, 2000);
+      if (!text) return json(res, 400, { error: 'empty message' });
+      const m = {
+        id: uid('m_'),
+        // Attribution from the session, never the body — same rule as
+        // tickets and cases.
+        from: actor.shared ? 'analyst token' : actor.name,
+        fromId: actor.id,
+        caseId: String(b.caseId || '').slice(0, 64),   // optional: pin to a case
+        text,
+        at: now(),
+      };
+      CHAT.push(m);
+      if (CHAT.length > CHAT_KEEP) CHAT.splice(0, CHAT.length - CHAT_KEEP);
+      chatStream.write(JSON.stringify(m) + '\n');
+      broadcast('chat', m);
+      return json(res, 200, m);
     }
 
     /* ---------------- deployment helper ---------------- */

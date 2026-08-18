@@ -38,7 +38,8 @@ src/app/map-*.js       zones / nodes / animation / tools / interaction
 src/app/triage.js      artifact triage wizard
 src/app/live.js        server connection + ticketing UI
 src/app/auth.js        login veil, session handling, identity chip
-src/app/cases.js       case files, evidence upload, ticket linking
+src/app/cases.js       case files, evidence upload, formal report freeze
+src/app/chat.js        team chat panel (SSE-delivered)
 src/app/siem.js        event search console
 src/app/ingest.js      Chainsaw / Suricata / Zeek / PCAP parsers + wizard
 src/app/advisor.js     offline response playbooks
@@ -51,6 +52,7 @@ src/app/ai.js          AI calls, incident context, tour, boot
 server/aegis-server.mjs  HTTP API, SSE, agent ingest, static UI
 server/auth.mjs          accounts, sessions, capabilities (opt-in)
 server/cases.mjs         case model + evidence decode/hash
+server/report.mjs        technical/formal audiences + freeze
 server/lake.mjs          event-search query language
 server/audit.mjs         hash-chained audit log
 ```

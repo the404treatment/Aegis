@@ -389,6 +389,52 @@ section('formal report freeze (over HTTP)');
   } finally { S.stop(); }
 }
 
+/* ============ 2d. team chat ============ */
+section('team chat (over HTTP)');
+{
+  const S = await boot({ requireLogin: true });
+  try {
+    await api(S.base, '/api/users', withTok('test-analyst-token', {
+      method: 'POST', body: JSON.stringify({ name: 'ana', password: 'pw-ana-12345', role: 'analyst' }),
+    }));
+    const ana = await (await api(S.base, '/api/auth/login', { method: 'POST', body: JSON.stringify({ name: 'ana', password: 'pw-ana-12345' }) })).json();
+
+    let r = await api(S.base, '/api/chat');
+    eq('chat is not readable unauthenticated', r.status, 401);
+
+    r = await api(S.base, '/api/chat', withTok(ana.token, { method: 'POST', body: JSON.stringify({ text: 'FS01 is isolated' }) }));
+    eq('an analyst can post', r.status, 200);
+    const m = await r.json();
+    eq('attribution comes from the session', m.from, 'ana');
+
+    r = await api(S.base, '/api/chat', withTok(ana.token, {
+      method: 'POST', body: JSON.stringify({ text: 'spoofed', from: 'somebody-else', fromId: 'u_evil' }),
+    }));
+    const spoof = await r.json();
+    eq('a client-supplied from is ignored', spoof.from, 'ana');
+    ok('a client-supplied fromId is ignored', spoof.fromId !== 'u_evil');
+
+    r = await api(S.base, '/api/chat', withTok(ana.token, { method: 'POST', body: JSON.stringify({ text: '   ' }) }));
+    eq('an empty message is rejected', r.status, 400);
+
+    const long = await (await api(S.base, '/api/chat', withTok(ana.token, { method: 'POST', body: JSON.stringify({ text: 'x'.repeat(5000) }) }))).json();
+    ok('an overlong message is clamped', long.text.length <= 2000);
+
+    r = await api(S.base, '/api/chat', withTok(ana.token));
+    const history = await r.json();
+    ok('history returns what was posted', history.some(x => x.text === 'FS01 is isolated'));
+    eq('history is oldest-first', history[0].text, 'FS01 is isolated');
+
+    const one = await (await api(S.base, '/api/chat?limit=1', withTok(ana.token))).json();
+    eq('limit is honoured', one.length, 1);
+    eq('and returns the newest', one[0].id, long.id);
+
+    // chat rides the state payload so a fresh console has context immediately
+    const st = await (await api(S.base, '/api/state', withTok(ana.token))).json();
+    ok('state carries recent chat', Array.isArray(st.chat) && st.chat.length > 0);
+  } finally { S.stop(); }
+}
+
 /* ============ 3. lockout over real HTTP ============ */
 section('login lockout (over HTTP)');
 {

@@ -23,6 +23,7 @@
     "app/ingest.js",
     "app/siem.js",
     "app/cases.js",
+    "app/chat.js",
     "app/improvements.js",
     "app/live.js",
     "app/auth.js",

@@ -92,6 +92,8 @@ const EXPORTS = [
   'getIngState:()=>ingState', 'setIngState:v=>{ingState=v}',
   'renderSiem', 'go', 'TITLES', 'siemAdvisable', 'updateBadges',
   'renderCases', 'csTicketSelectHTML', 'csUpsert',
+  'renderChat', 'chatIngest', 'chatToggle',
+  'getChatOpen:()=>chatOpen', 'getChatUnread:()=>chatUnread', 'setME:v=>{ME=v}',
 ].join(',');
 
 /* ------------------------------------------------------------ data integrity */
@@ -532,6 +534,46 @@ section('cases view');
   api.csUpsert(null);
   api.csUpsert({});
   eq('junk is ignored rather than pushed', api.LIVE.cases.length, 1);
+}
+
+/* --------------------------------------------------------------- team chat */
+section('team chat');
+{
+  const { api, els } = boot({}, EXPORTS);
+
+  // offline the panel must not be offered at all
+  api.renderChat();
+  eq('offline the chat button is empty', els['chat-ind'].innerHTML, '');
+  api.chatToggle();
+  eq('offline it cannot be opened', api.getChatOpen(), false);
+
+  api.LIVE.connected = true;
+  api.setME({ id: 'u_me', name: 'me', role: 'lead', caps: [] });
+  api.renderChat();
+  ok('connected the chat button appears', /Chat/.test(els['chat-ind'].innerHTML));
+
+  // an inbound message from someone else, panel closed -> unread
+  api.chatIngest({ id: 'm1', from: 'other', fromId: 'u_other', text: 'first', at: Date.now() });
+  eq('a message from someone else counts as unread', api.getChatUnread(), 1);
+  api.chatIngest({ id: 'm1', from: 'other', fromId: 'u_other', text: 'first', at: Date.now() });
+  eq('the same message twice is ignored', api.LIVE.chat.length, 1);
+  eq('and does not double-count unread', api.getChatUnread(), 1);
+
+  // your own message must never mark itself unread
+  api.chatIngest({ id: 'm2', from: 'me', fromId: 'u_me', text: 'mine', at: Date.now() });
+  eq('your own message is not unread', api.getChatUnread(), 1);
+
+  api.chatToggle();
+  eq('opening clears unread', api.getChatUnread(), 0);
+  api.chatIngest({ id: 'm3', from: 'other', fromId: 'u_other', text: 'while open', at: Date.now() });
+  eq('messages arriving while open are not unread', api.getChatUnread(), 0);
+
+  // message text is untrusted: it must be escaped, never injected
+  api.chatIngest({ id: 'm4', from: '<img src=x onerror=alert(1)>', fromId: 'u_x', text: '<script>alert(1)</script>', at: Date.now() });
+  const panel = els['chat-panel'] ? els['chat-panel'].innerHTML : '';
+  ok('message text is escaped', !panel.includes('<script>'));
+  ok('the sender name is escaped too', !panel.includes('<img src=x'));
+  ok('the escaped form is present', /&lt;script&gt;/.test(panel));
 }
 
 /* ------------------------------------------------------------------ exports */
