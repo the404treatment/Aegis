@@ -1,15 +1,25 @@
 # AEGIS
 
-SOC detection-engineering console with an agent ingest platform.
+SOC detection-engineering console with an incident-response platform.
 
 ```bash
 npm run build     # src/ -> ui/index.html
-npm test          # 62 assertions
+npm test          # build + full suite (UI, server, end-to-end HTTP)
 npm run serve     # build + server on http://127.0.0.1:8787
 ```
 
-Open `ui/index.html` directly for the console with no backend, or run the
-server for live agent data and shared ticketing.
+No dependencies to install — the console is vanilla JS and the server is
+Node's standard library only.
+
+**Offline** (open `ui/index.html` directly, no backend): ATT&CK coverage
+matrix, hunt map, detection studio, artifact triage, offline response
+playbooks, IOC extraction, and in-browser ingest of Chainsaw / Suricata /
+Zeek / PCAP exports.
+
+**With the server:** live agent telemetry, event search, shared tickets,
+case files with SHA-256 hashed evidence, signed formal reports, a
+tamper-evident audit chain, and team chat. Named accounts with roles are
+opt-in — without them the shared analyst token works exactly as before.
 
 - `CLAUDE.md` — architecture, conventions, hard rules (read this first)
 - `deploy/README-deploy.md` — server + agent deployment

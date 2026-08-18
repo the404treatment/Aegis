@@ -28,7 +28,7 @@ npm run serve   # build + start on :8787
 ```
 No `npm install` step needed — the project has zero dependencies.
 
-## 2. Skyhawk feature port (in progress)
+## 2. Skyhawk feature port — ✅ complete
 
 Porting the best parts of [xGhst0/skyhawk](https://github.com/xGhst0/skyhawk) — a full
 incident-response case-management app — into AEGIS, rekeyed to AEGIS's own architecture
@@ -44,13 +44,37 @@ being ported — AEGIS's agents stay push-only with no remote-exec channel by de
 | 3 | Event lake + SIEM query tab (global scope, not per-case — no case entity exists yet) | ✅ done |
 | 4 | Auth/RBAC + login, additive/opt-in (`CFG.requireLogin`, default off) — existing `analystToken` deploys keep working unmodified | ✅ done |
 | 5 | Case-file layer + evidence upload — a lightweight `Case` container (not a retrofit of tickets into Skyhawk's 6-state approval workflow); tickets gain one optional `caseId` field | ✅ done |
-| 6 | Formal report freeze/sign — extends `src/app/report.js`'s live `reportHTML()` with a Manager-gated, anonymized, version-stamped snapshot | not started |
-| 7 | Team chat — reuses the server's existing SSE `broadcast()`, not Skyhawk's 2.5s polling | not started |
+| 6 | Formal report freeze/sign (`server/report.mjs`) — lead-gated, anonymised, version-stamped, hash-recorded snapshot | ✅ done |
+| 7 | Team chat (`src/app/chat.js`) — reuses the server's existing SSE `broadcast()`, not Skyhawk's 2.5s polling | ✅ done |
 
-Phase 4 (auth) is ordered ahead of Phase 5 (cases) deliberately: Skyhawk's finding
+Phase 4 (auth) was ordered ahead of Phase 5 (cases) deliberately: Skyhawk's finding
 approval workflow needs real user roles to mean anything ("who can approve" is
 meaningless without identity), so retrofitting roles after the case model existed would
-mean reworking it.
+have meant reworking it.
+
+### What was deliberately not ported
+
+- **The pull-based agent task queue.** Skyhawk's server queues collectors for agents to
+  poll. AEGIS's agents are push-only with no remote-exec channel by design — a documented
+  hard invariant. This is the one subsystem that is architecturally incompatible, not
+  merely unported.
+- **The six-state finding approval workflow** (Draft → Submitted → UnderReview →
+  Approved/Parked/Rejected). It exists to serve multi-analyst peer review, which is a much
+  larger feature than the formal report needs. The two fields the report filter actually
+  uses (`includeInFormal`, `formalSummary`) live on the ticket instead.
+- **Skyhawk's own ~140-technique ATT&CK list.** AEGIS has its own curated 225-technique
+  set and custom 15-tactic taxonomy; everything ported resolves against that rather than
+  carrying a second, divergent catalogue.
+- **The regulatory-clock subsystem** (SEC 8-K / GDPR-33 / DORA / NIS2 timers). It is
+  unintegrated dead code in the source — no routes, no UI — so there was nothing working
+  to port. It remains a candidate feature, not a port.
+
+### Follow-on candidates
+
+- Per-case scoping for Event Search — currently global; now that cases exist it is a
+  filter on the existing query, not new storage.
+- Evidence retention/GC — files are content-addressed and never pruned today.
+- Regulatory notification clocks, if the deadlines matter to your reporting obligations.
 
 ## 3. CI on every push/PR
 
