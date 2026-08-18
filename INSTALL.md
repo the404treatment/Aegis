@@ -84,6 +84,40 @@ and paste the server URL and **analyst token**.
 
 ## Part 2 — The agents
 
+### The quick way: scan, review, push
+
+```bash
+node discover.mjs --json targets.json        # 1. what's on this network?
+node deploy-agents.mjs --targets targets.json          # 2. show me the plan
+node deploy-agents.mjs --targets targets.json --confirm # 3. do it
+```
+
+**Step 1** is a connect scan of your own subnets. It checks a handful of admin
+ports (445, 5985, 3389, 22), does reverse DNS, and works out which hosts could
+take a push and which need doing by hand:
+
+```
+  address          name                      os        open           deploy via
+  10.10.5.42       wks-042.corp.local        windows   SMB,WinRM      winrm
+  10.10.9.5        web01.corp.local          linux     SSH            ssh
+  10.10.1.99       printer.corp.local        unknown   SMB            manual
+```
+
+**Step 2** prints the plan and changes nothing. Open `targets.json` and delete
+anything that shouldn't get an agent — the scan suggests, you decide.
+
+**Step 3** does the install: PowerShell remoting for Windows, `scp`+`ssh` for
+Linux. You'll be prompted for credentials by Windows or ssh themselves; AEGIS
+never sees, stores or transmits your password.
+
+> **Scan only what you're responsible for.** A sweep across every host looks
+> exactly like the reconnaissance AEGIS is built to detect, and it will light up
+> an IDS — correctly. On a corporate network, tell whoever runs it first.
+
+Hosts with no WinRM or SSH still need the manual route below, or your existing
+tooling (GPO, Intune, SCCM, Ansible all work — it's a single script with no
+dependencies).
+
 ### Windows endpoint
 
 Copy `agents/aegis-agent.ps1` to the machine, then in an **Administrator**
@@ -115,6 +149,34 @@ PowerShell agent so you can run under `AllSigned` rather than
 `-ExecutionPolicy Bypass`.
 
 ---
+
+## Running it on an isolated or air-gapped network
+
+AEGIS is a good fit for a lab, a VM network or an enclave with no internet,
+because there is nothing to download at run time — no package install, no CDN,
+no telemetry, no licence check. Once the files are on the box it is entirely
+self-contained.
+
+**Inside a VM network or isolated segment**, nothing special is needed:
+
+1. Copy the AEGIS folder to the server VM (shared folder, ISO, scp — anything).
+2. `start.cmd` / `./start.sh`.
+3. Point agents at the address it prints. Guest VMs on the same virtual switch
+   reach it exactly like physical hosts.
+
+If the VM has several adapters (NAT plus host-only is the usual setup), setup
+lists them all — pick the one on the same network as the machines you want
+telemetry from. NAT addresses are usually **not** it.
+
+**With no internet at all**, the only external dependency is Node itself:
+
+- Linux: `nodejs` from your distro's offline media, or the official tarball
+  copied across.
+- Windows: the Node MSI copied across.
+
+Then AEGIS runs unchanged. To check nothing is quietly reaching out, pull the
+network and use it — everything except the AI Analyst (which calls the Anthropic
+API by design) works exactly the same.
 
 ## Part 3 — Check it's working
 
@@ -160,6 +222,9 @@ things to fix before this is more than a lab:
 
 | Command | Does |
 |---|---|
+| `npm run discover` | Scan the network for hosts that could take an agent |
+| `npm run deploy:agents -- --targets targets.json` | Show the deployment plan (add `--confirm` to run it) |
+| `npm run demo` | Seed a realistic incident so you can see the console with data in it |
 | `npm run setup` | Regenerate config and rebuild (keeps existing tokens) |
 | `node setup.mjs --local` | Bind to this machine only — no agents |
 | `node setup.mjs --port 9000` | Use a different port |

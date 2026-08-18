@@ -33,8 +33,20 @@ Install [Node.js 18+](https://nodejs.org), then:
 First run generates your tokens, builds the console, starts the server and opens
 it. Nothing to `npm install` — AEGIS has no dependencies.
 
-Then point agents at the "Agents report to" address it prints, and they start
-feeding the console. **[Full step-by-step guide →](INSTALL.md)**
+Then find the machines on your network and push the agent to them:
+
+```bash
+node discover.mjs --json targets.json                    # scan
+node deploy-agents.mjs --targets targets.json            # review the plan
+node deploy-agents.mjs --targets targets.json --confirm  # deploy
+```
+
+Telemetry starts arriving in the console immediately. Deployment is dry-run by
+default, only touches hosts you list, and never handles your password — Windows
+and ssh prompt for that themselves. **[Full step-by-step guide →](INSTALL.md)**
+
+Runs fine on an isolated VM network or an air-gapped enclave: nothing is
+downloaded at run time and nothing phones home.
 
 ```bash
 npm run setup     # regenerate config + rebuild (keeps your tokens)
