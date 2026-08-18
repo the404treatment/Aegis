@@ -2,15 +2,14 @@
 
 Priority-ordered roadmap for AEGIS. Top item first.
 
-## 1. Zero-friction onboarding — ✅ workflow added, one setting left
+## 1. Zero-friction onboarding — ✅ done
 
 `.github/workflows/pages.yml` builds `src/` and publishes the console on every push to
 `main`, gated on the test suite passing. Because the console is fully functional with no
-backend, the static deploy is the real app rather than a preview.
+backend, the static deploy is the real app rather than a preview — anything that needs
+the server shows its usual "connect to a server" state.
 
-**One manual step remains** (it cannot be done from a workflow): in the repo, open
-**Settings → Pages** and set **Source** to **GitHub Actions**. The next push to `main`
-then publishes to `https://the404treatment.github.io/Aegis/`.
+Live at **https://the404treatment.github.io/Aegis/**.
 
 For anyone who wants the full server + agent stack instead:
 ```bash
