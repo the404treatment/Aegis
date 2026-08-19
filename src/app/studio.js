@@ -234,8 +234,6 @@ function renderPanels(panels){
        ${p.setup?`<div class="setup-note">⚙ <b style="color:var(--amber)">Setup:</b>&nbsp;${esc(p.setup)}</div>`:''}
        <div class="qwrap"><div class="qblock">${hl(p.query)}</div>
        <button class="cpy" onclick="copyText(this,${JSON.stringify(p.query).replace(/"/g,'&quot;')})">COPY</button></div>
-       ${splLintHTML(p.query)}
-       ${tuneHTML(p.tech)}
      </div>
    </div>`).join('');
 }

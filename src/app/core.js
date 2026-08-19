@@ -94,7 +94,7 @@ function _applyHist(){
 function lsCanUndo(){return lsHistIdx>0;}
 function lsCanRedo(){return lsHistIdx<lsHist.length-1;}
 function restoreAll(){
- lsLoadZones();loadTune();liveLoad();
+ lsLoadZones();liveLoad();
  try{notes=JSON.parse(read('aegis-notes','{}'))}catch{notes={}}
  try{studio=new Set(JSON.parse(read('aegis-studio','[]')))}catch{studio=new Set()}
  try{lsNodes=JSON.parse(read('aegis-nodes','[]'))||[]}catch{lsNodes=[]}

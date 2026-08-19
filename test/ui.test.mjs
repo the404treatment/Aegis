@@ -94,10 +94,10 @@ const EXPORTS = [
   'studio', 'lsSeedTopology', 'renderLogSrc', 'renderMatrix', 'renderStudio', 'renderTickets',
   'lsClearMap', 'lsDeleteNode', 'lsDeleteZone', '_uiCloseDlg', 'lsPresetZones', 'lsAddNode',
   'ZONES:()=>ZONES', 'getNodes:()=>lsNodes', 'getEdges:()=>lsEdges', 'nodeZone', 'lsNodesSVG',
-  'lsZoneRegions', 'restoreAll', 'lsTopologyHTML', 'splLint', 'coverageScore', 'lsGuessType',
-  'lsNextDetections', 'primaryStage', 'eventsForTech', 'liveApplyLinks', 'LIVE',
-  'lsZoneRect', 'lsRunImport', 'openArtifactTriage', 'artPick', 'getArt:()=>artState',
-  'parseTriage', 'lsTakeSnapshot', 'getSnaps:()=>lsSnaps', 'setPending:v=>{lsPendingChain=v}',
+  'lsZoneRegions', 'restoreAll', 'lsTopologyHTML', 'lsGuessType',
+  'primaryStage', 'eventsForTech', 'liveApplyLinks', 'LIVE',
+  'lsZoneRect',
+  'lsTakeSnapshot', 'getSnaps:()=>lsSnaps', 'setPending:v=>{lsPendingChain=v}',
   'getPending:()=>lsPendingChain', 'buildAdvisory', 'adviseTechnique', 'adviseNode',
   'extractIocs', 'highlightIocs', 'liveIngestEvent',
   'ingDetect', 'ingParse', 'ingParsePcap', 'ingMapEvents', 'ingCommit',
@@ -261,45 +261,16 @@ section('host import inference');
   eq('FW-EDGE -> fw', api.lsGuessType('FW-EDGE'), 'fw');
   eq('web01 -> dmz', api.lsGuessType('web01'), 'dmz');
 
-  els['ls-imp-ta'] = mkEl('ls-imp-ta');
-  els['ls-imp-ta'].value = 'DC01, dc, core\nFS01, srv\nWKS-101';
-  const before = api.getNodes().length;
-  api.lsRunImport();
-  eq('import adds every pasted host', api.getNodes().length, before + 3);
+  // Guessing from a name is still load-bearing — the ingest wizard uses it
+  // whenever a tool export mentions a host that is not on the map yet.
+  eq('an unrecognisable name falls back to a server', api.lsGuessType('zzz'), 'srv');
+  eq('an empty name does not throw', api.lsGuessType(''), 'srv');
 }
 
-/* ------------------------------------------------------------- SPL discipline */
-section('SPL linter (project conventions)');
-{
-  const { api } = boot({}, EXPORTS);
-  ok('flags ut_shannon without tonumber()',
-    api.splLint('index=x | lookup ut_shannon_lookup word as q | where shannon>3')
-      .some(r => r.sev === 'err'));
-  ok('flags unbalanced quotes', api.splLint('index=x host="abc').some(r => /quotes/.test(r.msg)));
-  ok('flags unbalanced parens', api.splLint('index=x | where (a=1').some(r => /parenthes/.test(r.msg)));
-  ok('a conventional query passes',
-    api.splLint('index=win sourcetype=WinEventLog EventCode=4688 | inputlookup append=t ok | stats dc(ComputerName)')
-      .filter(r => r.sev === 'err').length === 0);
-}
-
-/* ----------------------------------------------------------------- triage flow */
-section('artifact triage wizard');
-{
-  const { api } = boot({}, EXPORTS);
-  api.lsSeedTopology();
-  api.openArtifactTriage(api.getNodes()[0].uid);
-  eq('wizard opens at step 0', api.getArt().step, 0);
-  api.artPick('__type', 'file');
-  eq('type selected', api.getArt().type, 'file');
-  api.artPick('where', 'ProgramData');
-  api.artPick('kind', 'Executable (.exe/.dll)');
-  api.artPick('sig', 'Unsigned');
-  eq('all answers captured', Object.keys(api.getArt().answers).length, 3);
-
-  const tr = api.parseTriage('text\n\nTRIAGE={"sev":"malicious","label":"Unsigned exe","tech":"T1543"}');
-  eq('verdict parsed', tr.sev, 'malicious');
-  eq('technique parsed', tr.tech, 'T1543');
-}
+/* The SPL-linter and artifact-triage sections lived here. Both features were
+   removed: the linter and maturity scorecard were planning scaffolding nobody
+   reached for, and the triage wizard walked an analyst through five questions
+   to reach a verdict the local model now gives in one line, unprompted. */
 
 /* --------------------------------------------------------------- live mode */
 section('live mode');

@@ -22,7 +22,7 @@ npm run lint:agent # python agent syntax
 - **Server**: Node 18+ ESM, **zero dependencies** (`node:http/https/fs/path/crypto`). JSON + NDJSON store.
 - **Realtime**: Server-Sent Events. No WebSocket library.
 - **Agents**: PowerShell 5.1+ (Windows), Python 3.8+ stdlib (Linux/macOS). No third-party modules.
-- **AI**: the browser posts to `POST /api/ai`; the server (`server/ai.mjs`) calls `https://api.anthropic.com/v1/messages`. Model and token ceiling come from `CFG.ai`, never the client. The key lives in `ANTHROPIC_API_KEY` or `config.json` — **never embed an API key in `src/`**: `ui/index.html` is published. Falls back to a direct browser fetch, which authenticates only inside the claude.ai Artifacts sandbox.
+- **AI**: entirely local. Browser → `POST /api/llm` → `server/llm.mjs` → an inference server on the AEGIS host (Ollama / LM Studio / llama.cpp / Jan / vLLM; HF GGUF models). **There is no hosted-API path and no API key anywhere — do not add one.** A SOC console must not ship telemetry, hostnames or case detail off the host. Two surfaces share the one model: the AI Analyst tab (you ask) and the Companion (`CFG.llm.watch` — it reads telemetry and speaks first).
 - **Integrations**: Splunk HEC out, Slack/Teams webhook out.
 
 ## Layout
@@ -35,7 +35,9 @@ src/app/core.js        state, helpers, persistence, undo, nav
 src/app/matrix.js      matrix, peek, drawer, event cards
 src/app/studio.js      detection studio, Sigma, savedsearches, RBA
 src/app/map-*.js       zones / nodes / animation / tools / interaction
-src/app/triage.js      artifact triage wizard
+src/app/dash.js        live dashboard (landing view), user-chosen cards
+src/app/admin.js       accounts, platform health, deployment (lead-only)
+src/app/companion.js   local-model panel: unprompted assessments + ask-directly
 src/app/live.js        server connection + ticketing UI
 src/app/auth.js        login veil, session handling, identity chip
 src/app/cases.js       case files, evidence upload, formal report freeze
@@ -44,7 +46,7 @@ src/app/siem.js        event search console
 src/app/ingest.js      Chainsaw / Suricata / Zeek / PCAP parsers + wizard
 src/app/advisor.js     offline response playbooks
 src/app/ioc.js         IOC extraction + highlighting
-src/app/improvements.js bulk import, build-next ranking, SPL lint, scorecard, tuning log
+src/app/team.js        presence + activity feed
 src/app/dialogs.js     uiConfirm / uiPrompt
 src/app/report.js      report generator
 src/app/ai.js          AI calls, incident context, tour, boot

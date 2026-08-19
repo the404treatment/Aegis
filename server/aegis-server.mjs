@@ -30,7 +30,6 @@ import { query as lakeQuery } from './lake.mjs';
 import { Sessions, LoginLimiter, makeUser, findUser, verifyPw, publicUser, can, canonRole, capsFor } from './auth.mjs';
 import { makeCase, patchCase, decodeEvidence, evidenceRecord, safeEvidenceName, EVIDENCE_MAX_BYTES } from './cases.mjs';
 import { buildReport, finalizeFormal } from './report.mjs';
-import { AI_DEFAULTS, aiEnabled, buildRequest as aiBuildRequest, callAnthropic } from './ai.mjs';
 import { feed as activityFeed } from './activity.mjs';
 import { LLM_DEFAULTS, resolveProvider, complete as llmComplete, detect as llmDetect,
          COMPANION_SYSTEM, briefEvents, WATCH_PROMPT } from './llm.mjs';
@@ -64,11 +63,9 @@ function loadConfig() {
     retentionEvents: 200000,
     splunk: { enabled: false, url: '', token: '', index: 'aegis', sourcetype: 'aegis:agent', verifyTls: true },
     webhook: { enabled: false, url: '', format: 'slack', minIntervalSec: 300 },
-    // The AI Analyst calls Anthropic through this server so the key stays here
-    // and never reaches a browser. Off until a key is present.
-    ai: { ...AI_DEFAULTS },
-    // The local companion talks to an inference server on this machine. No
-    // key, no internet, nothing leaves the host.
+    // All AI in AEGIS is local. The server talks to an inference process on
+    // this machine and there is no path out to a hosted API — telemetry,
+    // hostnames and case detail never leave the host.
     llm: { ...LLM_DEFAULTS },
     maxEventFileMB: 256,
   };
@@ -76,7 +73,6 @@ function loadConfig() {
     ...def, ...cfg,
     splunk: { ...def.splunk, ...(cfg.splunk || {}) },
     webhook: { ...def.webhook, ...(cfg.webhook || {}) },
-    ai: { ...def.ai, ...(cfg.ai || {}) },
     llm: { ...def.llm, ...(cfg.llm || {}) },
   };
 }
@@ -737,33 +733,6 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, publicUser(user));
     }
 
-    /* ---------------- AI Analyst ----------------
-       The browser posts here instead of calling Anthropic directly: the key
-       lives in this process, so it is never shipped to a client, and the
-       request is same-origin so there is no CORS to work around. Analyst-gated
-       by the check above — this endpoint spends money, so it is not open. */
-    if (p === '/api/ai' && req.method === 'POST') {
-      if (!aiEnabled(CFG.ai)) {
-        return json(res, 503, {
-          error: 'The AI Analyst is not configured on this server. Set ANTHROPIC_API_KEY in the '
-               + 'environment, or "ai": {"apiKey": "..."} in server/config.json, then restart.',
-        });
-      }
-      const b = await readBody(req);
-      let payload;
-      try { payload = aiBuildRequest(CFG.ai, b); }
-      catch (e) { return json(res, 400, { error: e.message }); }
-      try {
-        const { status, data } = await callAnthropic(CFG.ai, payload);
-        // Pass the upstream body straight through — the console already knows
-        // how to render both a Messages response and an {error} object.
-        return json(res, status >= 200 && status < 300 ? 200 : status, data);
-      } catch (e) {
-        console.warn('[ai] request failed:', e.message);
-        return json(res, 502, { error: { message: `could not reach the model: ${e.message}` } });
-      }
-    }
-
     /* ---------------- local LLM companion ----------------
        Runs against an inference server on this machine. No key, no internet.
        Analyst-gated like everything else below the auth check. */
@@ -823,8 +792,6 @@ const server = http.createServer(async (req, res) => {
         events: EVENTS.slice(-500),
         serverTime: now(),
         splunk: { enabled: !!CFG.splunk.enabled, index: CFG.splunk.index },
-        // Availability only. The key itself never leaves this process.
-        ai: { enabled: aiEnabled(CFG.ai), model: CFG.ai.model },
       });
     }
 
@@ -1179,7 +1146,6 @@ server.listen(CFG.port, CFG.host, () => {
   }
   console.log(`  data          ${CFG.dataDir}`);
   console.log(`  splunk HEC    ${CFG.splunk.enabled ? CFG.splunk.url : 'disabled'}`);
-  console.log(`  AI analyst    ${aiEnabled(CFG.ai) ? CFG.ai.model : 'disabled (no ANTHROPIC_API_KEY)'}`);
   // Probe for a local model in the background: a cold Ollama can take a moment
   // and nothing should wait on it to serve the first page.
   resolveProvider(CFG.llm).then(prov => {

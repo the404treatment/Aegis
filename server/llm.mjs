@@ -1,14 +1,17 @@
 /**
  * Local LLM companion.
  *
- * The AI Analyst tab calls Anthropic: excellent answers, but it needs an API
- * key, an internet route, and a question typed by a human who then waits. On an
- * air-gapped SOC, or during an incident where nobody has a spare hand, that is
- * the wrong shape entirely.
+ * Every AI feature in AEGIS runs through here, and every one of them runs on
+ * the AEGIS host. There is no path out to a hosted API and no key anywhere in
+ * the codebase, deliberately: a SOC console that ships telemetry, hostnames and
+ * case detail to a third party is a data-egress problem wearing a helpful hat,
+ * and it makes the tool unusable on exactly the air-gapped networks it suits
+ * best.
  *
- * This is the other option: a model running on the analyst's own machine or on
- * the AEGIS host, doing short, cheap, continuous work — reading telemetry as it
- * lands and saying something useful without being asked.
+ * Two surfaces share this one model. The AI Analyst tab answers long questions
+ * you type, with your staged techniques and hunt map as context. The Companion
+ * does short, continuous work — reading telemetry as it lands and saying
+ * something useful without being asked.
  *
  * It talks to whatever local inference server is already running rather than
  * embedding one. That is deliberate:

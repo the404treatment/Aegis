@@ -52,6 +52,41 @@ function lsKeys(e){
  else if((e.ctrlKey||e.metaKey)&&e.key==='a'){e.preventDefault();lsSelAll();}
  else if(e.key==='f'&&!e.ctrlKey&&!e.metaKey){const s=document.getElementById('ls-find');if(s){e.preventDefault();s.focus();}}
 }
+/* ===== add-host menu =====
+   Lives here rather than in the triage wizard it used to share a file with —
+   it is a map function and always was. */
+function openLsAddMenu(){
+ let v=document.getElementById('ls-add-veil');
+ if(!v){v=document.createElement('div');v.id='ls-add-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
+ v.innerHTML=`<div class="ls-add-sheet">
+   <div class="ls-ne-grip" onclick="lsCloseAddMenu()"></div>
+   <div class="ls-add-head">Add a host</div>
+   ${NODE_GROUPS.map(([grp,keys])=>`<div class="ls-addgrp">${grp}</div><div class="ls-addgrid">${keys.filter(k=>NODE_TYPES[k]).map(k=>`<button class="ls-addcard" onclick="lsAddNode('${k}');lsCloseAddMenu()">
+     <span class="ls-addg">${NODE_TYPES[k].glyph}</span>
+     <span class="ls-addname">${esc(NODE_TYPES[k].label)}</span>
+   </button>`).join('')}</div>`).join('')}
+ </div>`;
+ v.classList.add('open');v.onclick=(e)=>{if(e.target===v)lsCloseAddMenu();};
+}
+function lsCloseAddMenu(){const v=document.getElementById('ls-add-veil');if(v)v.classList.remove('open');}
+function lsToggleAddMenu(){openLsAddMenu();}
+
+/** Infer a node type from a hostname. Used by the ingest wizard when it meets
+    a host it has not seen before. */
+function lsGuessType(name){
+ const s=(name||'').toLowerCase();
+ if(/^dc|domain|\bad\b/.test(s))return'dc';
+ if(/fw|firewall|asa|palo/.test(s))return'fw';
+ if(/rtr|router|gw|gateway/.test(s))return'router';
+ if(/sw\d|switch/.test(s))return'switch';
+ if(/vpn/.test(s))return'vpn';
+ if(/nas|stor|share|fs\d/.test(s))return'nas';
+ if(/web|dmz|www|proxy/.test(s))return'dmz';
+ if(/sql|app|srv|server|exch|db/.test(s))return'srv';
+ if(/wks|ws\d|lt|lap|pc|desk/.test(s))return'wks';
+ return'srv';
+}
+
 /* ===== NEW: 5. zoom to fit everything ===== */
 function lsZoomFit(){
  if(!lsNodes.length){lsZoomReset();return;}
@@ -111,7 +146,6 @@ function lsEmptyStateHTML(){
      <button class="btn violet" onclick="openLsTemplates()">\u29c9 Start from a template</button>
      <button class="btn ghost-violet" onclick="aiProposeMap()">\u2726 Describe it to the AI</button>
      <button class="btn ghost-violet" onclick="openLsAddMenu()">\uff0b Add hosts manually</button>
-     <button class="btn ghost-violet" onclick="openLsImport()">\u2913 Import a host list</button>
      <button class="btn ghost-violet" onclick="lsPresetZones()">\u25a4 Add the standard zones</button>
      <button class="btn ghost-violet" onclick="lsSeedTopology();persistAll();renderLogSrc();toast('Sample network loaded')">\u25f1 Load a sample network</button>
    </div>
@@ -165,8 +199,6 @@ function openLsMapMenu(){
    ${row('\u229f','Auto-link by tier','lsAutoEdges();lsCloseMapMenu()')}
    <div class="ls-mm-sec">Detection</div>
    ${row('\u2913','Ingest a tool export','openLsIngest();lsCloseMapMenu()',false,'Chainsaw, Suricata eve.json, Zeek logs, or a PCAP \u2014 parsed offline, right here')}
-   ${row('\u2726','What to build next','openLsNext();lsCloseMapMenu()',false,'Ranked by telemetry, your map, and real groups')}
-   ${row('\u25d4','Coverage scorecard','openScorecard();lsCloseMapMenu()',false,'An honest read on where you stand')}
    ${row('\u26a0','Logging posture','openLoggingGaps();lsCloseMapMenu()',false,'Which hosts are missing Sysmon, 4104, 5145')}
    <div class="ls-mm-sec">Case</div>
    ${row('\u25f7','Snapshots','openLsSnaps();lsCloseMapMenu()',false,'Freeze, compare or roll back')}

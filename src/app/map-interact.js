@@ -42,10 +42,6 @@ function renderNodeEditor(n,t){
    ${(()=>{const d=lsNodeDetections(n);return studio.size&&d.covers.length?`<div class="ls-ne-det">✓ <b>${d.covers.length}</b> staged detection${d.covers.length===1?'':'s'} fire here: ${d.covers.slice(0,6).map(id=>`<span>${id}</span>`).join(' ')}${d.covers.length>6?' …':''}</div>`:'';})()}
 
    ${LIVE.connected?`<button class="ls-snap-btn" style="width:100%;margin-bottom:8px" onclick="tkFromNode('${n.uid}')">\u2691 Raise a ticket for this host</button>`:''}
-   <button class="ls-triage-btn" onclick="openArtifactTriage('${n.uid}')" data-tip="Walk through what you found, step by step, and get an AI assessment logged onto this host">
-     <span class="ls-triage-ic">\u2295</span>
-     <span><b>Triage something you found</b><small>File, process, connection, registry, account\u2026 guided step by step</small></span>
-   </button>
    <div class="ls-ne-obs-head">Observed on this host <span>${obs.length?obs.length:''}</span></div>
    ${lsPendingStage?`<div class="ls-ne-stageoffer">Detected <b>${lsPendingStage.tid} ${esc(lsPendingStage.name)}</b> — stage it in the Studio?<div class="ls-ne-stageoffer-btns"><button class="btn mint" onclick="lsAcceptStage()">Stage it</button><button class="btn" onclick="lsDismissStage()">Not now</button></div></div>`:''}
    ${obs.length?`<div class="ls-ne-obs-list">${obs.map(o=>{const ev=LOGSRC.find(e=>e.id===o.evId);return`<div class="ls-ne-obs inc-${o.sev}">

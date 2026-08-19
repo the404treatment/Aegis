@@ -221,31 +221,28 @@ No secrets travel in the bundle — tokens are generated on first run on the far
 side. Verified end-to-end on a machine with no Node installed at all.
 
 To check nothing is quietly reaching out, pull the network and use it — everything
-except the AI Analyst (which calls the Anthropic API by design, and is off unless
-you give it a key) works exactly the same.
+including the AI, works exactly the same — the model runs on the AEGIS host and
+nothing in AEGIS reaches the internet at run time.
 
-## Turning on the AI Analyst
+## Turning on the AI
 
-Optional, and the only part of AEGIS that talks to the internet. The **server**
-holds the key and makes the call, so it is never sent to a browser and never
-ends up in the published `ui/index.html`.
-
-Get a key from <https://console.anthropic.com>, then either set it in the
-environment before starting the server:
+Optional, and entirely local — there is no hosted API and no key anywhere in
+AEGIS. Install a local inference server on the AEGIS host (Ollama is easiest),
+then:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...      # Windows: $env:ANTHROPIC_API_KEY="sk-ant-..."
+npm run ai:setup
 ```
 
-or put it in `server/config.json` (which is gitignored):
+It finds the runtime, pulls a model from Hugging Face if you have none, writes
+the config and verifies the whole path with a real question. Restart the server;
+the banner then names the model instead of saying `none detected`.
 
-```json
-"ai": { "enabled": true, "apiKey": "sk-ant-...", "model": "claude-opus-5" }
-```
+You get two things: the **AI Analyst** tab for questions you type, and the
+**Companion**, which reads telemetry as it lands and comments on anything
+suspicious without being asked.
 
-The env var wins if both are set. Restart the server — the banner then reads
-`AI analyst  claude-opus-5` instead of `disabled`. Leave it unset and the AI tab
-says so plainly; nothing else is affected.
+Full guide, including model choice and air-gapped setup: **[LOCAL-AI.md](LOCAL-AI.md)**
 
 ## Part 3 — Check it's working
 

@@ -144,16 +144,15 @@ npm test          # build + full suite (UI, server, end-to-end HTTP)
 ```
 
 **Offline** (open `ui/index.html` directly, no backend): ATT&CK coverage matrix,
-hunt map, detection studio, artifact triage, response playbooks, IOC extraction,
-and in-browser ingest of Chainsaw / Suricata / Zeek / PCAP exports.
+hunt map, detection studio, response playbooks, IOC extraction, and in-browser
+ingest of Chainsaw / Suricata / Zeek / PCAP exports.
 
 **With the server:** live agent telemetry, event search, shared tickets, cases with
 hashed evidence, signed formal reports, the audit chain, presence, activity and chat.
 
-**AI Analyst** (optional, the only part that talks to the internet): set
-`ANTHROPIC_API_KEY` in the server's environment and restart. The **server** holds
-the key and makes the call, so it is never sent to a browser and never ends up in
-the published `ui/index.html`.
+**AI** (optional): `npm run ai:setup` on the server. Every AI feature runs on
+that machine — there is no hosted API and no key anywhere. Nothing leaves the
+host.
 
 - `INSTALL.md` — step-by-step: server, agents, firewall, verification
 - `LOCAL-AI.md` — the local companion: setup, model choice, air-gapped use

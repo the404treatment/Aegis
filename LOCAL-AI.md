@@ -6,23 +6,26 @@ It is **optional**. Everything else in AEGIS works without it.
 
 ---
 
-## Why this exists separately from the AI Analyst tab
+## Every AI feature in AEGIS runs here
 
-They are not the same feature and it is worth being clear about which you want.
+There is no path out to a hosted API and no API key anywhere in the codebase.
+That is deliberate: a SOC console that ships telemetry, hostnames and case
+detail to a third party is a data-egress problem wearing a helpful hat, and it
+makes the tool unusable on exactly the air-gapped networks it suits best.
 
-| | **AI Analyst** tab | **Companion** |
+Two surfaces share the one local model:
+
+| | **AI Analyst** tab | **Companion** panel |
 |---|---|---|
-| Model | Claude, via Anthropic | Whatever you run locally |
-| Needs | API key + internet | Nothing but the host |
 | Who starts | You type a question | It reads telemetry and speaks first |
-| Good at | Deep analysis, writing detections, long reasoning | Fast triage opinions, continuous, cheap |
-| Air-gapped | No | Yes |
+| Context | Your staged techniques and hunt map | The last few minutes of telemetry |
+| Good at | Long questions, drafting detections | Fast triage opinions, continuous |
 
 The Analyst waits to be asked, which is fine when you already know the question.
 During an incident at 3am you often don't — you have forty events and no idea
-whether they matter. That is the gap this fills.
+whether they matter. That is the gap the Companion fills.
 
-Run both. They cost nothing when idle.
+Both are off until you set up a model. Everything else in AEGIS works without one.
 
 ---
 

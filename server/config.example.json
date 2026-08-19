@@ -11,12 +11,12 @@
   "//requireLogin": "Named accounts, on by default, so every ticket, case and evidence upload is attributable to a person. The first account is created from the login screen on first run - there is nothing to set up here and no way to lock yourself out. The analyst token above keeps working as the break-glass and automation credential either way. Set false for a single-analyst lab where a shared token is enough.",
   "requireLogin": true,
 
-  "//ai": "The AI Analyst tab. The browser never sees this key - it posts to AEGIS and AEGIS calls Anthropic. Prefer setting ANTHROPIC_API_KEY in the environment over writing the key to this file; the env var wins if both are set. Leave apiKey empty and the AI tab reports itself unconfigured instead of failing.",
-  "ai": {
+  "//llm": "All AI in AEGIS is local - there is no path out to a hosted API and no key anywhere. Written for you by `npm run ai:setup`, which finds an inference server already running on this machine (Ollama, LM Studio, llama.cpp, Jan, vLLM). Leave it alone if you are not using AI; everything else works without it. `watch` is the unprompted half: the model reads suspicious telemetry and comments on it without being asked.",
+  "llm": {
     "enabled": true,
-    "apiKey": "",
-    "model": "claude-opus-5",
-    "maxTokens": 16000
+    "endpoint": "",
+    "model": "",
+    "watch": true
   },
 
   "splunk": {

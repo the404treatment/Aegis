@@ -375,48 +375,38 @@ async function ask(){
 }
 /* Where the AI Analyst sends its requests.
  *
- * Two modes, in preference order:
+ * One place: `POST /api/llm` on your own AEGIS server, which forwards to a
+ * model running on that machine.
  *
- *  1. Through your AEGIS server (`POST /api/ai`). The API key lives on the
- *     server and is never sent to the browser, the request is same-origin so
- *     there is no CORS, and the model and token ceiling are set server-side.
- *     This is the mode to use on a real deployment.
- *  2. Straight to api.anthropic.com. This only authenticates inside the
- *     claude.ai Artifacts sandbox, which injects credentials for you. Opened
- *     from disk or served from GitHub Pages it cannot work — kept as the path
- *     that makes the hosted build's AI tab work when running in claude.ai.
+ * There is no path out to the internet, by design. A SOC console that ships
+ * telemetry, hostnames and case detail to a third-party API is a data-egress
+ * problem wearing a helpful hat, and it makes the whole tool unusable on the
+ * air-gapped networks it is otherwise a good fit for. Nothing here has an API
+ * key, because nothing here needs one.
  *
- * A key is never embedded in the client. That is deliberate: ui/index.html is
- * a public artefact and anything in it is published.
+ * This tab and the Companion panel share the one local model. They differ in
+ * who starts the conversation: this one answers long-form questions you type,
+ * with your staged techniques and hunt map as context; the Companion reads
+ * telemetry and speaks first. See LOCAL-AI.md.
  */
-function aiVia(){
- return (typeof LIVE!=='undefined'&&LIVE&&LIVE.connected&&LIVE.url&&LIVE.token)?'server':'sandbox';
-}
 function aiFetch(){
- const body=JSON.stringify({system:SYS,messages:chatLog.slice(-12)});
- if(aiVia()==='server')
-  return fetch(LIVE.url.replace(/\/$/,'')+'/api/ai',{method:'POST',headers:liveHeaders(),body});
- return fetch('https://api.anthropic.com/v1/messages',{
-  method:'POST',
-  headers:{'Content-Type':'application/json'},
-  // The sandbox fills in model/max_tokens defaults it accepts; keep this
-  // request minimal so it stays valid there.
-  body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,system:SYS,messages:chatLog.slice(-12)})
+ return fetch(LIVE.url.replace(/\/$/,'')+'/api/llm',{
+  method:'POST',headers:liveHeaders(),
+  body:JSON.stringify({system:SYS,messages:chatLog.slice(-12)}),
  });
 }
-/** What to tell the analyst when the call fails, given how they're running. */
+/** What to tell the analyst when the call fails. */
 function aiUnreachableMsg(err){
  const detail=err&&err.message?` ${esc(err.message)}`:'';
- if(aiVia()==='server')
-  return `**The AI Analyst couldn't reach your AEGIS server.**${detail}\n\n`
-   +'Check the connection indicator in the top bar. If the server is up, it may not have '
-   +'an API key: set `ANTHROPIC_API_KEY` in its environment (or `ai.apiKey` in '
-   +'`server/config.json`) and restart it. Everything else in AEGIS works without this.';
- return `**The AI Analyst has nowhere to send this.**${detail}\n\n`
-  +'Connect the console to an AEGIS server that has an API key configured — click the '
-  +'connection indicator in the top bar. Without a server, the AI tab only works inside '
-  +'claude.ai, which supplies credentials for it.\n\nThe matrix, hunt map, studio, triage, '
-  +'ingest, response playbooks and the report all work fully offline.';
+ if(!LIVE.connected)
+  return `**The AI Analyst needs your AEGIS server.**${detail}\n\n`
+   +'Click the connection indicator in the top bar to connect. The model runs on that '
+   +'machine — nothing is sent anywhere else.\n\nThe matrix, hunt map, studio, ingest, '
+   +'response playbooks and the report all work fully offline without it.';
+ return `**No local model answered.**${detail}\n\n`
+  +'The AI Analyst runs entirely on your AEGIS host. Set one up with `npm run ai:setup` '
+  +'on that machine — it takes about two minutes and needs no API key. See `LOCAL-AI.md`.\n\n'
+  +'Everything else in AEGIS works without it.';
 }
 async function runAI(opts){
  opts=opts||{};
@@ -429,10 +419,9 @@ async function runAI(opts){
   const r=await aiFetch();
   const data=await r.json();
   load.remove();
-  if(data&&Array.isArray(data.content)&&data.content.length){
-   const txt=data.content.filter(b=>b.type==='text').map(b=>b.text).join('').trim()
-            || data.content.map(b=>b.text||'').join('').trim();
-   if(txt){
+  if(data&&data.ok&&data.text){
+   {
+    const txt=String(data.text).trim();
     chatLog.push({role:'assistant',content:txt});
     // if we asked for a chain, extract it, show clean prose, and offer to trace on the map
     const chain=opts.chain?parseAttackChain(txt):null;
@@ -443,14 +432,6 @@ async function runAI(opts){
      try{store('aegis-lastchain',JSON.stringify(chain));}catch(e){}
      const el=addMsg('assistant','');
      el.querySelector('.m-body').innerHTML=`<div class="ai-trace-cta"><div><b>${chain.length}-step attack chain reconstructed.</b> Watch it trace across your network map in real time.</div><button class="btn magenta" onclick="lsTracePending()">▶ Trace on map</button></div>`;
-    }else if(opts.triage){
-     const tr=parseTriage(txt);
-     addMsg('assistant',stripTriage(txt));
-     if(tr){
-      const el=addMsg('assistant','');
-      const sv=SEV_META[tr.sev]?tr.sev:'suspicious';
-      el.querySelector('.m-body').innerHTML=`<div class="ai-trace-cta"><div><b>Assessed: ${esc(tr.label||'artifact')}</b><br><span class="art-verdict sev-${sv}">${sv}</span>${tr.tech&&MITRE[tr.tech]?` · maps to ${tr.tech} ${esc(MITRE[tr.tech].name)}`:''}</div><button class="btn violet" onclick="artLog('${opts.uid}','${sv}',${JSON.stringify(tr.label||'artifact').replace(/"/g,'&quot;')},'${tr.tech||''}')">✓ Log on host</button></div>`;
-     }
     }else if(propMap){
      const clean=stripMapBlock(txt);if(clean)addMsg('assistant',clean);
      _lsProposedMap=propMap;
@@ -461,14 +442,14 @@ async function runAI(opts){
      addMsg('assistant',txt);
     }
    }
-   else addMsg('assistant','The model returned an empty response. Try rephrasing, or ask a more specific detection question.');
-  }else if(data&&data.error){
-   // The server returns {error:"..."} for its own refusals (no key configured)
-   // and passes Anthropic's {error:{message}} straight through.
-   const em=typeof data.error==='string'?data.error:(data.error.message||JSON.stringify(data.error));
-   addMsg('assistant',`**AI Analyst unavailable.** ${esc(em)}`);
   }else{
-   addMsg('assistant','**Unexpected response shape from the API.** Please try again.');
+   // The local proxy answers {ok:false,error} for everything from "no model
+   // running" to "it timed out loading 4GB of weights", and each of those is
+   // worth telling the analyst verbatim rather than flattening.
+   const em=(data&&(data.error||(typeof data.error==='string'?data.error:'')))
+     ||'the local model returned nothing';
+   addMsg('assistant',`**AI Analyst unavailable.** ${esc(String(em))}\n\n`
+    +'It runs on your AEGIS host. `npm run ai:setup` there, or see `LOCAL-AI.md`.');
   }
  }catch(err){
   load.remove();
