@@ -32,6 +32,13 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    # A deploy that never starts must not sit in the concurrency group forever.
+    # One did: its tests passed, the deploy job stayed `queued` for ten hours,
+    # and because Pages deliberately does not cancel in-progress runs, every
+    # later push queued behind it — the live demo silently fell four commits
+    # behind while every run showed green. Failing after fifteen minutes is
+    # noisy; blocking the queue indefinitely is worse, because it looks fine.
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
