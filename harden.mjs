@@ -230,7 +230,16 @@ if (has('--rotate')) {
   say(`     ${c.d('Every agent must re-enrol. Named accounts are unaffected — people sign in as themselves.')}`);
   say('');
 }
-say(`  ${c.d('Now make the change detectable:')}  ${c.cy('docs/DEFENDING-AEGIS.md')}`);
+if (newName) {
+  say(`  ${c.b('The process name follows on restart.')}`);
+  say(`     ${c.d(`It will report as "${name}" in ps / top / Task Manager instead of naming AEGIS.`)}`);
+  say(`     ${c.d('Restart the service to pick it up, then confirm:')}`);
+  say(`     ${c.cy(process.platform === 'win32'
+    ? `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Select ProcessId,CommandLine`
+    : `ps -eo pid,comm,args | grep -i ${name}`)}`);
+  say('');
+}
+say(`  ${c.d('Make the change detectable, and see what else to hide:')}  ${c.cy('docs/RUNBOOK.md §7, docs/DEFENDING-AEGIS.md')}`);
 say(`  ${c.d('Anything probing the old name or port is, by definition, not you.')}`);
 say('');
 if (!done) process.exitCode = 2;

@@ -43,6 +43,7 @@ checks in order; they are cheapest-first.
 | Upgrade broke something | [6.1](#61-an-upgrade-broke-something) |
 | Suspected compromise of AEGIS | [6.2](#62-you-think-aegis-itself-has-been-attacked) |
 | Someone left the team | [6.3](#63-offboarding-someone) |
+| **Stop an attacker finding/killing the server** | [7](#7-making-the-server-harder-to-find-and-kill) |
 
 ---
 
@@ -532,6 +533,137 @@ the session still works.
 Everything they did stays in the audit chain and the case files. You are
 removing the account, not the record — and you should not be able to remove the
 record.
+
+---
+
+## 7. Making the server harder to find and kill
+
+An attacker who has moved onto the AEGIS host and understands what it is will
+try to **stop it** — silence looks like calm, and a dead collector reports
+nothing about what they do next.
+
+Read this whole section before you act on it, because the framing matters. None
+of the steps below stop someone with root/admin who is *looking* — the server
+listens on a port, has a working directory, and has a service definition, and any
+of those gives it away. What they do is:
+
+- make it walk past a casual sweep of the process and service lists,
+- make killing the process pointless, because it restarts,
+- and make killing it **loud**, because the record already left the box and its
+  silence is alarmed on.
+
+That last pair is the actual protection. Hiding buys minutes; restart-plus-alarm
+is what turns "they killed it" from a gap in your telemetry into a page. Do them
+in that order of priority — the hiding is the least important part, even though
+it is the part that was asked for.
+
+### 7a. Stop it announcing itself — name
+
+Everything about a stock install is public because the project is. One command
+changes the **service name, the port, and the tokens** together:
+
+```bash
+node harden.mjs --name svc-telemetry --port 9443 --rotate
+node harden.mjs --show          # confirm what you are now running as
+```
+
+That renames the systemd unit / launchd agent / Scheduled Task, so it no longer
+reads `aegis` in a service listing. It also drives the **process name**: on the
+next restart the process reports itself as `svc-telemetry` in `ps` / `top` /
+Task Manager instead of `node .../aegis-server.mjs`, so someone grepping the
+process list for `aegis` or `node` finds nothing useful.
+
+Pick a name that belongs on that machine — `svc-telemetry`, `health-agent`,
+`node-metrics`. A name that is obviously hiding (`totally-not-aegis`) is worse
+than none.
+
+To set only the process name without touching the service, put it in
+`server/config.json` and restart:
+
+```json
+"procName": "svc-telemetry"
+```
+
+Confirm it took, on the box:
+
+```bash
+# Linux — the renamed process, no mention of aegis
+ps -eo pid,comm,args | grep -i telemetry
+# Windows PowerShell — the window/title, plus the owning command line
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
+  Select-Object ProcessId, CommandLine
+```
+
+> **The command line still shows the path.** `process.title` changes the process
+> *name*, not the full argument list, and on Windows the `CommandLine` in WMI
+> still shows `...aegis-server.mjs`. To hide that too, install AEGIS into a
+> directory that does not say "aegis" either — `~/.local/svc-telemetry` rather
+> than `~/.aegis`. `AEGIS_DIR=~/.local/svc-telemetry` on the installer does this
+> from the start; moving an existing install means re-running the installer
+> there and re-pointing the service. This is the point of diminishing returns —
+> spend the effort on 7b and 7c instead.
+
+### 7b. Make killing it pointless — restart
+
+The installers already register the service to restart on failure
+(`Restart=on-failure` / `KeepAlive` / task restart count), so `kill <pid>` just
+starts it again a few seconds later. Confirm yours does:
+
+```bash
+systemctl --user show svc-telemetry -p Restart          # want: on-failure
+launchctl print gui/$(id -u)/com.svc-telemetry.server | grep -i keepalive
+```
+```powershell
+(Get-ScheduledTask -TaskName 'svc-telemetry').Settings.RestartCount   # want: >= 1
+```
+
+To *stop* it, an attacker now has to disable the service, not kill the process —
+and disabling a service is a louder, logged action you can alert on (7c, and
+`docs/DEFENDING-AEGIS.md` §5).
+
+Two things make this stronger:
+
+- **Run it as a dedicated, low-privilege user** that owns nothing else. Then only
+  that user or root can stop the service, which shrinks who can silence it to the
+  people who could already do anything.
+- **Do not leave `harden.mjs`, `setup.mjs` and the repo world-readable** next to
+  a running install. They document exactly what the service is. `chmod 700` the
+  install directory.
+
+### 7c. Make killing it loud — the part that actually protects you
+
+Hiding and restarting buy time. This is the control.
+
+1. **Ship the audit chain off the box as it is written** — Splunk HEC
+   (`splunk.enabled`) or `rsyslog` on `server/data/audit.ndjson`. Someone who
+   owns the host can stop the service and edit the local record; they cannot edit
+   the copy that already left. Without this, killing the server and wiping
+   `server/data/` erases both the telemetry *and* the proof it existed.
+
+2. **Alert on its silence, not its presence.** A collector that stops reporting
+   is the signal. From another machine:
+
+   ```bash
+   # cron, every 5 min, on a DIFFERENT host — if AEGIS is the only thing
+   # watching AEGIS, it cannot tell you it is gone.
+   curl -fsS --max-time 10 http://<aegis-host>:9443/api/health >/dev/null \
+     || notify-your-oncall "AEGIS health check failed"
+   ```
+
+   And alert on the agents going quiet in bulk — `docs/DEFENDING-AEGIS.md` §5 has
+   the query. An attacker who silences the whole fleet at once is the loudest
+   possible event, if you are listening for absence.
+
+3. **Verify the record still verifies**, on a schedule, from off-box:
+
+   ```bash
+   # note the bare -- : npm keeps --quiet for itself otherwise
+   node verify-audit.mjs --quiet || notify-your-oncall "AEGIS audit chain broken"
+   ```
+
+If you do only one thing in this section, do 7c.1 — get the audit log off the
+box. Renaming the process is the part that was asked for; shipping the record
+somewhere they do not control is the part that matters when they succeed.
 
 ---
 

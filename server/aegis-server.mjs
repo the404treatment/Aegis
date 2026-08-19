@@ -41,8 +41,13 @@ function loadConfig() {
   const i = process.argv.indexOf('--config');
   const p = i > -1 ? process.argv[i + 1] : path.join(__dirname, 'config.json');
   let cfg = {};
-  if (fs.existsSync(p)) cfg = JSON.parse(fs.readFileSync(p, 'utf8'));
-  else console.warn(`[aegis] no config at ${p}, using defaults + generated secrets`);
+  if (fs.existsSync(p)) {
+    // Strip a leading BOM. Notepad and several Windows editors add one when
+    // saving UTF-8, and a BOM makes JSON.parse throw "Unexpected token" on the
+    // very first character — a genuinely baffling error for someone who just
+    // wanted to change a port. Tolerating it here saves a support call.
+    cfg = JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
+  } else console.warn(`[aegis] no config at ${p}, using defaults + generated secrets`);
 
   const def = {
     host: '127.0.0.1',
@@ -78,6 +83,31 @@ function loadConfig() {
 }
 const CFG = loadConfig();
 fs.mkdirSync(CFG.dataDir, { recursive: true });
+
+/* ---------------------------------------------------------- process name */
+/* Rename the process so it does not announce itself as AEGIS in a task list.
+ *
+ * This is worth being precise about, because it is easy to oversell. It stops
+ * the process reading `node .../aegis-server.mjs` in `ps`/`top`/Task Manager and
+ * makes it read whatever dull name you chose — so an attacker eyeballing a
+ * process list, or grepping it for "aegis", walks past it. That is the whole of
+ * what it buys, and it is a delaying tactic layered on the real controls
+ * (least privilege, auto-restart, off-box logs, alert-on-silence — see
+ * docs/DEFENDING-AEGIS.md), not a substitute for them. Anyone with root/admin
+ * who looks at the open port, the working directory or the service definition
+ * still finds it.
+ *
+ * The name comes from `procName` in config.json, else the hardened service name
+ * in service.json (so `node harden.mjs --name X` renames the process too), else
+ * a neutral default that is deliberately not "aegis". */
+(() => {
+  let name = CFG.procName;
+  if (!name) {
+    try { name = JSON.parse(fs.readFileSync(path.join(__dirname, 'service.json'), 'utf8')).name; } catch { }
+  }
+  name = String(name || 'node-svc').replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40) || 'node-svc';
+  try { process.title = name; } catch { /* some platforms cap the length; not fatal */ }
+})();
 
 /* ------------------------------------------------------------------- store */
 /** Small JSON+NDJSON store. Fine for a lab or a small estate (hundreds of

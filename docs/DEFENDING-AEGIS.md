@@ -252,6 +252,9 @@ suppressed, and both are worth a person's attention.**
   killing the process is not enough — it has to be disabled, which is louder.
 - Externally monitor `/api/health`. If AEGIS is the only thing watching AEGIS,
   it cannot tell you it is gone.
+- Make the process itself harder to spot and kill in the first place —
+  renaming it, running it least-privilege, and getting the record off the box so
+  killing it is loud rather than silent. `docs/RUNBOOK.md` §7 is the step-by-step.
 
 ---
 

@@ -11,6 +11,9 @@
   "//requireLogin": "Named accounts, on by default, so every ticket, case and evidence upload is attributable to a person. The first account is created from the login screen on first run - there is nothing to set up here and no way to lock yourself out. The analyst token above keeps working as the break-glass and automation credential either way. Set false for a single-analyst lab where a shared token is enough.",
   "requireLogin": true,
 
+  "//procName": "What the process calls itself in a task list (ps / top / Task Manager). Left unset it follows the hardened service name from `node harden.mjs --name X`, or a neutral default - never 'aegis'. Set it here to something dull so an attacker eyeballing the process list walks past it. A delaying tactic, not a control: anyone with root/admin still finds the open port and working directory. See docs/RUNBOOK.md.",
+  "procName": "",
+
   "//llm": "All AI in AEGIS is local - there is no path out to a hosted API and no key anywhere. Written for you by `npm run ai:setup`, which finds an inference server already running on this machine (Ollama, LM Studio, llama.cpp, Jan, vLLM). Leave it alone if you are not using AI; everything else works without it. `watch` is the unprompted half: the model reads suspicious telemetry and comments on it without being asked.",
   "llm": {
     "enabled": true,
