@@ -24,6 +24,9 @@ const FIELDMAP = {
   message: 'message', msg: 'message',
   technique: 'technique', attack: 'technique', tech: 'technique',
   agent: 'agentId', agentid: 'agentId',
+  // The agent's own scheduled runs. `self:true` isolates them; `-self:true`
+  // hides them, which is what an analyst wants most of the time.
+  self: 'self',
 };
 
 function tokenize(qs) {

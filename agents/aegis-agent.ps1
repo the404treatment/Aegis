@@ -118,16 +118,28 @@ if ($Install) {
 
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
     -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$dest`" -Server `"$Server`" -EnrollmentToken `"$EnrollmentToken`" -Name `"$SafeName`" -Once"
-  $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
-    -RepetitionInterval (New-TimeSpan -Seconds $IntervalSeconds)
+  # Three triggers, so the collector survives more than a killed process. The
+  # repeating trigger is normal operation. AtStartup and AtLogOn re-arm it after
+  # a reboot or a logoff, so an attacker has to disable the whole task rather
+  # than just wait for a gap. Killing the powershell process itself does nothing:
+  # the next repetition runs within the interval. None of this defeats an admin
+  # who unregisters the task; that is what restart-on-failure and the off-box
+  # alerting in docs/RUNBOOK.md section 7 are for.
+  $triggers = @(
+    (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Seconds $IntervalSeconds)),
+    (New-ScheduledTaskTrigger -AtStartup),
+    (New-ScheduledTaskTrigger -AtLogOn)
+  )
   $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
   $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -MultipleInstances IgnoreNew
-  Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -MultipleInstances IgnoreNew `
+    -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+  Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $triggers `
     -Principal $principal -Settings $settings -Force | Out-Null
-  Write-Host "Agent installed. Task '$TaskName' runs every $IntervalSeconds seconds as SYSTEM."
+  Write-Host "Agent installed. Task '$TaskName' runs every $IntervalSeconds seconds as SYSTEM,"
+  Write-Host "and restarts at boot and logon. Killing the process just delays the next run."
   Write-Host "State: $StateDir"
-  if ($SafeName -ne 'AEGIS') { Write-Host "Renamed install - uninstall this one with:  -Uninstall -Name $SafeName" }
+  if ($SafeName -ne 'AEGIS') { Write-Host "Renamed install: uninstall this one with  -Uninstall -Name $SafeName" }
   exit 0
 }
 if ($Uninstall) {
@@ -302,6 +314,25 @@ function Get-NewEvents {
           }
         }
       } catch { }
+
+      # Recognise the collector's own activity. It runs powershell against a
+      # script inside its state directory every cycle, so without this an
+      # analyst sees a recurring SYSTEM powershell execution: exactly the shape
+      # of malicious persistence, and noise they would keep dismissing. Flag it
+      # so the console can label it and let them filter it out. Matching on the
+      # state directory is reliable because that path is unique to this install
+      # and survives the rename.
+      $self = $false
+      $mark = $StateDir.ToLower()
+      foreach ($k in 'CommandLine','NewProcessName','Image','ParentImage','ImagePath') {
+        if ($fields[$k] -and $fields[$k].ToLower().Contains($mark)) { $self = $true; break }
+      }
+      if ($self) {
+        # Its own runs are never an alert. Force info and say plainly what it is.
+        $sev = 'info'
+        $msg = "Collector self-activity (task $TaskName). Expected scheduled run; safe to ignore."
+      }
+
       [void]$out.Add(@{
         ts        = [long]([DateTimeOffset]$r.TimeCreated).ToUnixTimeMilliseconds()
         channel   = $channel
@@ -310,6 +341,7 @@ function Get-NewEvents {
         message   = $msg.Substring(0, [Math]::Min(1000, $msg.Length))
         fields    = $fields
         technique = (Get-EventTechnique -Channel $channel -Id ([string]$r.Id) -Fields $fields)
+        self      = $self
       })
     }
   }

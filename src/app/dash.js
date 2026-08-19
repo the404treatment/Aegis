@@ -37,10 +37,13 @@ function dashLoad(){
 function dashSave(){try{store('aegis-dash',JSON.stringify(dashCards));}catch{}}
 
 /* ------------------------------------------------------------ the data */
-/** Events from the last N minutes. The dashboard is about now, not history. */
+/** Events from the last N minutes. The dashboard is about now, not history.
+    The collector's own scheduled runs (self) are excluded everywhere on the
+    dashboard: they are expected, so they are noise on a "what is happening"
+    screen. */
 function dashRecent(mins){
  const cut=Date.now()-(mins||60)*60000;
- return (LIVE.events||[]).filter(e=>(e.ts||0)>=cut);
+ return (LIVE.events||[]).filter(e=>(e.ts||0)>=cut&&!e.self);
 }
 
 /** One honest sentence about the current state. */

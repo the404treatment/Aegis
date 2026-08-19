@@ -42,6 +42,28 @@ section('field queries');
   eq('sub-technique prefix matches its parent string', query(EVENTS, { q: 'technique:T1003' }).total, 1);
 }
 
+section('the collector self-activity flag');
+{
+  // A separate fixture so the counts above stay stable. The point is that an
+  // analyst can hide the agent's own scheduled runs, and equally isolate them
+  // to confirm the agent is alive.
+  const SELF = [
+    { id: 's1', ts: T0, host: 'WKS-1', channel: 'Security', eventId: '4688', severity: 'info',
+      message: 'Collector self-activity (task svc-telemetry).', fields: {}, technique: '', self: true },
+    { id: 's2', ts: T0 + 1, host: 'WKS-1', channel: 'Security', eventId: '4688', severity: 'suspicious',
+      message: 'powershell -enc ...', fields: {}, technique: 'T1059.001', self: false },
+  ];
+  eq('-self:true hides the collector runs', query(SELF, { q: '-self:true' }).total, 1);
+  eq('...leaving real activity', query(SELF, { q: '-self:true' }).events[0].id, 's2');
+  eq('self:true isolates them', query(SELF, { q: 'self:true' }).total, 1);
+  eq('...and it is the self event', query(SELF, { q: 'self:true' }).events[0].id, 's1');
+  // A real detection that happens to name the agent path must not be hidden by
+  // the self filter — only the actual boolean flag counts.
+  const spoof = [{ id: 'x', ts: T0, host: 'h', channel: 'Security', eventId: '4688', severity: 'malicious',
+    message: 'attacker ran C:\\ProgramData\\svc-telemetry\\evil.exe', fields: {}, technique: 'T1059', self: false }];
+  eq('a malicious event mentioning the path is not hidden', query(spoof, { q: '-self:true' }).total, 1);
+}
+
 section('free text, negation, quoting, OR');
 {
   eq('bare term matches anywhere in the event', query(EVENTS, { q: 'procdump' }).total, 1);

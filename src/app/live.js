@@ -133,6 +133,10 @@ function liveApplyAgents(){
 }
 /* a live event with a known Event ID becomes an observation on that host */
 function liveIngestEvent(ev){
+ // The collector's own scheduled runs are not activity on the host. Keep them
+ // out of the map's observation log; they are still searchable in Event Search
+ // for when you want to confirm the agent is alive.
+ if(ev.self)return;
  const n=lsNodes.find(x=>x.agentId===ev.agentId)||lsNodes.find(x=>x.label===ev.host);
  if(!n)return;
  if(!n.obs)n.obs=[];

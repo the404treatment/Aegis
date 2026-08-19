@@ -621,6 +621,10 @@ const server = http.createServer(async (req, res) => {
           message: String(raw.message || '').slice(0, 4000),
           fields: (raw.fields && typeof raw.fields === 'object') ? raw.fields : {},
           technique: ident(raw.technique, 16),
+          // The agent flags its own scheduled runs so the console can label
+          // them and analysts can filter them out. A strict boolean, so there
+          // is nothing to inject.
+          self: raw.self === true,
         };
         accepted.push(ev);
         EVENTS.push(ev);

@@ -6,8 +6,21 @@
 
 let siemQ='', siemRows=[], siemTotal=0, siemTop=null, siemChannels={}, siemBusy=false, siemErr='', siemRan=false;
 let siemLive=false, _siemLiveTimer=null;
+/* The collector reports its own scheduled runs, flagged self:true, so they can
+   be recognised rather than chased. Hidden by default because that is what an
+   analyst wants almost always; the toggle brings them back when you are
+   specifically checking the agent is alive. */
+let siemHideSelf=true;
 
 function siemLiveToggle(on){siemLive=on;renderSiem();}
+function siemHideSelfToggle(on){siemHideSelf=on;siemRun();}
+/* Fold the hide-self preference into the query sent to the server, unless the
+   analyst has typed an explicit self: term, in which case they mean it. */
+function siemEffectiveQuery(){
+ const q=siemQ.trim();
+ if(!siemHideSelf||/\bself:/i.test(q))return q;
+ return (q+' -self:true').trim();
+}
 /* Called from the SSE events handler: when live-tail is on and a search is on
    screen, re-run it. Debounced — an agent batch can be hundreds of events, and
    one refresh at the end beats two hundred re-renders. */
@@ -74,16 +87,18 @@ function siemResultsHTML(){
     <span><b>${siemTotal}</b> match${siemTotal===1?'':'es'}${siemRows.length<siemTotal?` · showing ${siemRows.length}`:''}</span>
     <label class="sq-live${siemLive?' on':''}" data-tip="Re-run this search automatically as new events arrive">
       <input type="checkbox" ${siemLive?'checked':''} onchange="siemLiveToggle(this.checked)">Live</label>
+    <label class="sq-live${siemHideSelf?' on':''}" data-tip="The collector reports its own scheduled runs. Hidden by default; untick to confirm the agent is alive.">
+      <input type="checkbox" ${siemHideSelf?'checked':''} onchange="siemHideSelfToggle(this.checked)">Hide agent activity</label>
     ${top.hosts.length?`<span class="sq-facet">Top hosts: ${top.hosts.slice(0,4).map(h=>`<button onclick="siemAdd('host:${jsq(h.k)}')">${esc(h.k)} <i>${h.v}</i></button>`).join('')}</span>`:''}
     ${top.techniques.length?`<span class="sq-facet">Techniques: ${top.techniques.slice(0,5).map(t=>`<button onclick="siemAdd('technique:${jsq(t.k)}')">${esc(t.k)} <i>${t.v}</i></button>`).join('')}</span>`:''}
     ${chans.length?`<span class="sq-facet">Channels: ${chans.slice(0,4).map(([k,v])=>`<button onclick="siemAdd('channel:${esc(k.includes(' ')?'&quot;'+k+'&quot;':k)}')">${esc(k.split('/').pop()||k)} <i>${v}</i></button>`).join('')}</span>`:''}
   </div>
   ${siemRows.length?`<div class="sq-rows">${siemRows.map((e,i)=>`
-    <div class="sq-row inc-${esc(e.severity||'info')}" onclick="siemOpen(${i})">
+    <div class="sq-row inc-${esc(e.severity||'info')}${e.self?' sq-self':''}" onclick="siemOpen(${i})">
       <span class="sq-t" title="${new Date(e.ts).toLocaleString()}">${siemTime(e.ts)}</span>
       <span class="sq-host">${esc(e.host||'—')}</span>
       <span class="sq-eid" title="${esc(e.eventId||'')}">${esc(e.eventId||'—')}</span>
-      <span class="sq-tech">${e.technique?esc(e.technique):''}</span>
+      <span class="sq-tech">${e.self?'<span class="sq-selftag" title="AEGIS collector self-activity">AEGIS</span>':(e.technique?esc(e.technique):'')}</span>
       <span class="sq-msg">${highlightIocs(e.message||'')}</span>
     </div>`).join('')}</div>`
    :siemEmptyHTML()}`;
@@ -94,7 +109,7 @@ async function siemRun(quiet){
  siemBusy=true;siemErr='';
  if(quiet!==true)renderSiem();   // live refresh: no spinner flash, keep the page still
  try{
-  const r=await liveApi('/api/lake?limit=200&q='+encodeURIComponent(siemQ));
+  const r=await liveApi('/api/lake?limit=200&q='+encodeURIComponent(siemEffectiveQuery()));
   siemRows=r.events||[];siemTotal=r.total||0;siemTop=r.top||null;siemChannels=r.channels||{};
  }catch(e){siemErr='Search failed: '+e.message;siemRows=[];siemTotal=0;}
  siemBusy=false;siemRan=true;renderSiem();
@@ -112,6 +127,7 @@ function siemOpen(i){
   <div class="ls-ne-grip" onclick="siemClose()"></div>
   <div class="ls-det-head">${esc(e.eventId||'event')} · ${esc(e.host||'unknown host')}</div>
   <div class="ls-det-sub">${new Date(e.ts).toLocaleString()} · ${esc(e.channel||'')} · <span class="ls-ne-obs-sev inc-${esc(e.severity||'info')}">${esc(e.severity||'info')}</span>${e.technique?` · <span class="ls-ne-obs-tech">${esc(e.technique)}</span>`:''}</div>
+  ${e.self?`<div class="sq-selfnote">This is the AEGIS collector's own scheduled run, not activity on the host. Safe to ignore.</div>`:''}
   <div class="sq-raw">${highlightIocs(e.message||'')}</div>
   ${Object.keys(f).length?`<div class="ls-mm-sec">Fields</div>${Object.keys(f).map(k=>`<div class="ls-det-row"><span class="ls-det-tid">${esc(k)}</span><span style="flex:1;min-width:0;word-break:break-word">${highlightIocs(String(f[k]))}</span></div>`).join('')}`:''}
   ${siemAdvisable(e.technique)?`<button class="btn ghost-violet" style="width:100%;justify-content:center;margin-top:10px" onclick="siemClose();openAdvisor('${esc(e.technique)}')">▤ Response playbook for ${esc(e.technique)}</button>`:''}

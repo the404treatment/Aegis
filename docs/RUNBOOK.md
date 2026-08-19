@@ -300,6 +300,19 @@ either broken or being silenced, and the second is what you bought this for.
 `docs/DEFENDING-AEGIS.md` §5 covers it. Rule out the boring causes first —
 machine off, agent task disabled, network — then investigate.
 
+The agent is built to make the boring causes rare: it runs from a scheduled
+task that repeats on the interval and also refires at boot and at logon, so a
+killed process or a reboot self-heals (§7b). A host that is still quiet after
+that has had its **task** stopped, not just its process, which is the version
+worth looking at.
+
+**Confirming the agent is alive.** Its own scheduled runs are reported as
+telemetry, flagged as collector self-activity. In Event Search, untick **Hide
+agent activity** and you will see them, labelled `AEGIS`, one per interval per
+host. A host producing those is reporting; a host absent from them is not. They
+are hidden by default and excluded from the dashboard and the map so they are
+not mistaken for activity on the host.
+
 ### 3.5 The same host appears twice
 
 Re-enrolment matches on hostname, so a machine that was **renamed** enrols as a
@@ -669,7 +682,26 @@ name of its own; only the unit that runs it does.
 
 ### 7b. Make killing it pointless — restart
 
-The installers already register the service to restart on failure
+**The agents.** The Windows agent installs with three triggers, not one: it
+repeats on the collection interval, and it also fires **at startup** and **at
+logon**. Killing the PowerShell process does nothing, because the next
+repetition runs within the interval; a reboot or a logoff does nothing, because
+the startup and logon triggers re-arm it. It also carries a restart-on-failure
+count, so a crashed cycle relaunches. An attacker therefore has to disable the
+whole scheduled task, which is a louder and logged action, rather than wait for
+a gap. Confirm on an endpoint:
+
+```powershell
+$t = Get-ScheduledTask -TaskName svc-telemetry
+$t.Triggers.CimClass.CimClassName      # expect a repetition trigger plus BootTrigger and LogonTrigger
+$t.Settings.RestartCount               # expect 3
+```
+
+The Linux agent runs from a systemd timer, which is itself the persistence: the
+timer refires on schedule regardless of what happened to the last run. Add
+`Restart=on-failure` to the service unit for the crashed-cycle case.
+
+**The server.** The installers register it to restart on failure
 (`Restart=on-failure` / `KeepAlive` / task restart count), so `kill <pid>` just
 starts it again a few seconds later. Confirm yours does:
 
