@@ -155,6 +155,7 @@ that machine — there is no hosted API and no key anywhere. Nothing leaves the
 host.
 
 - `INSTALL.md` — step-by-step: server, agents, firewall, verification
+- `docs/RUNBOOK.md` — **when something breaks**: every failure, with the fix
 - `LOCAL-AI.md` — the local companion: setup, model choice, air-gapped use
 - `docs/DEFENDING-AEGIS.md` — attacks on AEGIS itself, with the detections
 - `CLAUDE.md` — architecture, conventions, hard rules (read this first)

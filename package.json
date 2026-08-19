@@ -24,7 +24,8 @@
     "bundle": "node bundle-airgap.mjs",
     "ai:setup": "node setup-local-ai.mjs",
     "ai:check": "node setup-local-ai.mjs --check",
-    "harden": "node harden.mjs"
+    "harden": "node harden.mjs",
+    "verify:audit": "node verify-audit.mjs"
   }
 }
 
