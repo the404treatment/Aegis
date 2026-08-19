@@ -118,6 +118,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         Jump to…<span class="rkey">⌘K</span>
       </div>
+      <div class="ritem" id="r-admin" style="display:none" onclick="go('admin')" data-tip="Accounts, platform health, deployment. Leads only." data-tip-pos="right">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+        Admin<span class="rbadge" id="b-admin">—</span>
+      </div>
       <div class="ritem" onclick="startTour()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Guided tour<span class="rkey">?</span>
@@ -167,6 +171,17 @@
         <button class="btn ghost-violet" onclick="dashCustomise()" data-tip="Choose which cards you see">⚙ Customise</button>
       </div>
       <div class="dash-grid" id="dash-grid"></div>
+    </div>
+
+    <div class="view" id="v-admin">
+      <div class="dash-head">
+        <div>
+          <div class="dash-t">Admin</div>
+          <div class="dash-s">Accounts, platform health, and how exposed this deployment is.</div>
+        </div>
+        <button class="btn ghost-violet" onclick="renderAdmin()" data-tip="Re-check accounts and the audit chain">↻ Refresh</button>
+      </div>
+      <div id="admin-body"></div>
     </div>
 
     <div class="view" id="v-matrix">

@@ -137,8 +137,20 @@ async function doLogout(){
  authRenderWho();toast('Signed out');
 }
 
+/** Admin is lead-only, and hidden rather than shown-and-refused — a nav item
+    you cannot use is just a reminder that you are not trusted. */
+function authRenderNav(){
+ const r=document.getElementById('r-admin');if(!r)return;
+ const show=LIVE.connected&&authCan('user.manage');
+ r.style.display=show?'':'none';
+ if(!show&&view==='admin')go('dash');
+ const b=document.getElementById('b-admin');
+ if(b&&show)b.textContent=ADMIN.users.length||'—';
+}
+
 /** Small identity chip in the top bar, next to the live indicator. */
 function authRenderWho(){
+ authRenderNav();
  const el=document.getElementById('who-ind');if(!el)return;
  if(!ME||!LIVE.connected){el.className='who-ind';el.innerHTML='';el.onclick=null;return;}
  if(ME.shared){

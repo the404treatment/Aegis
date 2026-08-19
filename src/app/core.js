@@ -222,9 +222,16 @@ function togTips(){
 
 /* ================= NAV ================= */
 const TITLES={dash:['Dashboard','Live — what is happening right now'],
+ admin:['Admin','Accounts · platform health · deployment'],
  matrix:['ATT&CK Coverage Matrix','15 tactics · full ATT&CK surface'],logsrc:['Network Map','Build · hunt · trace attacks live'],studio:['Detection Studio','Kill-chain mapping · dashboards · report'],siem:['Event Search','Field-aware search across live agent telemetry'],cases:['Cases','Incident files · tickets, evidence, write-up'],ai:['AI Analyst','Claude-powered detection research'],tickets:['Tickets','Shared incident queue']};
 function go(v,fromHash){
  if(!TITLES[v])return;
+ // Admin is lead-only. The server refuses regardless — this just stops an
+ // analyst landing on a page that exists only to tell them no, including via
+ // a #admin link someone pasted into chat.
+ if(v==='admin'&&!(typeof authCan==='function'&&authCan('user.manage'))){
+  if(view==='admin')return;toast('Admin is for leads only');return;
+ }
  view=v;
  // Keep the address bar in step so a view can be bookmarked or shared, and
  // the browser's back button does what everyone expects it to.
@@ -237,6 +244,7 @@ function go(v,fromHash){
  document.getElementById('bar-sub').textContent=TITLES[v][1];
  document.getElementById('gq').value='';
  if(v==='dash')renderDash();
+ if(v==='admin')renderAdmin();
  if(v==='studio')renderStudio();
  if(v==='logsrc')renderLogSrc();
  if(v==='tickets')renderTickets();

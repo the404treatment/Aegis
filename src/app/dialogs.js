@@ -41,7 +41,9 @@ function uiPrompt(label,def,opts){
   v.innerHTML=`<div class="ui-dlg" role="dialog">
     <div class="ui-dlg-title">${esc(opts.title||label)}</div>
     ${opts.title?`<div class="ui-dlg-body"><p>${esc(label)}</p></div>`:''}
-    <input id="ui-dlg-input" class="ui-dlg-input" value="${esc(def||'')}" placeholder="${esc(opts.placeholder||'')}">
+    <input id="ui-dlg-input" class="ui-dlg-input" type="${opts.password?'password':'text'}"
+      autocomplete="${opts.password?'new-password':'off'}"
+      value="${esc(def||'')}" placeholder="${esc(opts.placeholder||'')}">
     <div class="ui-dlg-acts">
       <button class="ui-dlg-btn" onclick="_uiCloseDlg(null)">Cancel</button>
       <button class="ui-dlg-btn go" onclick="_uiCloseDlg(document.getElementById('ui-dlg-input').value)">${esc(opts.ok||'Save')}</button>
@@ -49,7 +51,9 @@ function uiPrompt(label,def,opts){
   </div>`;
   v.classList.add('open');
   v.onclick=(e)=>{if(e.target===v)_uiCloseDlg(null);};
-  setTimeout(()=>{const i=document.getElementById('ui-dlg-input');if(i){try{i.focus();if(i.select)i.select();}catch(e){}
+  // Don't select-all a password field: the next keystroke would silently wipe
+  // what someone had already typed or pasted.
+  setTimeout(()=>{const i=document.getElementById('ui-dlg-input');if(i){try{i.focus();if(i.select&&!opts.password)i.select();}catch(e){}
     i.addEventListener('keydown',(e)=>{if(e.key==='Enter')_uiCloseDlg(i.value);if(e.key==='Escape')_uiCloseDlg(null);});}},40);
  });
 }
