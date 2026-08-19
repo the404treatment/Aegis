@@ -157,6 +157,28 @@ const LOGINS = new LoginLimiter();
 const clientIp = req => String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '');
 
 /* -------------------------------------------------------------------- util */
+/**
+ * Constrain an agent-supplied identifier to characters it could legitimately
+ * contain.
+ *
+ * This is a security boundary, not tidiness. Hostnames, channels, event IDs and
+ * technique tags are rendered by the console into HTML attributes and inline
+ * event handlers. A hostname is not free text — one containing a quote or a
+ * parenthesis is not a hostname, it is an attempt to break out of the context
+ * it will be rendered in, and an attacker who can enrol an agent (or who owns
+ * one endpoint) would otherwise be able to run script in an analyst's browser.
+ *
+ * Rejecting the characters here means the agent wire format itself cannot carry
+ * the payload, which is a much stronger guarantee than escaping correctly at
+ * every one of the ~30 render sites and never slipping.
+ */
+/* Note the absence of a backslash: it is the escape character in a JavaScript
+   string, so allowing it would let a value neutralise the very escaping that
+   protects the render site. No legitimate hostname, channel or technique tag
+   needs one — Windows channel names use forward slashes. */
+const IDENT_OK = /[^A-Za-z0-9 ._\-:/@+]/g;
+const ident = (v, max) => String(v ?? '').replace(IDENT_OK, '').slice(0, max).trim();
+
 const uid = (p = '') => p + crypto.randomBytes(9).toString('base64url');
 const now = () => Date.now();
 const safeEq = (a, b) => {
@@ -389,9 +411,39 @@ function loggingGaps(a) {
 }
 
 /* ------------------------------------------------------------------ HTTP */
-const json = (res, code, obj) => {
+/**
+ * Headers sent on every response.
+ *
+ * `nosniff` and `DENY` are the two that matter most here: the first stops a
+ * browser second-guessing a content type on anything an analyst uploaded, the
+ * second stops the console being framed by a page that wants to trick someone
+ * into clicking Finalize.
+ *
+ * HSTS is only sent when the request actually arrived over TLS. Asserting it on
+ * a plain-HTTP LAN deployment would pin browsers to a scheme this server does
+ * not speak, and lock the SOC out of its own console.
+ */
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'no-referrer',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+};
+const secureHeaders = (req, extra = {}) => {
+  const h = { ...SECURITY_HEADERS, ...extra };
+  const proto = String(req.headers['x-forwarded-proto'] || '').toLowerCase();
+  if (req.socket.encrypted || proto === 'https') h['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
+  return h;
+};
+
+const json = (res, code, obj, req) => {
   const b = JSON.stringify(obj);
-  res.writeHead(code, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(b) });
+  res.writeHead(code, {
+    ...(req ? secureHeaders(req) : SECURITY_HEADERS),
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(b),
+  });
   res.end(b);
 };
 const readBody = (req, limit = 4e6) => new Promise((resolve, reject) => {
@@ -460,17 +512,22 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/enroll' && req.method === 'POST') {
       const b = await readBody(req);
       if (!safeEq(b.enrollmentToken, CFG.enrollmentToken)) return json(res, 401, { error: 'bad enrollment token' });
-      if (!b.hostname) return json(res, 400, { error: 'hostname required' });
+      // The hostname is the single most load-bearing agent-supplied string:
+      // it is stamped onto every event and rendered all over the console,
+      // including into inline handlers. Constrain it before it is stored.
+      const hostname = ident(b.hostname, 128);
+      if (!hostname) return json(res, 400, { error: 'hostname required (letters, digits, dot, dash)' });
 
       // re-enrolling the same hostname reuses the record (agent reinstall)
-      let a = Object.values(AGENTS).find(x => x.hostname.toLowerCase() === String(b.hostname).toLowerCase());
+      let a = Object.values(AGENTS).find(x => x.hostname.toLowerCase() === hostname.toLowerCase());
       if (!a) {
         a = { id: uid('ag_'), enrolledAt: now(), eventCount: 0, counters: {} };
         AGENTS[a.id] = a;
       }
       a.key = uid('ak_');
-      a.hostname = b.hostname; a.os = b.os || 'unknown'; a.ip = b.ip || '';
-      a.roles = b.roles || []; a.version = b.version || '';
+      a.hostname = hostname; a.os = ident(b.os, 32) || 'unknown'; a.ip = ident(b.ip, 45);
+      a.roles = (Array.isArray(b.roles) ? b.roles : []).slice(0, 20).map(r => ident(r, 32)).filter(Boolean);
+      a.version = ident(b.version, 32);
       a.nodeType = inferNodeType(a); a.zone = inferZone(a);
       a.lastSeen = now();
       saveAgents();
@@ -528,12 +585,16 @@ const server = http.createServer(async (req, res) => {
           ts: Number(raw.ts) || now(),
           agentId: a.id,
           host: a.hostname,
-          channel: String(raw.channel || 'unknown').slice(0, 64),
-          eventId: String(raw.eventId ?? '').slice(0, 32),
+          // These four are rendered into HTML attributes and inline handlers by
+          // the console, so they are constrained to identifier characters here.
+          // `message` is free text and is escaped at render instead — it is
+          // never placed in an attribute.
+          channel: ident(raw.channel, 64) || 'unknown',
+          eventId: ident(raw.eventId, 32),
           severity: ['info', 'suspicious', 'malicious'].includes(raw.severity) ? raw.severity : 'info',
           message: String(raw.message || '').slice(0, 4000),
           fields: (raw.fields && typeof raw.fields === 'object') ? raw.fields : {},
-          technique: String(raw.technique || '').slice(0, 16),
+          technique: ident(raw.technique, 16),
         };
         accepted.push(ev);
         EVENTS.push(ev);
@@ -555,10 +616,10 @@ const server = http.createServer(async (req, res) => {
     /* ---------------- live event stream (SSE) ---------------- */
     if (p === '/api/stream') {
       if (!isAnalyst(req, u)) return json(res, 401, { error: 'unauthorized' });
-      res.writeHead(200, {
+      res.writeHead(200, secureHeaders(req, {
         'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
         'Connection': 'keep-alive', 'X-Accel-Buffering': 'no',
-      });
+      }));
       res.write(`event: hello\ndata: ${JSON.stringify({ t: now() })}\n\n`);
       const client = { res, actor: actorOf(req, u), since: now() };
       clients.add(client);
@@ -775,9 +836,11 @@ const server = http.createServer(async (req, res) => {
     if (mAgent && req.method === 'PATCH') {
       const a = AGENTS[mAgent[1]]; if (!a) return json(res, 404, { error: 'no such agent' });
       const b = await readBody(req);
-      if (b.nodeType) a.nodeType = b.nodeType;
-      if (b.zone) a.zone = b.zone;
-      if (b.hostname) a.hostname = b.hostname;
+      // Same constraint as enrollment — an analyst correcting a hostname is
+      // still writing a value that gets rendered into the console.
+      if (b.nodeType) a.nodeType = ident(b.nodeType, 32);
+      if (b.zone) a.zone = ident(b.zone, 48);
+      if (b.hostname) { const h = ident(b.hostname, 128); if (h) a.hostname = h; }
       saveAgents(); broadcast('agent', publicAgent(a));
       return json(res, 200, publicAgent(a));
     }
@@ -1036,7 +1099,9 @@ const server = http.createServer(async (req, res) => {
     let file = p === '/' ? '/index.html' : p;
     const full = path.join(CFG.uiDir, path.normalize(file).replace(/^(\.\.[/\\])+/, ''));
     if (fs.existsSync(full) && fs.statSync(full).isFile()) {
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream' });
+      res.writeHead(200, secureHeaders(req, {
+        'Content-Type': MIME[path.extname(full)] || 'application/octet-stream',
+      }));
       return fs.createReadStream(full).pipe(res);
     }
     return json(res, 404, { error: 'not found' });

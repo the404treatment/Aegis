@@ -98,7 +98,7 @@ function dashCardThreat(){
 function dashCardMalicious(){
  const rows=(LIVE.events||[]).filter(e=>e.severity==='malicious').slice(-8).reverse();
  if(!rows.length)return dashEmpty('Nothing malicious reported.');
- return rows.map(e=>`<div class="drow" onclick="dashOpenEvent('${esc(e.host||'')}')">
+ return rows.map(e=>`<div class="drow" onclick="dashOpenEvent('${jsq(e.host||'')}')">
    <span class="drow-k sev-malicious">${esc(String(e.eventId||'—'))}</span>
    <span class="drow-m">${esc((e.message||'').slice(0,60))}</span>
    ${e.technique?`<span class="drow-t">${esc(e.technique)}</span>`:''}
@@ -115,7 +115,7 @@ function dashCardHosts(){
   if(e.severity==='malicious')by[h].bad++;}
  const max=Math.max(...Object.values(by).map(v=>v.n));
  return Object.entries(by).sort((a,b)=>b[1].n-a[1].n).slice(0,6).map(([h,v])=>`
-  <div class="dbar" onclick="dashOpenEvent('${esc(h)}')">
+  <div class="dbar" onclick="dashOpenEvent('${jsq(h)}')">
     <span class="dbar-n">${esc(h)}</span>
     <span class="dbar-t"><i style="width:${Math.round(v.n/max*100)}%" class="${v.bad?'bad':''}"></i></span>
     <span class="dbar-v">${v.n}${v.bad?` <b>${v.bad}</b>`:''}</span>
@@ -134,7 +134,7 @@ function dashCardTechniques(){
   else if(e.severity==='suspicious'&&by[t].worst!=='malicious')by[t].worst='suspicious';}
  return Object.entries(by).sort((a,b)=>b[1].n-a[1].n).slice(0,7).map(([t,v])=>{
   const name=(MITRE[t]||MITRE[t.split('.')[0]]||{}).name||'';
-  return`<div class="drow" onclick="dashOpenTech('${esc(t)}')">
+  return`<div class="drow" onclick="dashOpenTech('${jsq(t)}')">
     <span class="drow-k sev-${esc(v.worst)}">${esc(t)}</span>
     <span class="drow-m">${esc(name)}</span>
     <span class="drow-a">${v.n} · ${v.hosts.size} host${v.hosts.size===1?'':'s'}</span>

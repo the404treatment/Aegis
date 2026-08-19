@@ -74,8 +74,8 @@ function siemResultsHTML(){
     <span><b>${siemTotal}</b> match${siemTotal===1?'':'es'}${siemRows.length<siemTotal?` · showing ${siemRows.length}`:''}</span>
     <label class="sq-live${siemLive?' on':''}" data-tip="Re-run this search automatically as new events arrive">
       <input type="checkbox" ${siemLive?'checked':''} onchange="siemLiveToggle(this.checked)">Live</label>
-    ${top.hosts.length?`<span class="sq-facet">Top hosts: ${top.hosts.slice(0,4).map(h=>`<button onclick="siemAdd('host:${esc(h.k)}')">${esc(h.k)} <i>${h.v}</i></button>`).join('')}</span>`:''}
-    ${top.techniques.length?`<span class="sq-facet">Techniques: ${top.techniques.slice(0,5).map(t=>`<button onclick="siemAdd('technique:${esc(t.k)}')">${esc(t.k)} <i>${t.v}</i></button>`).join('')}</span>`:''}
+    ${top.hosts.length?`<span class="sq-facet">Top hosts: ${top.hosts.slice(0,4).map(h=>`<button onclick="siemAdd('host:${jsq(h.k)}')">${esc(h.k)} <i>${h.v}</i></button>`).join('')}</span>`:''}
+    ${top.techniques.length?`<span class="sq-facet">Techniques: ${top.techniques.slice(0,5).map(t=>`<button onclick="siemAdd('technique:${jsq(t.k)}')">${esc(t.k)} <i>${t.v}</i></button>`).join('')}</span>`:''}
     ${chans.length?`<span class="sq-facet">Channels: ${chans.slice(0,4).map(([k,v])=>`<button onclick="siemAdd('channel:${esc(k.includes(' ')?'&quot;'+k+'&quot;':k)}')">${esc(k.split('/').pop()||k)} <i>${v}</i></button>`).join('')}</span>`:''}
   </div>
   ${siemRows.length?`<div class="sq-rows">${siemRows.map((e,i)=>`

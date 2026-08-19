@@ -4,7 +4,24 @@ let plat='all',view='dash',cat='all',risks=new Set(),xp=new Set(),tabState={},st
 const T=id=>MITRE[id]||{name:id,tactic:"—",summary:"",detect:[],pivots:[],mits:[],start:{}};
 const ALL=()=>[...WIN.map(e=>({...e,plat:'windows'})),...AWS.map(e=>({...e,plat:'aws'}))];
 const eventsForTech=id=>ALL().filter(e=>e.mitre.includes(id));
-const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+/* Quotes are escaped as well as angle brackets, because esc() output lands in
+   HTML *attributes* in a couple of hundred places, not only in text nodes. In
+   a text node the extra entities are decoded by the browser and read
+   identically; in an attribute they are the difference between a value and an
+   injection. */
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+ .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+/* For untrusted text that lands inside a JS string inside an inline handler —
+   onclick="fn('${jsq(x)}')".
+ *
+ * HTML-escaping alone does NOT make that safe: the browser decodes entities in
+ * the attribute value BEFORE the JavaScript is parsed, so a &#39; becomes a
+ * real quote and closes the string. The backslash escaping has to happen first,
+ * and survive that decode. Server-side input constraints are the primary
+ * defence (see `ident` in aegis-server.mjs); this is the second layer. */
+const jsq=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"')
+ .replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/</g,'\\x3c').replace(/&/g,'\\x26');
 const xmlEsc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const uniqTechs=()=>[...new Set(TACTICS.flatMap(t=>t[2]))];
 
