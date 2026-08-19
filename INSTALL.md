@@ -178,6 +178,12 @@ dependencies. See `deploy/README-deploy.md`, which also covers code-signing the
 PowerShell agent so you can run under `AllSigned` rather than
 `-ExecutionPolicy Bypass`.
 
+**Installing under a different name** so an intruder on an endpoint can't spot it
+by looking for "AEGIS": add `-Name svc-telemetry` (the scheduled task and the
+`ProgramData` folder both take that name), or `--agent-name svc-telemetry` on the
+assisted deployer. Uninstall with the same name. Step-by-step, including the
+Linux side: `docs/RUNBOOK.md` §7.
+
 ---
 
 ## Running it on an isolated or air-gapped network

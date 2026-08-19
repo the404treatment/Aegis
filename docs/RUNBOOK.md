@@ -44,6 +44,7 @@ checks in order; they are cheapest-first.
 | Suspected compromise of AEGIS | [6.2](#62-you-think-aegis-itself-has-been-attacked) |
 | Someone left the team | [6.3](#63-offboarding-someone) |
 | **Stop an attacker finding/killing the server** | [7](#7-making-the-server-harder-to-find-and-kill) |
+| **Rename the agents so they can't be spotted** | [7a-agents](#7a-agents-rename-the-agents-too) |
 
 ---
 
@@ -602,6 +603,69 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
 > from the start; moving an existing install means re-running the installer
 > there and re-pointing the service. This is the point of diminishing returns —
 > spend the effort on 7b and 7c instead.
+
+### 7a-agents. Rename the agents too
+
+The server is one host; the agents are on every endpoint, and an intruder who
+lands on a workstation can find and kill an agent called **AEGIS Agent** just as
+easily as one on the server. The agent installs under a name you choose.
+
+**One endpoint, by hand** — on the machine, in an Administrator PowerShell:
+
+```powershell
+# Install under a dull name. The scheduled task AND the C:\ProgramData folder
+# both take this name, so nothing on the box says "AEGIS".
+.\aegis-agent.ps1 -Server http://<server>:<port> -EnrollmentToken <token> -Name svc-telemetry -Install
+```
+
+Confirm it is there and does not name AEGIS:
+
+```powershell
+Get-ScheduledTask -TaskName svc-telemetry        # your name, not "AEGIS Agent"
+Get-ChildItem C:\ProgramData\svc-telemetry       # state folder, likewise
+```
+
+> **The name is how the agent finds itself again.** Whatever you install with,
+> you must **uninstall and re-point with the same `-Name`** — it is how the
+> agent locates its own task and folder. Write down what you used.
+> ```powershell
+> .\aegis-agent.ps1 -Server http://<server>:<port> -Name svc-telemetry -Uninstall
+> ```
+> Forgotten which name a box uses? List the tasks that run PowerShell against a
+> ProgramData script and read it off:
+> ```powershell
+> Get-ScheduledTask | Where-Object { $_.Actions.Arguments -match 'ProgramData' } |
+>   Select-Object TaskName
+> ```
+
+**A whole fleet at once** — the assisted deployer takes the name and passes it
+through to every host it touches (Windows/WinRM only):
+
+```bash
+node deploy-agents.mjs --targets targets.json --agent-name svc-telemetry           # review the plan
+node deploy-agents.mjs --targets targets.json --agent-name svc-telemetry --confirm # do it
+```
+
+Use the **same** `--agent-name` every time you touch that fleet, for the same
+reason as above.
+
+**Linux/macOS endpoints** — the Python agent does not install its own service;
+it runs from a systemd unit and timer (`deploy/`). Renaming it is renaming those
+unit files:
+
+```bash
+# copy the templates under a dull name, then
+sudo systemctl daemon-reload
+sudo systemctl enable --now svc-telemetry.timer
+sudo systemctl disable --now aegis.timer        # remove the old one
+```
+
+The agent binary itself can be copied to any path and filename — it holds no
+name of its own; only the unit that runs it does.
+
+> ‼️ **Pick the name once, write it down, use it everywhere.** A fleet where
+> every box has a different agent name is one you cannot uninstall or upgrade in
+> bulk. Dull-but-consistent beats clever-but-forgotten.
 
 ### 7b. Make killing it pointless — restart
 

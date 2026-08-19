@@ -27,6 +27,12 @@
 .EXAMPLE
   # install as a scheduled task running every 5 minutes as SYSTEM
   .\aegis-agent.ps1 -Server https://aegis.internal:8787 -EnrollmentToken 'xxxx' -Install
+
+.EXAMPLE
+  # install under a dull name so an intruder scanning the task list finds no
+  # "AEGIS" - the task AND the ProgramData folder take this name. Uninstall
+  # with the same -Name. See docs/RUNBOOK.md section 7.
+  .\aegis-agent.ps1 -Server https://x:8787 -EnrollmentToken 'xxxx' -Name svc-telemetry -Install
 #>
 [CmdletBinding()]
 param(
@@ -36,13 +42,26 @@ param(
   [switch]$Install,
   [switch]$Uninstall,
   [int]$IntervalSeconds = 300,
-  [int]$LookbackMinutes = 10
+  [int]$LookbackMinutes = 10,
+  # The identity the agent installs itself under: the scheduled-task name and
+  # the ProgramData folder both derive from this. Default 'AEGIS' keeps every
+  # existing install working. Set it to something dull so an intruder on the
+  # endpoint who scans the task list for 'AEGIS' finds nothing - see
+  # docs/RUNBOOK.md section 7. Whatever you install with, you must uninstall
+  # with: the name is how the agent finds its own task and folder again.
+  [string]$Name = 'AEGIS'
 )
 
 $ErrorActionPreference = 'Stop'
 $AgentVersion = '1.0.0'
-$StateDir = Join-Path $env:ProgramData 'AEGIS'
+# Constrain the name to characters that are safe in a task name, a path and a
+# filename all at once - same reasoning as the server's hostname handling.
+$SafeName = ($Name -replace '[^A-Za-z0-9._-]', '')
+if (-not $SafeName) { $SafeName = 'AEGIS' }
+$TaskName = $SafeName
+$StateDir = Join-Path $env:ProgramData $SafeName
 $StateFile = Join-Path $StateDir 'agent.json'
+$ScriptLeaf = ($SafeName.ToLower() + '-agent.ps1')
 
 # The agent needs elevation for two reasons: its identity lives under
 # ProgramData (ACL'd to SYSTEM/Administrators so a normal user cannot steal
@@ -89,29 +108,32 @@ function Write-Log {
 if ($Install) {
   if (-not $EnrollmentToken) { throw 'EnrollmentToken is required to install.' }
   $script = $MyInvocation.MyCommand.Path
-  $dest = Join-Path $StateDir 'aegis-agent.ps1'
+  # The copied script keeps the chosen name too, so nothing on disk says "aegis"
+  # if you renamed it.
+  $dest = Join-Path $StateDir $ScriptLeaf
   New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
   Copy-Item $script $dest -Force
   # lock the directory down: SYSTEM + Administrators only
   icacls $StateDir /inheritance:r /grant:r 'SYSTEM:(OI)(CI)F' 'Administrators:(OI)(CI)F' | Out-Null
 
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-    -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$dest`" -Server `"$Server`" -EnrollmentToken `"$EnrollmentToken`" -Once"
+    -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$dest`" -Server `"$Server`" -EnrollmentToken `"$EnrollmentToken`" -Name `"$SafeName`" -Once"
   $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Seconds $IntervalSeconds)
   $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
   $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -MultipleInstances IgnoreNew
-  Register-ScheduledTask -TaskName 'AEGIS Agent' -Action $action -Trigger $trigger `
+  Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
     -Principal $principal -Settings $settings -Force | Out-Null
-  Write-Host "AEGIS agent installed. Task 'AEGIS Agent' runs every $IntervalSeconds seconds as SYSTEM."
+  Write-Host "Agent installed. Task '$TaskName' runs every $IntervalSeconds seconds as SYSTEM."
   Write-Host "State: $StateDir"
+  if ($SafeName -ne 'AEGIS') { Write-Host "Renamed install - uninstall this one with:  -Uninstall -Name $SafeName" }
   exit 0
 }
 if ($Uninstall) {
-  Unregister-ScheduledTask -TaskName 'AEGIS Agent' -Confirm:$false -ErrorAction SilentlyContinue
+  Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
   Remove-Item $StateDir -Recurse -Force -ErrorAction SilentlyContinue
-  Write-Host 'AEGIS agent removed.'
+  Write-Host "Agent removed (task '$TaskName')."
   exit 0
 }
 

@@ -66,6 +66,11 @@ function serverUrl() {
 }
 const SERVER = serverUrl();
 const ENROLL = cfg.enrollmentToken;
+// Install the agent under a dull name so an intruder on an endpoint scanning
+// the task list for "AEGIS" finds nothing. Whatever you deploy with, you
+// uninstall with — see docs/RUNBOOK.md section 7. Windows only; the ssh path
+// runs the agent one-shot rather than installing a service.
+const AGENT_NAME = (val('--agent-name', '') || '').replace(/[^A-Za-z0-9._-]/g, '');
 
 const deployable = targets.filter(h => h.deploy === 'winrm' || h.deploy === 'ssh');
 const manual = targets.filter(h => !h.deploy);
@@ -76,6 +81,7 @@ console.log(c.b('  AEGIS agent deployment'));
 console.log(c.dim('  ' + '─'.repeat(64)));
 console.log(`  target file     ${targetsFile}`);
 console.log(`  agents report to  ${c.cy(SERVER)}`);
+if (AGENT_NAME) console.log(`  install as      ${c.cy(AGENT_NAME)}  ${c.dim('(task + folder; uninstall with the same --agent-name)')}`);
 console.log(`  hosts in file   ${targets.length}`);
 console.log('');
 
@@ -135,7 +141,7 @@ foreach ($h in $hosts) {
   Write-Host "  -> $h" -ForegroundColor Cyan
   try {
     Invoke-Command -ComputerName $h -Credential $cred -ErrorAction Stop -FilePath '${agent.replace(/'/g, "''")}' \
-      -ArgumentList '-Server','${SERVER}','-EnrollmentToken','${ENROLL}','-Install'
+      -ArgumentList '-Server','${SERVER}','-EnrollmentToken','${ENROLL}'${AGENT_NAME ? `,'-Name','${AGENT_NAME}'` : ''},'-Install'
     Write-Host "     installed" -ForegroundColor Green
   } catch {
     Write-Host "     FAILED: $($_.Exception.Message)" -ForegroundColor Red
