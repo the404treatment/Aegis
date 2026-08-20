@@ -15,6 +15,73 @@ let _adminBusy=false;
 let admDeployOS='win';   // which deploy-wizard tab is showing
 function admSetDeployOS(os){admDeployOS=os;renderAdmin();}
 
+/* ================= TOOLBOX ================= */
+/* A plain-language menu of what an analyst can actually DO in AEGIS. People
+   kept missing capabilities that were one click away because nothing listed
+   them in one place. Reachable by everyone (rail > Toolbox); the deploy/agent
+   entries are lead-gated at the point of action, not hidden. Each tool is
+   {icon,name,what,when,go} - `go` is JS run on click, or null for a
+   reference-only entry that just explains itself. */
+const TOOLBOX=[
+ {icon:'▤',name:'Detection Studio',cat:'Build detections',
+  what:'Stage ATT&CK techniques and compile Sigma, Splunk savedsearches and a risk-based-alerting (RBA) package from them.',
+  when:'When you\'re engineering coverage rather than working a live incident.',go:"go('studio')"},
+ {icon:'◷',name:'Baseline builder',cat:'Build detections',
+  what:'Turn your network into a prioritised Event-ID plan and run it in non-alerting mode first, so detections learn "normal" before they fire.',
+  when:'Before enabling triggers on a new estate - a week of baselining kills most false positives.',go:"go('logsrc');setTimeout(()=>lsBuildFromTopo&&lsBuildFromTopo(),50)"},
+ {icon:'◎',name:'Attack trace',cat:'Hunt',
+  what:'Map how an intruder would move host-to-host, then animate the path. Or let the AI reconstruct it from your logged observations.',
+  when:'Planning a scenario, or explaining a real intrusion to the team.',go:"go('logsrc')"},
+ {icon:'⊞',name:'Event search',cat:'Hunt',
+  what:'Field-aware search across everything your agents have reported - severity:malicious, host:DC01, technique:T1003.',
+  when:'Finding the evidence behind an alert.',go:"go('siem')"},
+ {icon:'⇲',name:'Ingest & parse',cat:'Hunt',
+  what:'Drop a Chainsaw / Suricata eve.json / Zeek export or a PCAP and get a uniform timeline, IOCs and findings - parsed entirely in your browser.',
+  when:'Triaging an export from another tool without standing up a pipeline.',go:"go('logsrc');setTimeout(()=>openLsIngest&&openLsIngest(),50)"},
+ {icon:'▤',name:'Response playbooks',cat:'Respond',
+  what:'Offline, deterministic containment / eradication / recovery commands per technique or host - OS-aware (Windows, Linux, network gear), no LLM.',
+  when:'The moment a host is confirmed compromised and you need exact steps.',go:"openAdvisor&&openAdvisor(null)"},
+ {icon:'◆',name:'AI analyst',cat:'Respond',
+  what:'A local-model detection-engineering copilot - tune a noisy alert, explain a false positive, correlate a hunt map. Runs on your host, nothing leaves it.',
+  when:'Any time - it also floats on every page as the corner button.',go:"go('ai')"},
+ {icon:'⎘',name:'Report generator',cat:'Report',
+  what:'Compile your staged coverage and the live hunt map into a shareable technical or formal report; a lead can freeze the formal one against a hash.',
+  when:'Handover, or a client-facing write-up.',go:"openReport&&openReport()"},
+ {icon:'⛨',name:'Endpoint collection agent',cat:'Deploy',
+  what:'The read-only PowerShell (Windows) / Python (Linux/macOS) agent that ships a detection-relevant slice of Security, Sysmon and PowerShell events. It accepts no commands and has no remote-exec channel by design.',
+  when:'To get real telemetry flowing. A lead deploys it from Admin > Deploy.',go:'__deploy'},
+ {icon:'⌖',name:'Network discovery',cat:'Deploy',
+  what:'Scan for live hosts (node discover.mjs) and push the agent to what it finds (node deploy-agents.mjs) - run from any machine that can reach them.',
+  when:'Rolling agents out to many machines at once.',go:null},
+ {icon:'⛓',name:'Audit forensics',cat:'Assurance',
+  what:'Every action is written to a hash-chained, tamper-evident log. node verify-audit.mjs proves the chain has not been altered.',
+  when:'Proving integrity of the incident record afterwards.',go:null},
+];
+function openToolbox(){
+ let v=document.getElementById('toolbox-veil');
+ if(!v){v=document.createElement('div');v.id='toolbox-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
+ const cats=[...new Set(TOOLBOX.map(t=>t.cat))];
+ // Resolve the lead-gated deploy action here, at render time - authCan is a
+ // const that isn't safe to touch while the modules are still loading.
+ const isLead=typeof authCan==='function'&&authCan('user.manage');
+ const goOf=t=>t.go==='__deploy'?(isLead?"go('admin')":null):t.go;
+ v.innerHTML=`<div class="ls-det-sheet" style="width:min(620px,100vw)">
+   <div class="ls-ne-grip" onclick="closeToolbox()"></div>
+   <div class="ls-det-head">Analyst toolbox</div>
+   <div class="ls-det-sub">Everything AEGIS can do for you, in one place. Click a tool to open it.</div>
+   ${cats.map(c=>`<div class="ls-mm-sec">${c}</div>
+     ${TOOLBOX.filter(t=>t.cat===c).map(t=>{const g=goOf(t);return`<div class="tbx-tool ${g?'':'ref'}" ${g?`onclick="closeToolbox();${g}"`:''}>
+       <span class="tbx-ic">${t.icon}</span>
+       <div class="tbx-b"><div class="tbx-name">${esc(t.name)}${g?'':'<span class="tbx-ref">reference</span>'}</div>
+         <div class="tbx-what">${t.what}</div>
+         <div class="tbx-when">${t.when}</div></div>
+       ${g?'<span class="tbx-open">→</span>':''}
+     </div>`;}).join('')}`).join('')}
+ </div>`;
+ v.classList.add('open');v.onclick=(e)=>{if(e.target===v)closeToolbox();};
+}
+function closeToolbox(){const v=document.getElementById('toolbox-veil');if(v)v.classList.remove('open');}
+
 const adminIsLead = () => authCan('user.manage');
 
 async function renderAdmin(){
@@ -34,6 +101,11 @@ async function renderAdmin(){
     <div class="adm-sec-h"><span>Accounts</span>
       <button class="btn violet" onclick="adminNewUser()">+ Add someone</button></div>
     ${adminUsers()}
+  </div>
+  <div class="adm-sec">
+    <div class="adm-sec-h"><span>Analyst toolbox</span>
+      <button class="btn ghost-violet" onclick="openToolbox()">Open toolbox</button></div>
+    <div class="adm-note">The full menu of what analysts can do here - baselining, response playbooks, ingest, the collection agent and more. It's on everyone's sidebar too.</div>
   </div>
   ${adminDeploy()}
   ${adminService()}`;
