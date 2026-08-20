@@ -239,6 +239,7 @@ function lsTopologyHTML(){
          <button class="ls-toolbtn primary" onclick="openLsAddMenu()" data-tip="Add a host to the map">\uff0b Add host</button>
          <button class="ls-toolbtn" onclick="lsAddZoneAt()" data-tip="Draw a network segment (zone) - group hosts into DMZ, OT cell, VLANs, etc. No need to open a host first.">\u25a4 Add zone</button>
          <button class="ls-toolbtn" onclick="openLsTemplates()" data-tip="Start from a named template">\u29c9 Templates</button>
+         ${(typeof LIVE!=='undefined'&&LIVE.connected)?`<button class="ls-toolbtn" onclick="openMapPicker()" data-tip="Shared maps - save yours for the team, open anyone's, live vs planning">\u2601 Maps</button>`:''}
          <span class="ls-tb-div"></span>
          <div class="ls-toolgrp" data-tip="Pointer selects and drags. Hand pans the map \u2014 or hold Space with the pointer.">
            <button class="${lsTool==='select'?'on':''}" onclick="lsSetTool('select')">\u2196</button>

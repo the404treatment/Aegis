@@ -2,7 +2,7 @@
    Connects to an AEGIS server: agents populate the map, events land as
    observations, and tickets sync in real time over SSE. Fully optional -
    with no server configured the app stays exactly as it was, local-only. */
-let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],cases:[],chat:[],events:[],users:null,lastError:''};
+let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],cases:[],chat:[],events:[],users:null,maps:[],lastError:''};
 function liveLoad(){
  try{const c=JSON.parse(read('aegis-live','{}'));LIVE.url=c.url||'';LIVE.token=c.token||'';}catch{}
 }
@@ -67,7 +67,7 @@ async function liveConnect(opts){
   // showing the offline state. Without this it would sit there claiming to be
   // disconnected while live telemetry streamed in behind it.
   renderLogSrc();renderTickets();renderCases();renderDash();if(view==='matrix')renderMatrix();liveBadge();updateBadges();
-  await authFetchMe();authRenderWho();renderChat();renderActivity();activityLoad();coStatus();
+  await authFetchMe();authRenderWho();renderChat();renderActivity();activityLoad();coStatus();mapsLoad();
   if(!(opts&&opts.quiet))toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
   LIVE.connected=false;LIVE.lastError=e.message;liveBadge();
@@ -141,6 +141,18 @@ function liveOpenStream(){
   csUpsert(JSON.parse(e.data));
   if(view==='cases')csRefresh();
   updateBadges();activityPing();
+ });
+ es.addEventListener('map',e=>{
+  const m=JSON.parse(e.data);
+  const i=(LIVE.maps||[]).findIndex(x=>x.id===m.id);
+  if(i>=0)LIVE.maps[i]=m;else{LIVE.maps=LIVE.maps||[];LIVE.maps.push(m);}
+  const v=document.getElementById('map-picker-veil');if(v&&v.classList.contains('open'))openMapPicker();
+  activityPing();
+ });
+ es.addEventListener('mapRemoved',e=>{
+  const {id}=JSON.parse(e.data);
+  LIVE.maps=(LIVE.maps||[]).filter(x=>x.id!==id);
+  const v=document.getElementById('map-picker-veil');if(v&&v.classList.contains('open'))openMapPicker();
  });
  es.addEventListener('chat',e=>chatIngest(JSON.parse(e.data)));
  es.addEventListener('presence',e=>presenceIngest(JSON.parse(e.data)));

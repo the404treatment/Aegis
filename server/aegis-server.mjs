@@ -29,6 +29,7 @@ import { AuditLog } from './audit.mjs';
 import { query as lakeQuery } from './lake.mjs';
 import { Sessions, LoginLimiter, makeUser, findUser, verifyPw, publicUser, can, canonRole, capsFor, seedDefaultAccounts } from './auth.mjs';
 import { makeCase, patchCase, decodeEvidence, evidenceRecord, safeEvidenceName, EVIDENCE_MAX_BYTES } from './cases.mjs';
+import { makeMap, patchMap, mapSummary, canEditMap, mapDeleteBlock } from './maps.mjs';
 import { buildReport, finalizeFormal } from './report.mjs';
 import { feed as activityFeed } from './activity.mjs';
 import { LLM_DEFAULTS, resolveProvider, complete as llmComplete, detect as llmDetect,
@@ -127,6 +128,7 @@ const F = {
   users: path.join(CFG.dataDir, 'users.json'),
   sessions: path.join(CFG.dataDir, 'sessions.json'),
   cases: path.join(CFG.dataDir, 'cases.json'),
+  maps: path.join(CFG.dataDir, 'maps.json'),
   chat: path.join(CFG.dataDir, 'chat.ndjson'),
 };
 const EVIDENCE_DIR = path.join(CFG.dataDir, 'evidence');
@@ -141,6 +143,7 @@ const writeJson = (f, v) => {
 let AGENTS = readJson(F.agents, {});      // id -> agent record
 let TICKETS = readJson(F.tickets, []);    // newest last
 let CASES = readJson(F.cases, []);        // incident containers, newest last
+let MAPS = readJson(F.maps, []);          // shared network maps, newest last
 let EVENTS = [];                          // in-memory ring for the UI
 
 // hydrate the recent event ring from disk
@@ -152,6 +155,7 @@ try {
 const saveAgents = () => writeJson(F.agents, AGENTS);
 const saveTickets = () => writeJson(F.tickets, TICKETS);
 const saveCases = () => writeJson(F.cases, CASES);
+const saveMaps = () => writeJson(F.maps, MAPS);
 const evStream = fs.createWriteStream(F.events, { flags: 'a' });
 
 // hash-chained, tamper-evident audit log - one global chain, filtered by
@@ -1130,6 +1134,55 @@ const server = http.createServer(async (req, res) => {
         'Cache-Control': 'private, max-age=3600',
       });
       return res.end(fs.readFileSync(fp));
+    }
+
+    /* ---------------- shared maps ---------------- */
+    // List is metadata only (no node payloads), so the picker is cheap and
+    // everyone sees everyone's maps - the whole point of moving them here.
+    if (p === '/api/maps' && req.method === 'GET') return json(res, 200, MAPS.map(mapSummary));
+    // Full map, including nodes/edges/zones, to load onto the canvas.
+    const mMapGet = p.match(/^\/api\/maps\/([^/]+)$/);
+    if (mMapGet && req.method === 'GET') {
+      const m = MAPS.find(x => x.id === mMapGet[1]); if (!m) return json(res, 404, { error: 'no such map' });
+      return json(res, 200, m);
+    }
+    if (p === '/api/maps' && req.method === 'POST') {
+      const actor = actorOf(req, u);
+      if (denied(res, actor, 'case.create')) return;   // any signed-in analyst can save a map
+      const b = await readBody(req);
+      let m;
+      try { m = makeMap(b, actor, MAPS.length + 1); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      MAPS.push(m); saveMaps();
+      auditRecord(actor.id, 'map.create', m.id, { name: m.name, mode: m.mode });
+      broadcast('map', mapSummary(m));
+      return json(res, 200, m);
+    }
+    const mMap = p.match(/^\/api\/maps\/([^/]+)$/);
+    if (mMap && req.method === 'PUT') {
+      const actor = actorOf(req, u);
+      const m = MAPS.find(x => x.id === mMap[1]); if (!m) return json(res, 404, { error: 'no such map' });
+      // Overwriting someone else's map needs to be a lead; your own is fine.
+      if (!canEditMap(m, actor)) return json(res, 403, { error: "you can only edit your own maps (a lead can edit anyone's)" });
+      const b = await readBody(req);
+      try { patchMap(m, b); } catch (e) { return json(res, 400, { error: e.message }); }
+      saveMaps();
+      auditRecord(actor.id, 'map.update', m.id, { name: m.name, mode: m.mode });
+      broadcast('map', mapSummary(m));
+      return json(res, 200, m);
+    }
+    if (mMap && req.method === 'DELETE') {
+      const actor = actorOf(req, u);
+      const m = MAPS.find(x => x.id === mMap[1]); if (!m) return json(res, 404, { error: 'no such map' });
+      // The protection rules: no deleting a live map, and only a lead can
+      // delete a lead's map. Enforced here so the UI cannot be worked around.
+      const block = mapDeleteBlock(m, actor);
+      if (block) return json(res, 403, { error: block });
+      const i = MAPS.findIndex(x => x.id === m.id);
+      const [gone] = MAPS.splice(i, 1); saveMaps();
+      auditRecord(actor.id, 'map.delete', gone.id, { name: gone.name });
+      broadcast('mapRemoved', { id: gone.id });
+      return json(res, 200, { ok: true });
     }
 
     /* ---------------- team chat ---------------- */

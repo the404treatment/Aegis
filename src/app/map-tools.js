@@ -1,3 +1,95 @@
+/* ===== shared (server-backed) maps ===== */
+/* The map used to live only in this browser. These let you save it to the
+   server, where everyone on the incident can see and open each other's maps.
+   Deletion is protected: a live map is undeletable, and only a lead can delete
+   a lead's map - the server enforces it, this just mirrors it for the UI. */
+async function mapsLoad(){
+ if(!LIVE.connected)return;
+ try{LIVE.maps=await liveApi('/api/maps');}catch{LIVE.maps=[];}
+}
+function mapCanDelete(m){
+ if(m.mode==='live')return false;
+ const meLead=typeof authCan==='function'&&authCan('user.manage');
+ if(m.ownerRole==='lead'&&!meLead)return false;
+ const mine=ME&&!ME.shared&&m.ownerId&&m.ownerId===ME.id;
+ return !!(mine||meLead||(ME&&ME.shared));
+}
+function mapCanEdit(m){
+ const meLead=typeof authCan==='function'&&authCan('user.manage');
+ const mine=ME&&!ME.shared&&m.ownerId&&m.ownerId===ME.id;
+ return !!(mine||meLead||(ME&&ME.shared));
+}
+function openMapPicker(){
+ if(!LIVE.connected){toast('Connect to a server to share maps');return;}
+ mapsLoad().then(()=>{
+  let v=document.getElementById('map-picker-veil');
+  if(!v){v=document.createElement('div');v.id='map-picker-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
+  const maps=(LIVE.maps||[]).slice().sort((a,b)=>b.updatedAt-a.updatedAt);
+  v.innerHTML=`<div class="ls-det-sheet" style="width:min(560px,100vw)">
+   <div class="ls-ne-grip" onclick="closeMapPicker()"></div>
+   <div class="ls-det-head">Shared maps</div>
+   <div class="ls-det-sub">Everyone on this server sees these. Saving pushes your current canvas up as a named map. A <b>live</b> map can't be deleted, and only a lead can delete a lead's map.</div>
+   <div class="map-save-row">
+     <button class="btn violet" onclick="mapSaveCurrent('planning')">Save current map as…</button>
+     <button class="btn ghost-violet" onclick="mapSaveCurrent('live')" data-tip="A live map is locked from deletion - use it for the picture you're actively working">Save as LIVE</button>
+   </div>
+   <div class="map-list">
+   ${maps.length?maps.map(m=>`<div class="map-row">
+     <div class="map-row-main" onclick="mapLoad('${m.id}')">
+       <div class="map-row-name">${esc(m.name)} ${m.mode==='live'?'<span class="map-badge live">LIVE</span>':'<span class="map-badge">planning</span>'}</div>
+       <div class="map-row-meta">${m.nodeCount} host${m.nodeCount===1?'':'s'} · ${esc(m.ownerName)}${m.ownerRole==='lead'?' (admin)':''} · ${fmtDateTime(m.updatedAt)}</div>
+     </div>
+     <button class="map-row-open" onclick="mapLoad('${m.id}')" data-tip="Open this map on the canvas">Open</button>
+     ${mapCanEdit(m)?`<button class="map-row-save" onclick="mapSaveOver('${m.id}')" data-tip="Overwrite this map with your current canvas">Save</button>`:''}
+     ${mapCanDelete(m)?`<button class="map-row-del" onclick="mapDelete('${m.id}','${jsq(m.name)}')" data-tip="Delete this map">×</button>`:`<button class="map-row-del off" data-tip="${m.mode==='live'?'Live maps cannot be deleted':'Only a lead can delete this'}" onclick="toast('${m.mode==='live'?'Live maps cannot be deleted':'Only a lead can delete this map'}')">×</button>`}
+   </div>`).join(''):'<div class="ls-det-sub" style="padding:14px 2px">No shared maps yet. Build a map, then Save it here for the team.</div>'}
+   </div>
+  </div>`;
+  v.classList.add('open');v.onclick=(e)=>{if(e.target===v)closeMapPicker();};
+ });
+}
+function closeMapPicker(){const v=document.getElementById('map-picker-veil');if(v)v.classList.remove('open');}
+function mapPayload(){return{nodes:lsNodes,edges:lsEdges,zones:ZONES};}
+async function mapSaveCurrent(mode){
+ if(!lsNodes.length&&!Object.keys(ZONES).length){toast('Nothing on the canvas to save yet');return;}
+ const name=await uiPrompt('Name this map (e.g. "HQ estate", "Ransomware scenario"):','',{title:'Save map',ok:'Save',placeholder:'a name your team will recognise'});
+ if(!name||!name.trim())return;
+ try{
+  await liveApi('/api/maps',{method:'POST',body:JSON.stringify({name:name.trim(),mode:mode||'planning',...mapPayload()})});
+  toast(`Saved "${name.trim()}"${mode==='live'?' as a live map':''}`);openMapPicker();
+ }catch(e){toast('Could not save: '+e.message);}
+}
+async function mapSaveOver(id){
+ const m=(LIVE.maps||[]).find(x=>x.id===id);
+ if(m&&!await uiConfirm(`Overwrite "${m.name}" with what's on your canvas now?`,{title:'Save over map',ok:'Overwrite'}))return;
+ try{
+  await liveApi('/api/maps/'+id,{method:'PUT',body:JSON.stringify(mapPayload())});
+  toast('Map saved');openMapPicker();
+ }catch(e){toast('Could not save: '+e.message);}
+}
+async function mapLoad(id){
+ try{
+  const m=await liveApi('/api/maps/'+id);
+  if(lsNodes.length&&!await uiConfirm(`Open "${m.name}"? It replaces what's on your canvas now (save that first if you want to keep it).`,{title:'Open map',ok:'Open'}))return;
+  lsNodes=Array.isArray(m.nodes)?m.nodes:[];
+  lsEdges=Array.isArray(m.edges)?m.edges:[];
+  ZONES=(m.zones&&typeof m.zones==='object')?m.zones:{};
+  // Rebuild the node-id counter so new nodes don't collide with loaded ones.
+  lsNodeSeq=lsNodes.reduce((mx,n)=>{const k=parseInt(String(n.uid||'').replace(/\D/g,''))||0;return Math.max(mx,k);},0)+1;
+  lsScrubT=null;lsSelEvent=null;lsAnim=null;
+  persistAll();if(typeof lsSaveZones==='function')lsSaveZones();
+  closeMapPicker();go('logsrc');renderLogSrc();
+  toast(`Opened "${m.name}"`);
+ }catch(e){toast('Could not open: '+e.message);}
+}
+async function mapDelete(id,name){
+ if(!await uiConfirm(`Delete the shared map "${name}"? This removes it for everyone.`,{title:'Delete map',ok:'Delete',danger:true}))return;
+ try{
+  await liveApi('/api/maps/'+id,{method:'DELETE'});
+  toast('Map deleted');openMapPicker();
+ }catch(e){toast(e.message);}   // server refuses live/lead maps with a clear message
+}
+
 /* ===== NEW: 1. host search / filter on the map ===== */
 let lsQuery='';
 function lsSearch(v){lsQuery=(v||'').toLowerCase().trim();lsApplyFilter();}
