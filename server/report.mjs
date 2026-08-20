@@ -8,7 +8,7 @@
  *
  *  - FORMAL is the deliverable. It selects only the tickets a lead has
  *    flagged AND written a plain-language summary for, drops the raw
- *    technical body, and carries no analyst attribution at all — the
+ *    technical body, and carries no analyst attribution at all - the
  *    organisation speaks, not the individual. Once frozen it stops tracking
  *    the case entirely and returns the stored snapshot verbatim.
  *

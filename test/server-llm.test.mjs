@@ -9,7 +9,7 @@
  *  - two runtimes speak two different dialects and a request built for the
  *    wrong one is silently accepted and answers nothing useful,
  *  - the telemetry briefing is what a small model actually sees, and a wall of
- *    repeated JSON is how you make a 3B model useless — so the collapsing is
+ *    repeated JSON is how you make a 3B model useless - so the collapsing is
  *    load-bearing, not cosmetic,
  *  - and a local model that is missing, cold, busy or half-loaded is the
  *    ORDINARY case, not an exception: none of it may throw.
@@ -67,7 +67,7 @@ section('detection when nothing is running');
 
   // Deliberately autodetect:false rather than probing the real ports. A test
   // that asserts "nothing is running" fails on any developer's machine that
-  // happens to have Ollama installed — which is most of the people who would
+  // happens to have Ollama installed - which is most of the people who would
   // work on this file.
   eq('resolveProvider yields nothing when autodetect is off',
     await resolveProvider({ endpoint: '', autodetect: false }), null);
@@ -188,7 +188,7 @@ section('failure is ordinary, not exceptional');
     ok('...and explains that a first load is slow', /took too long|loads the weights/i.test(r.error), r.error);
   } finally { slow.srv.close(); }
 
-  // Connection refused mid-flight — the runtime was killed while we were talking.
+  // Connection refused mid-flight - the runtime was killed while we were talking.
   const r = await complete({ kind: 'openai', base: 'http://127.0.0.1:1', model: 'm' },
     { messages: [{ role: 'user', content: 'q' }] });
   ok('a refused connection is reported, not thrown', !r.ok);

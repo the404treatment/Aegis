@@ -4,7 +4,7 @@
    it always has with a shared analyst token.
 
    Note this is a two-field form, so it deliberately does NOT use uiPrompt()
-   (single input only) and must never use a native prompt() — see Hard Rule
+   (single input only) and must never use a native prompt() - see Hard Rule
    #1 in CLAUDE.md. It follows the lazy-veil pattern instead. */
 
 let ME = null;   // {id,name,role,shared,caps[]} once authenticated, else null
@@ -38,13 +38,13 @@ function openLogin(msg,opts){
   <div class="ls-ne-grip" onclick="closeLogin()"></div>
   <div class="ls-det-head">${first?'Create the first account':'Sign in to AEGIS'}</div>
   <div class="ls-det-sub">${first
-    ?'This server has no accounts yet. The first one you create is a <b>lead</b>, so it can add everyone else. Work is recorded against the person who did it — that is what makes the case file worth anything later.'
+    ?'This server has no accounts yet. The first one you create is a <b>lead</b>, so it can add everyone else. Work is recorded against the person who did it - that is what makes the case file worth anything later.'
     :'Sign in for live agent data, shared tickets, cases and event search. Everything offline in AEGIS keeps working without an account.'}</div>
   ${msg?`<div class="lint err" style="margin-bottom:10px">${esc(msg)}</div>`:''}
   <label class="ls-ne-label">Server URL</label>
   <input class="ui-dlg-input" id="auth-url" value="${esc(LIVE.url||location.origin)}" placeholder="https://aegis.internal:8787">
   <label class="ls-ne-label">Name</label>
-  <input class="ui-dlg-input" id="auth-name" autocomplete="username" value="${esc(opts.name||'')}" placeholder="${first?'your name — colleagues will see it':'your account name'}">
+  <input class="ui-dlg-input" id="auth-name" autocomplete="username" value="${esc(opts.name||'')}" placeholder="${first?'your name - colleagues will see it':'your account name'}">
   <label class="ls-ne-label">Password</label>
   <input class="ui-dlg-input" id="auth-pw" type="password" autocomplete="${first?'new-password':'current-password'}" placeholder="${first?'at least 10 characters':'password'}"
     onkeydown="if(event.key==='Enter')${first?'doBootstrap()':'doLogin()'}">
@@ -66,7 +66,7 @@ async function authSwitchServer(){
  const m=await authMode(url.trim());
  _authNeedsSetup=!!m.needsSetup;
  LIVE.url=url.trim();
- openLogin(_authNeedsSetup?'':'That server already has accounts — sign in with yours.');
+ openLogin(_authNeedsSetup?'':'That server already has accounts - sign in with yours.');
 }
 
 /** Create the first account on a fresh server, then sign straight in. */
@@ -84,7 +84,7 @@ async function doBootstrap(){
   });
   const d=await r.json().catch(()=>({}));
   if(!r.ok){
-   // 409 means someone else got there first — fall back to the sign-in form.
+   // 409 means someone else got there first - fall back to the sign-in form.
    if(r.status===409)_authNeedsSetup=false;
    openLogin(d.error||('Could not create the account (HTTP '+r.status+')'),{name});
    return;
@@ -93,7 +93,7 @@ async function doBootstrap(){
   closeLogin();liveSave();
   await liveConnect();
   authRenderWho();
-  toast(`Welcome, ${(ME&&ME.name)||'analyst'} — you're the lead on this server`);
+  toast(`Welcome, ${(ME&&ME.name)||'analyst'} - you're the lead on this server`);
  }catch(e){
   openLogin('Could not reach that server: '+e.message,{name});
  }finally{
@@ -137,7 +137,7 @@ async function doLogout(){
  authRenderWho();toast('Signed out');
 }
 
-/** Admin is lead-only, and hidden rather than shown-and-refused — a nav item
+/** Admin is lead-only, and hidden rather than shown-and-refused - a nav item
     you cannot use is just a reminder that you are not trusted. */
 function authRenderNav(){
  const r=document.getElementById('r-admin');if(!r)return;
@@ -162,6 +162,6 @@ function authRenderWho(){
  }
  el.className='who-ind on';
  el.innerHTML=`<span class="who-name">${esc(ME.name)}</span><span class="who-role">${esc(ME.role)}</span>`;
- el.title='Signed in — click to sign out';
+ el.title='Signed in - click to sign out';
  el.onclick=doLogout;
 }

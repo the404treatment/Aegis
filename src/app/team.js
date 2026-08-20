@@ -1,8 +1,8 @@
 /* ================= THE TEAM ================= */
 /* Two things turn a single-player console into an incident room:
  *
- *   presence — who else is in here right now, live off the SSE stream, and
- *   activity — what everyone has been doing, read out of the audit chain.
+ *   presence - who else is in here right now, live off the SSE stream, and
+ *   activity - what everyone has been doing, read out of the audit chain.
  *
  * The audit log already records every action against the person who took it.
  * That log exists to prove what happened and reads like it. This renders the
@@ -108,7 +108,7 @@ function renderActivity(){
     <span>Team activity</span>
     <button onclick="activityToggle()" data-tip="Close">×</button>
   </div>
-  ${!activityIntact?`<div class="lint err" style="margin:10px 12px">The audit chain does not verify. Someone has edited the record on disk — treat this feed, and the case files, as untrusted until that is explained.</div>`:''}
+  ${!activityIntact?`<div class="lint err" style="margin:10px 12px">The audit chain does not verify. Someone has edited the record on disk - treat this feed, and the case files, as untrusted until that is explained.</div>`:''}
   <div class="act-body">
     ${activityItems.length?activityItems.map(a=>`
       <div class="act-row act-${esc(a.kind)}">
@@ -122,5 +122,5 @@ function renderActivity(){
       </div>`).join('')
      :'<div class="chat-empty">Nothing yet. Raise a ticket or open a case and it shows up here for the whole team.</div>'}
   </div>
-  <div class="act-foot">Read from the hash-chained audit log — the same record the formal report is signed against.</div>`;
+  <div class="act-foot">Read from the hash-chained audit log - the same record the formal report is signed against.</div>`;
 }

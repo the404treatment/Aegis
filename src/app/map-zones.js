@@ -57,7 +57,7 @@ function lsRecommend(){
  picks.sort((x,y)=>y.score-x.score);
  return picks;
 }
-/* Generic broad-coverage preset — solid, not-too-noisy, role-agnostic. */
+/* Generic broad-coverage preset - solid, not-too-noisy, role-agnostic. */
 function lsGenericPreset(){
  const ids=['4624','4625','4672','4688','4698','4719','4720','4726','4732','4728','7045','4697','7040','1102','5001','1116','4104','4740','4616'];
  return LOGSRC.filter(e=>ids.includes(e.id)).map(ev=>({ev,score:0,flagged:false}));
@@ -84,7 +84,7 @@ function lsSeedTopology(){
  lsAddNode('wks',150,340,false);
  lsAddNode('wks',150,440,false);
  lsAddNode('cloud',620,380,false);
- // seeded topology is the clean baseline — reset undo history
+ // seeded topology is the clean baseline - reset undo history
  lsHist=[JSON.stringify({nodes:lsNodes,edges:lsEdges,seq:lsNodeSeq})];lsHistIdx=0;
 
 }
@@ -128,7 +128,7 @@ function lsAutoEdges(){
  const fabric=sw||dc||rtr;
  lsNodes.filter(n=>['srv','wks','nas','iot'].includes(n.type)).forEach(n=>add(fabric,n));
  add(sw,dc);
- persistAll();renderLogSrc();toast('Auto-connected by network tier — drag or click to adjust');
+ persistAll();renderLogSrc();toast('Auto-connected by network tier - drag or click to adjust');
 }
 function lsToggleZones(){lsShowZones=!lsShowZones;renderLogSrc();}
 /* zone bounding regions for the overlay */
@@ -151,7 +151,7 @@ function nodeZone(n){
  if(ZONES[z])return z;
  const d=NODE_TYPES[n.type].zone;
  if(ZONES[d])return d;
- return z; // no zone rectangle exists yet — the host still carries its label
+ return z; // no zone rectangle exists yet - the host still carries its label
 }
 function zoneLabel(z){return (ZONES[z]&&ZONES[z].label)||z;}
 function zoneColor(z){return (ZONES[z]&&ZONES[z].color)||'#8b7bff';}
@@ -196,13 +196,13 @@ function openLsZoneMgr(){
  v.innerHTML=`<div class="ls-det-sheet">
    <div class="ls-ne-grip" onclick="lsCloseZoneMgr()"></div>
    <div class="ls-det-head">Zones</div>
-   <div class="ls-det-sub">Rename, recolour, and reorder your network segments. Assign a host to any zone from its node editor — a router can sit internal, a server can sit in the DMZ.</div>
+   <div class="ls-det-sub">Rename, recolour, and reorder your network segments. Assign a host to any zone from its node editor - a router can sit internal, a server can sit in the DMZ.</div>
    ${Object.keys(ZONES).map(z=>{const members=lsNodes.filter(n=>nodeZone(n)===z).length;
      return`<div class="ls-zn-row">
        <span class="ls-grp-dot" style="background:${zoneColor(z)}"></span>
        <span class="ls-zn-name" onclick="lsRenameZone('${z}')" data-tip="Click to rename">${esc(zoneLabel(z))}</span>
        <span class="ls-zn-count">${members} host${members===1?'':'s'}</span>
-       <select class="ls-zn-tier" onchange="lsSetZoneTier('${z}',this.value)" data-tip="Layout tier — lower sits nearer the internet">
+       <select class="ls-zn-tier" onchange="lsSetZoneTier('${z}',this.value)" data-tip="Layout tier - lower sits nearer the internet">
          ${[0,1,2,3,4].map(t=>`<option value="${t}" ${zoneTier(z)===t?'selected':''}>tier ${t}</option>`).join('')}
        </select>
        <div class="ls-zn-cols">${cols.map(c=>`<button style="background:${c}" onclick="lsSetZoneColor('${z}','${c}')"></button>`).join('')}</div>
@@ -233,7 +233,7 @@ function lsZoneRect(z){
 }
 function lsZoneAtPoint(x,y){
  // topmost zone whose rectangle contains the point
- // when rectangles overlap, the smallest containing zone wins — it is the most specific
+ // when rectangles overlap, the smallest containing zone wins - it is the most specific
  let hit=null,best=Infinity;
  Object.keys(ZONES).filter(z=>ZONES[z].shown!==false).forEach(z=>{
   const r=lsZoneRect(z);if(!r)return;

@@ -5,7 +5,7 @@
  * DESIGN RULE: stubs mimic hostile reality. Evidence is the one place where
  * an analyst hands the server arbitrary bytes AND an arbitrary filename, and
  * the server writes both to disk and serves them back. So the cases that
- * matter here are the abusive ones — a traversal in the filename, an SVG or
+ * matter here are the abusive ones - a traversal in the filename, an SVG or
  * HTML that would run script in our own origin if served, a data URL that
  * isn't one, and a file large enough to matter. A "happy path uploads fine"
  * test proves nothing about any of that.
@@ -83,7 +83,7 @@ section('case patching');
   eq('unknown fields are not written', c.bogusField, undefined);
 }
 
-section('evidence decoding — accepted types');
+section('evidence decoding - accepted types');
 {
   for (const [mime, ext] of Object.entries({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'application/pdf': 'pdf', 'text/plain': 'txt' })) {
     const d = decodeEvidence(dataUrl(mime, 'hello'));
@@ -94,7 +94,7 @@ section('evidence decoding — accepted types');
   eq('bytes round-trip intact', decodeEvidence(dataUrl('text/plain', 'hello world')).buf.toString(), 'hello world');
 }
 
-section('evidence decoding — rejected input');
+section('evidence decoding - rejected input');
 {
   ok('a non-data-URL is rejected', threw(() => decodeEvidence('https://example.com/x.png')));
   ok('empty input is rejected', threw(() => decodeEvidence('')));

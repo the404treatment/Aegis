@@ -1,6 +1,6 @@
 /* ================= TEAM CHAT ================= */
 /* A docked panel for the people working the incident together. Delivery
-   rides the SSE stream the console already holds open — the source app polls
+   rides the SSE stream the console already holds open - the source app polls
    twice a second for this; we don't need to. Server-backed, so it simply
    isn't offered when there's no server. */
 

@@ -1,7 +1,7 @@
 /* ================= EVENT SEARCH (SIEM) ================= */
 /* Field-aware search across the telemetry the server holds. The query language
    lives server-side in server/lake.mjs (GET /api/lake); this is the console
-   for it. Server-backed only — like Tickets, it degrades to a connect CTA
+   for it. Server-backed only - like Tickets, it degrades to a connect CTA
    when offline rather than pretending to have data. */
 
 let siemQ='', siemRows=[], siemTotal=0, siemTop=null, siemChannels={}, siemBusy=false, siemErr='', siemRan=false;
@@ -22,7 +22,7 @@ function siemEffectiveQuery(){
  return (q+' -self:true').trim();
 }
 /* Called from the SSE events handler: when live-tail is on and a search is on
-   screen, re-run it. Debounced — an agent batch can be hundreds of events, and
+   screen, re-run it. Debounced - an agent batch can be hundreds of events, and
    one refresh at the end beats two hundred re-renders. */
 function siemLivePing(){
  if(!siemLive||!siemRan||view!=='siem')return;
@@ -44,7 +44,7 @@ function renderSiem(){
   el.innerHTML=`<div class="ls-empty">
     <div class="ls-empty-ic">⌕</div>
     <h3>Event Search needs a server</h3>
-    <p>Agents report telemetry to an AEGIS server; this searches across it. Everything else in AEGIS keeps working offline — this view is the one that needs the live feed.</p>
+    <p>Agents report telemetry to an AEGIS server; this searches across it. Everything else in AEGIS keeps working offline - this view is the one that needs the live feed.</p>
     <div class="ls-empty-acts"><button class="btn violet" onclick="openLiveSetup()">Connect to a server</button></div>
   </div>`;
   return;
@@ -65,7 +65,7 @@ function renderSiem(){
 }
 /* Same day → just the time; the full stamp lives in the row's title and the
    detail sheet. A column of "18/08/2026, 23:32:25" repeated 200 times is noise
-   that pushes the message — the thing you actually scan — off the right edge. */
+   that pushes the message - the thing you actually scan - off the right edge. */
 function siemTime(ts){
  const d=new Date(ts);
  const sameDay=new Date().toDateString()===d.toDateString();
@@ -75,7 +75,7 @@ function siemEmptyHTML(){
  // "No matches" means two very different things: a filter that excluded
  // everything, or a server that has never received an event. Say which.
  if(!siemQ.trim()&&!siemTotal)return `<div class="ls-det-sub" style="padding:16px 2px">
-   No telemetry on this server yet. Deploy an agent (<code>INSTALL.md</code> — two commands),
+   No telemetry on this server yet. Deploy an agent (<code>INSTALL.md</code> - two commands),
    or seed a demo incident with <code>npm run demo</code> to explore with data.</div>`;
  return '<div class="ls-det-sub" style="padding:16px 2px">No events match that query.</div>';
 }
@@ -137,7 +137,7 @@ function siemOpen(i){
 }
 function siemClose(){const v=document.getElementById('sq-veil');if(v)v.classList.remove('open');}
 /* An agent can tag a sub-technique (T1003.001) that AEGIS tracks only at the
-   parent level (T1003) — and that is exactly where the advisor has its most
+   parent level (T1003) - and that is exactly where the advisor has its most
    specific playbook. Gate on either, or the button hides when it matters most. */
 function siemAdvisable(tech){
  if(!tech)return false;

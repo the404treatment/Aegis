@@ -2,7 +2,7 @@
 /**
  * End-to-end HTTP tests against a real server process. Zero dependencies.
  *
- * DESIGN RULE: stubs mimic hostile reality — and the most hostile reality for
+ * DESIGN RULE: stubs mimic hostile reality - and the most hostile reality for
  * this change is an EXISTING deployment. The whole point of Phase 4 is that
  * turning accounts on is opt-in and turning them off changes nothing, so the
  * first suite here boots the server in its default configuration and asserts
@@ -102,7 +102,7 @@ section('backwards compatibility (requireLogin explicitly off)');
 
 /* ============ 1b. first-run bootstrap ============ */
 /* Accounts are on by default, so a brand-new server demands a login it has no
-   account for. The bootstrap door exists to break that deadlock — and must
+   account for. The bootstrap door exists to break that deadlock - and must
    slam shut the instant it has been used, or it is a permanent way in. */
 section('first-run bootstrap (the default state of a new server)');
 {
@@ -440,7 +440,7 @@ section('formal report freeze (over HTTP)');
     eq('and still reports as frozen', afterEdit.frozen, true);
 
     // The technical report tracks the ticket body (the working detail), not
-    // the lead's formal summary — so edit the body to prove it stays live.
+    // the lead's formal summary - so edit the body to prove it stays live.
     await api(S.base, `/api/tickets/${t.id}`, withTok(lead.token, { method: 'PATCH', body: JSON.stringify({ body: 'DETAIL-UPDATED-AFTER-FREEZING' }) }));
     r = await api(S.base, `/api/cases/${c.id}/report?kind=technical`, withTok(lead.token));
     ok('while the technical view moved on', JSON.stringify(await r.json()).includes('DETAIL-UPDATED-AFTER-FREEZING'));
@@ -518,7 +518,7 @@ section('login lockout (over HTTP)');
     eq('the fifth wrong password is still 401', last.status, 401);
     const after = await api(S.base, '/api/auth/login', { method: 'POST', body: JSON.stringify({ name: 'target', password: 'nope' }) });
     eq('further attempts are rate-limited with 429', after.status, 429);
-    // and the lock holds even against the CORRECT password — otherwise it is
+    // and the lock holds even against the CORRECT password - otherwise it is
     // no defence at all against an attacker who eventually guesses right
     const right = await api(S.base, '/api/auth/login', { method: 'POST', body: JSON.stringify({ name: 'target', password: 'right-password' }) });
     eq('the lock holds even for the correct password', right.status, 429);

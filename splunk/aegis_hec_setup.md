@@ -7,7 +7,7 @@ system of record. AEGIS keeps only a rolling window for the live UI.
 
 **This does not replace a Universal Forwarder.** The agent ships a curated,
 detection-relevant subset of Event IDs (see `$EventFilter` in `aegis-agent.ps1`).
-For full-volume Windows log collection, run a Splunk UF alongside it — see
+For full-volume Windows log collection, run a Splunk UF alongside it - see
 "Running both" below.
 
 ## 1. Create the index
@@ -84,7 +84,7 @@ index=aegis sourcetype=aegis:agent eventId=7045
 | sort - count
 ```
 
-**Silence detection** — an agent that stops reporting is itself a signal
+**Silence detection** - an agent that stops reporting is itself a signal
 (T1562 / T1211). Worth building first:
 
 ```spl
@@ -118,7 +118,7 @@ index=aegis sourcetype=aegis:agent eventId=7045
 
 ## Running both AEGIS and a Universal Forwarder
 
-They complement each other and do not conflict — different transports,
+They complement each other and do not conflict - different transports,
 different destinations. Recommended split:
 
 - **UF** → full Security/Sysmon channels into your main Windows index, for
@@ -127,4 +127,4 @@ different destinations. Recommended split:
   observations, and ticket context.
 
 If you would rather have one pipeline, run only the UF and set
-`splunk.enabled: false` — you lose live map population but keep everything else.
+`splunk.enabled: false` - you lose live map population but keep everything else.

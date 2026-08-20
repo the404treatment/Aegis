@@ -4,7 +4,7 @@
  * (matches test/ui.test.mjs's own zero-dep convention).
  *
  * DESIGN RULE: this is the server-side equivalent of ui.test.mjs's
- * reload-survival philosophy — a chain that "verifies" only in memory and
+ * reload-survival philosophy - a chain that "verifies" only in memory and
  * breaks on a real restart is exactly the kind of bug that testing rule
  * exists to catch, so `load()` rehydration is tested explicitly, not just
  * a fresh in-memory chain.
@@ -44,7 +44,7 @@ section('tamper detection');
   log.events[0].dataHash = 'deadbeef'.repeat(8);
   ok('mutating a chained field breaks verification', !log.verify());
 
-  // The body is stored, so rewriting it must break the chain too — otherwise
+  // The body is stored, so rewriting it must break the chain too - otherwise
   // "who changed what" would be a freely editable field on a record whose
   // whole purpose is being unfalsifiable.
   log = mk();

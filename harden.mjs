@@ -18,7 +18,7 @@
  * This is **not** security through obscurity as a substitute for controls. It
  * is a delaying tactic layered on top of them, and it buys one specific thing:
  * an attacker probing for `aegis.service` on 8787 and finding nothing has to
- * make more noise to find it — and noise is what you are watching for. See
+ * make more noise to find it - and noise is what you are watching for. See
  * docs/DEFENDING-AEGIS.md for the detections that turn that noise into an
  * alert.
  *
@@ -104,12 +104,12 @@ if (newPort && (!Number.isInteger(newPort) || newPort < 1 || newPort > 65535)) {
 // Ports under 1024 need root on Unix, which is exactly what the installer
 // avoided. Refusing here beats a service that silently fails to start.
 if (newPort && newPort < 1024 && process.platform !== 'win32') {
-  die(`port ${newPort} is privileged and would need root.\n         AEGIS runs as your user by design — pick a port above 1024.`);
+  die(`port ${newPort} is privileged and would need root.\n         AEGIS runs as your user by design - pick a port above 1024.`);
 }
 
 const prev = state();
 const cfg = readJson(CFG_PATH, null);
-if (!cfg) die('no server/config.json — run `npm run setup` first.');
+if (!cfg) die('no server/config.json - run `npm run setup` first.');
 
 const name = newName || prev.name;
 const port = newPort || cfg.port || prev.port;
@@ -125,7 +125,7 @@ say(`  port    ${cfg.port || prev.port}  ${c.d('->')}  ${c.cy(String(port))}`);
 if (has('--rotate')) {
   cfg.enrollmentToken = crypto.randomBytes(24).toString('base64url');
   cfg.analystToken = crypto.randomBytes(24).toString('base64url');
-  say(`  tokens  ${c.y('ROTATED')} ${c.d('— every enrolled agent must re-enrol, every console must sign in again')}`);
+  say(`  tokens  ${c.y('ROTATED')} ${c.d('- every enrolled agent must re-enrol, every console must sign in again')}`);
 }
 
 /* -------------------------------------------------------------- write */
@@ -227,7 +227,7 @@ if (has('--rotate')) {
   say(`  ${c.b('Tokens were rotated:')}`);
   say(`     analyst     ${c.cy(cfg.analystToken)}`);
   say(`     enrollment  ${c.cy(cfg.enrollmentToken)}`);
-  say(`     ${c.d('Every agent must re-enrol. Named accounts are unaffected — people sign in as themselves.')}`);
+  say(`     ${c.d('Every agent must re-enrol. Named accounts are unaffected - people sign in as themselves.')}`);
   say('');
 }
 if (newName) {

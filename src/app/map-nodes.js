@@ -100,7 +100,7 @@ function lsNodeHeat(n){
  // extra exposure for known pivot/foothold types
  const typeExp={iot:0.2,vpn:0.15,nas:0.1,dmz:0.1}[n.type]||0;
  const exposure=Math.min(1,zoneExp+typeExp);
- // telemetry coverage 0..1 — 18 event IDs is treated as thorough monitoring
+ // telemetry coverage 0..1 - 18 event IDs is treated as thorough monitoring
  let cover;
  if(t.win&&!/linux|macos/i.test(n.os)){
   cover=Math.min(1,lsEventsForNode(n).length/18);
@@ -156,7 +156,7 @@ function lsAdjacentSuggestHTML(n){
  const adj=lsAdjacent(n.uid).filter(x=>lsNodeStatus(x)!=='malicious');
  if(!adj.length)return `<div class="ls-adj-sugg"><div class="ls-adj-h">Spread check</div><div class="ls-adj-none">No links from this host yet. Use <b>Connect</b> to draw its real adjacencies, then AEGIS will suggest where to hunt next.</div></div>`;
  return `<div class="ls-adj-sugg">
-   <div class="ls-adj-h">Where to hunt next — ${adj.length} adjacent host${adj.length===1?'':'s'}</div>
+   <div class="ls-adj-h">Where to hunt next - ${adj.length} adjacent host${adj.length===1?'':'s'}</div>
    <div class="ls-adj-sub">If this host is compromised, check these neighbours for the same actor:</div>
    ${adj.map(a=>{const evs=(LATMOVE_EVENTS[a.type]||LATMOVE_EVENTS.default).slice(0,4);
      return `<div class="ls-adj-row"><span class="ls-adj-node">${NODE_TYPES[a.type].glyph} ${esc(a.label)}</span><span class="ls-adj-evs">${evs.join(' · ')}</span><button class="ls-adj-jump" onclick="lsQuickObs('${a.uid}')" data-tip="Log an observation on this neighbour">log</button></div>`;
@@ -165,13 +165,13 @@ function lsAdjacentSuggestHTML(n){
 }
 /* ---- named map templates ---- */
 const LS_TEMPLATES={
- smb:{name:'Small business',blurb:'Flat network — one DC, a few workstations, a NAS behind a firewall.',
+ smb:{name:'Small business',blurb:'Flat network - one DC, a few workstations, a NAS behind a firewall.',
    nodes:[['internet',600,50],['fw',600,150],['dc',200,180],['nas',420,180],['wks',150,320],['wks',300,320],['wks',450,320]]},
- adcloud:{name:'AD + Cloud',blurb:'Hybrid identity — on-prem AD with a cloud tenant and DMZ web tier.',
+ adcloud:{name:'AD + Cloud',blurb:'Hybrid identity - on-prem AD with a cloud tenant and DMZ web tier.',
    nodes:[['internet',610,50],['fw',610,150],['dmz',610,260],['router',440,150],['switch',300,270],['dc',140,180],['srv',300,400],['wks',140,340],['wks',140,440],['cloud',610,390]]},
- ot:{name:'OT / ICS network',blurb:'Segmented plant — IT hosts up top, an OT cell with PLCs behind a firewall.',
+ ot:{name:'OT / ICS network',blurb:'Segmented plant - IT hosts up top, an OT cell with PLCs behind a firewall.',
    nodes:[['internet',600,50],['fw',600,150],['dc',180,150],['wks',180,270],['switch',420,270],['router',420,150],['iot',330,410],['iot',480,410],['srv',600,300]]},
- remote:{name:'Remote workforce',blurb:'VPN-centric — remote endpoints landing through a VPN gateway to core.',
+ remote:{name:'Remote workforce',blurb:'VPN-centric - remote endpoints landing through a VPN gateway to core.',
    nodes:[['internet',600,50],['vpn',600,160],['fw',430,160],['dc',180,180],['srv',330,320],['wks',150,320],['wks',150,430],['cloud',600,320]]}
 };
 async function lsLoadTemplate(key){
@@ -226,7 +226,7 @@ function lsTopologyHTML(){
  const cats=Object.keys(byCat).sort();
  return`<div class="ls-topo">
    <div class="ls-quiz-head">
-     <div class="ls-topo-title"><span class="ls-topo-titletag">Network Map</span> — drag to build your environment, click a node to log what you're seeing, then let the AI trace the attack across it</div>
+     <div class="ls-topo-title"><span class="ls-topo-titletag">Network Map</span> - drag to build your environment, click a node to log what you're seeing, then let the AI trace the attack across it</div>
    </div>
    <div class="ls-topo-grid">
      <div class="ls-topo-canvaswrap">
@@ -271,12 +271,12 @@ function lsTopologyHTML(){
          <button onclick="lsSelClear()">Clear</button></div>`:''}
        ${lsIncidentStrip()}
        <div class="ls-canvas-hint">${
-         lsConnectMode?`<b style="color:var(--sky)">Connect mode</b> — click a node, then another, to link them.${lsConnectFrom?' Source selected — pick the destination.':''} Click <b>Connect</b> again to exit.`
-         :lsChainMode?`<b style="color:var(--magenta)">Trace mode</b> — click nodes in attack order (${lsManualChain.length} selected)${lsManualChain.length>=2?' — then ▶ Play path below':''}. Click the last node again to undo.`
+         lsConnectMode?`<b style="color:var(--sky)">Connect mode</b> - click a node, then another, to link them.${lsConnectFrom?' Source selected - pick the destination.':''} Click <b>Connect</b> again to exit.`
+         :lsChainMode?`<b style="color:var(--magenta)">Trace mode</b> - click nodes in attack order (${lsManualChain.length} selected)${lsManualChain.length>=2?' - then ▶ Play path below':''}. Click the last node again to undo.`
          :`<b>Click</b> a host to triage \u00b7 <b>double-click</b> to rename \u00b7 <b>drag between lanes</b> to change its zone${lsSelEvent?` \u00b7 showing <b>${lsSelEvent}</b>`:''}`
        }</div>
        ${(()=>{const r=lsObsTimeRange();if(!r||r.min===r.max)return'';const cur=lsScrubT==null?r.max:lsScrubT;const shown=lsNodes.reduce((a,n)=>a+lsNodeObs(n).length,0);return`<div class="ls-scrubber">
-         <span class="ls-scrub-icon" data-tip="Scrub through the incident — drag to replay how observations appeared over time">◷</span>
+         <span class="ls-scrub-icon" data-tip="Scrub through the incident - drag to replay how observations appeared over time">◷</span>
          <input type="range" id="ls-scrub" min="${r.min}" max="${r.max}" value="${cur}" step="1000" oninput="lsScrubSet(this.value)">
          <span class="ls-scrub-meta"><b id="ls-scrub-cnt">${shown}</b> obs · <span id="ls-scrub-lbl">${lsScrubT==null||lsScrubT>=r.max?'now (all observations)':new Date(cur).toLocaleTimeString()}</span></span>
          ${lsScrubT!=null?`<button class="ls-scrub-reset" onclick="lsScrubReset()">reset</button>`:''}
@@ -298,9 +298,9 @@ function lsTopologyHTML(){
      ${lsHasIncident()?`<button class="btn magenta" onclick="analyzeIncident()" data-tip="Ask the AI to correlate everything observed across the map into a likely attack chain, then watch it trace across the map">◎ Analyse &amp; trace hunt map</button>`:''}
      ${lsChainMode&&lsManualChain.length>=2?`<button class="btn magenta" onclick="lsPlayManualChain()" data-tip="Animate the attack path you just mapped">▶ Play path (${lsManualChain.length})</button>`:''}
      ${lsPendingChain&&!lsAnim&&!lsChainMode?`<button class="btn ghost-violet" onclick="lsTracePending()" data-tip="Replay the last AI-reconstructed attack chain on the map">▶ Replay trace</button>`:''}
-     <button class="btn ghost-violet" onclick="lsBuildFromTopo()" data-tip="Generate a prioritised logging checklist for this exact network — which Event IDs to turn on first and the inputs.conf to do it">\u2699 Logging plan</button>
+     <button class="btn ghost-violet" onclick="lsBuildFromTopo()" data-tip="Generate a prioritised logging checklist for this exact network - which Event IDs to turn on first and the inputs.conf to do it">\u2699 Logging plan</button>
      ${studio.size?`<button class="btn ghost-violet" onclick="lsOpenDetCoverage()" data-tip="Which of your staged detections would actually fire on the hosts in this map?">◈ Detection coverage</button>`:''}
-     <button class="btn ghost-violet" onclick="if(!studio.size){toast('Stage techniques in the Matrix first to include them in the report');}else{openReport();}" data-tip="Open the full report — this live network map and any observations are included. Refresh anytime.">Add to report ↗</button>
+     <button class="btn ghost-violet" onclick="if(!studio.size){toast('Stage techniques in the Matrix first to include them in the report');}else{openReport();}" data-tip="Open the full report - this live network map and any observations are included. Refresh anytime.">Add to report ↗</button>
    </div>
  </div>`;
 }

@@ -74,13 +74,13 @@ if (!found.length) {
   const hint = INSTALL_HINT[process.platform] || INSTALL_HINT.linux;
   say(`     ${c.y('none running.')}`);
   say('');
-  say(`  ${c.b('Install one — Ollama is the easiest:')}`);
+  say(`  ${c.b('Install one - Ollama is the easiest:')}`);
   say('');
   say(`     ${c.cy(hint)}`);
   say('');
   say(`  ${c.d('Then run this again:')}  ${c.cy('npm run ai:setup')}`);
   say('');
-  say(`  ${c.d('Already have LM Studio, llama.cpp, Jan or vLLM? Start it and re-run —')}`);
+  say(`  ${c.d('Already have LM Studio, llama.cpp, Jan or vLLM? Start it and re-run -')}`);
   say(`  ${c.d('AEGIS speaks to all of them. Ports probed:')}`);
   for (const t of PROBE_TARGETS) say(`  ${c.d(`     ${t.name.padEnd(12)} ${t.base}`)}`);
   say('');
@@ -102,7 +102,7 @@ let model = val('--model', '');
 const wantBig = has('--bigger');
 if (!model) {
   if (provider.models.length) {
-    // Prefer something already pulled — re-downloading 2GB because a flag
+    // Prefer something already pulled - re-downloading 2GB because a flag
     // wasn't passed would be rude.
     model = provider.models[0];
     say(`     using   ${c.cy(model)}  ${c.d('(already available)')}`);
@@ -137,7 +137,7 @@ if (!has('--check')) {
   say(`  ${c.b('3. Wiring it into AEGIS')}`);
   let cfg = {};
   try { cfg = JSON.parse(fs.readFileSync(CFG_PATH, 'utf8')); }
-  catch { say(`     ${c.y('no server/config.json yet — run `npm run setup` first.')}`); process.exit(1); }
+  catch { say(`     ${c.y('no server/config.json yet - run `npm run setup` first.')}`); process.exit(1); }
 
   cfg.llm = {
     ...(cfg.llm || {}),
@@ -155,7 +155,7 @@ if (!has('--check')) {
   say(`     ${c.g('written')} server/config.json`);
   say(`     ${c.d(`endpoint ${provider.base}`)}`);
   say(`     ${c.d(`model    ${model}`)}`);
-  say(`     ${c.d(`watch    ${cfg.llm.watch ? 'on — it comments on telemetry unprompted' : 'off'}`)}`);
+  say(`     ${c.d(`watch    ${cfg.llm.watch ? 'on - it comments on telemetry unprompted' : 'off'}`)}`);
 }
 
 /* ------------------------------------------------------------- 4. verify */
@@ -202,7 +202,7 @@ function pullOllama(name) {
     let bin = 'ollama';
     try { execFileSync(process.platform === 'win32' ? 'where' : 'which', [bin], { stdio: 'ignore' }); }
     catch {
-      // Ollama is running (we probed it) but its CLI is not on PATH — pull over
+      // Ollama is running (we probed it) but its CLI is not on PATH - pull over
       // the HTTP API instead so this still works.
       return resolve(pullOverHttp(name));
     }

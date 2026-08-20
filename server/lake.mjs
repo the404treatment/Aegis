@@ -1,5 +1,5 @@
 /**
- * Event lake query engine — a small field-aware query language (KQL/SPL-lite)
+ * Event lake query engine - a small field-aware query language (KQL/SPL-lite)
  * over the telemetry the server already keeps. Ported from Skyhawk's
  * domain/lake.js.
  *
@@ -48,7 +48,7 @@ function matchToken(e, t) {
     if (key) {
       hit = String(e[key] == null ? '' : e[key]).toLowerCase().includes(t.val);
     } else {
-      // Not a known alias — try the agent-supplied fields bag. Field names are
+      // Not a known alias - try the agent-supplied fields bag. Field names are
       // lowercased during tokenizing but the bag's keys are the raw Windows
       // ones (CamelCase, e.g. LogonType), so match the key case-insensitively;
       // a case-sensitive lookup silently returns nothing for every real field

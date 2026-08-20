@@ -9,7 +9,7 @@
  *
  * This is a TCP connect scan against a small set of admin ports, plus reverse
  * DNS. It does not authenticate, log in, or send anything to the hosts it
- * finds — it only asks whether a port accepts a connection, which is what any
+ * finds - it only asks whether a port accepts a connection, which is what any
  * `telnet host 445` would do.
  *
  * Only scan networks you are responsible for. On a corporate network, tell
@@ -59,7 +59,7 @@ function expandCidr(cidr) {
   const [base, bitsRaw] = cidr.split('/');
   const bits = Number(bitsRaw);
   if (!base || !Number.isInteger(bits) || bits < 16 || bits > 32) {
-    throw new Error(`bad range "${cidr}" — use CIDR between /16 and /32, e.g. 10.0.0.0/24`);
+    throw new Error(`bad range "${cidr}" - use CIDR between /16 and /32, e.g. 10.0.0.0/24`);
   }
   const octets = base.split('.').map(Number);
   if (octets.length !== 4 || octets.some(o => !Number.isInteger(o) || o < 0 || o > 255)) {
@@ -132,7 +132,7 @@ async function pool(items, limit, fn) {
   hosts = hosts.filter(h => h.ip !== h.self);
   console.log(`  addresses       ${hosts.length}`);
   console.log(c.dim('  This is a connect scan on a handful of admin ports. Only run it on'));
-  console.log(c.dim('  networks you are responsible for — it looks like recon, because it is.'));
+  console.log(c.dim('  networks you are responsible for - it looks like recon, because it is.'));
   console.log('');
 
   process.stdout.write('  probing… ');
@@ -166,7 +166,7 @@ async function pool(items, limit, fn) {
   if (!found.length) {
     console.log(c.y('  Nothing responded.'));
     console.log('  Either the network is empty, or a firewall is dropping the probes.');
-    console.log('  Agents can still be installed by hand — see INSTALL.md.\n');
+    console.log('  Agents can still be installed by hand - see INSTALL.md.\n');
   } else {
     console.log(c.b(`  ${found.length} host${found.length === 1 ? '' : 's'} responded`));
     console.log(c.dim('  ' + '─'.repeat(64)));
@@ -180,7 +180,7 @@ async function pool(items, limit, fn) {
     console.log(`  ${c.g(reachable)} of ${found.length} could take an agent push (WinRM or SSH).`);
     if (reachable < found.length) {
       console.log(c.dim('  The rest need the agent installed by hand, by GPO, or by your own'));
-      console.log(c.dim('  management tooling — see INSTALL.md.'));
+      console.log(c.dim('  management tooling - see INSTALL.md.'));
     }
   }
 

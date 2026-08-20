@@ -12,7 +12,7 @@ ExecStart=/usr/bin/node /opt/aegis/server/aegis-server.mjs --config /opt/aegis/s
 Restart=on-failure
 RestartSec=5
 
-# hardening — the server needs nothing but its own data dir
+# hardening - the server needs nothing but its own data dir
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

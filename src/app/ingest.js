@@ -1,8 +1,8 @@
 /* ================= INGEST ================= */
 /* Offline, zero-dependency parsers for external tool exports: a Chainsaw
    (WithSecure) Sigma-hunt CSV/JSON, Suricata eve.json, Zeek TSV/JSON logs,
-   and a classic PCAP capture. Runs entirely in the browser — paste or drop a
-   file, get back a uniform {timeline, iocs, findings, events} — then commit
+   and a classic PCAP capture. Runs entirely in the browser - paste or drop a
+   file, get back a uniform {timeline, iocs, findings, events} - then commit
    builds/extends the hunt map and logs findings as node observations.
    Ported from Skyhawk's domain/ingest.js; reuses AEGIS's own IOC regexes
    (ioc.js) and host-type guesser (lsGuessType) instead of parallel copies,
@@ -99,7 +99,7 @@ function ingHitsToItems(hits){
   if(h.user)bits.push('user '+h.user);
   if(h.srcip)bits.push('src '+h.srcip);
   if(h.cmd)bits.push(String(h.cmd).slice(0,160));
-  const text=h.rule+(h.host?' on '+h.host:'')+(bits.length?' — '+bits.join(' · '):'');
+  const text=h.rule+(h.host?' on '+h.host:'')+(bits.length?' - '+bits.join(' · '):'');
   timeline.push({at:h.at||new Date().toISOString(),text:text.slice(0,500),source:'Chainsaw',level:h.level});
   ingPushIocs([h.srcip,h.cmd,h.blob].join(' '),iocs,iocSeen);
   const key=h.rule;
@@ -199,7 +199,7 @@ const ING_SURICATA={
     ingPushIocs([e.src_ip,e.dest_ip,e.dns&&e.dns.rrname,e.http&&e.http.hostname,e.tls&&e.tls.sni,
      e.fileinfo&&[e.fileinfo.md5,e.fileinfo.sha1,e.fileinfo.sha256].filter(Boolean).join(' ')].filter(Boolean).join(' '),iocs,seen);
     const flow=`${e.src_ip||'?'}:${e.src_port||''} -> ${e.dest_ip||'?'}:${e.dest_port||''} ${e.proto||''}${e.app_proto?'/'+e.app_proto:''}`.trim();
-    timeline.push({at:at||new Date().toISOString(),text:`${msg} — ${flow}`.slice(0,500),source:'suricata'});
+    timeline.push({at:at||new Date().toISOString(),text:`${msg} - ${flow}`.slice(0,500),source:'suricata'});
     const it=g[msg]||(g[msg]={sig:msg,sev:'',attack:new Set(),hosts:new Set(),count:0,cat:a.category||'',sample:flow,first:null,last:null});
     it.count++;
     if((ING_LEVEL_RANK[sev]||0)>(ING_LEVEL_RANK[it.sev]||-1))it.sev=sev;
@@ -281,7 +281,7 @@ const ING_ZEEK={
  },
 };
 
-/* ---------- PCAP profile — classic libpcap -> flow events. Uses DataView
+/* ---------- PCAP profile - classic libpcap -> flow events. Uses DataView
    over an ArrayBuffer (not Node's Buffer) so it runs unmodified in the
    browser; only IPv4 is decoded, capped at 300k packets. ---------- */
 function ingParsePcap(arrayBuffer){
@@ -291,7 +291,7 @@ function ingParsePcap(arrayBuffer){
  let le,nano;const m=dv.getUint32(0,true);
  if(m===0xa1b2c3d4){le=true;nano=false;}else if(m===0xa1b23c4d){le=true;nano=true;}
  else if(m===0xd4c3b2a1){le=false;nano=false;}else if(m===0x4d3cb2a1){le=false;nano=true;}
- else return{error:"unsupported capture (pcapng isn't parsed yet — export as classic pcap)",timeline:[],iocs:[],findings:[],events:[]};
+ else return{error:"unsupported capture (pcapng isn't parsed yet - export as classic pcap)",timeline:[],iocs:[],findings:[],events:[]};
  const u32=off=>dv.getUint32(off,le);
  const linktype=u32(20);
  const ip4=o=>`${buf[o]}.${buf[o+1]}.${buf[o+2]}.${buf[o+3]}`;
@@ -374,8 +374,8 @@ function ingInputHTML(){
  return`<div class="ls-det-sheet">
   <div class="ls-ne-grip" onclick="closeLsIngest()"></div>
   <div class="ls-det-head">Ingest a tool export</div>
-  <div class="ls-det-sub">Paste a Chainsaw (Sigma-hunt) CSV/JSON export, Suricata <code>eve.json</code>, or Zeek TSV/JSON logs — parsed entirely offline, right here. For a PCAP capture, use the file picker instead (binary, can't be pasted).</div>
-  <label class="ls-ne-label">Filename (optional — helps auto-detect the format)</label>
+  <div class="ls-det-sub">Paste a Chainsaw (Sigma-hunt) CSV/JSON export, Suricata <code>eve.json</code>, or Zeek TSV/JSON logs - parsed entirely offline, right here. For a PCAP capture, use the file picker instead (binary, can't be pasted).</div>
+  <label class="ls-ne-label">Filename (optional - helps auto-detect the format)</label>
   <input class="dash-input" id="ing-fname" style="width:100%" placeholder="e.g. eve.json, conn.log, chainsaw.csv">
   <textarea id="ing-ta" class="art-ta" style="min-height:180px;margin-top:8px" placeholder="Paste the export here…"></textarea>
   <button class="btn violet" style="width:100%;justify-content:center;margin-top:10px" onclick="ingParseTextarea()">Parse</button>
@@ -432,7 +432,7 @@ function ingPreviewHTML(){
      <div><b>${esc(f.title)}</b> <span class="ls-ne-obs-sev inc-${ING_SEV_MAP[f.severity]||'info'}" style="margin-left:4px">${esc(f.severity)}</span></div>
      <div style="font-size:10.5px;color:var(--t3);margin-top:2px">${esc((f.technicalDetail||'').slice(0,180))}${(f.assets||[]).length?` · ${f.assets.map(a=>esc(a.name)).join(', ')}`:''}${(f.attack||[]).length?` · ${f.attack.join(', ')}`:''}</div>
     </div>
-   </div>`).join(''):'<div class="ls-det-sub">No findings extracted — network events and IOCs (if any) will still be committed.</div>'}
+   </div>`).join(''):'<div class="ls-det-sub">No findings extracted - network events and IOCs (if any) will still be committed.</div>'}
   ${s.iocs&&s.iocs.length?`<div class="ls-mm-sec">Indicators seen (${s.iocs.length})</div><div class="ls-det-sub">${s.iocs.slice(0,24).map(x=>esc(x.value)).join(', ')}${s.iocs.length>24?' …':''}</div>`:''}
   <div style="display:flex;gap:8px;margin-top:12px">
    <button class="btn" style="flex:1;justify-content:center" onclick="ingState=null;renderLsIngest()">← Back</button>

@@ -10,7 +10,7 @@
  *
  * Two surfaces share this one model. The AI Analyst tab answers long questions
  * you type, with your staged techniques and hunt map as context. The Companion
- * does short, continuous work — reading telemetry as it lands and saying
+ * does short, continuous work - reading telemetry as it lands and saying
  * something useful without being asked.
  *
  * It talks to whatever local inference server is already running rather than
@@ -109,7 +109,7 @@ export async function probe(target, timeoutMs = 1500) {
 }
 
 /**
- * Find a local model server. Probes concurrently — a stopped port refuses
+ * Find a local model server. Probes concurrently - a stopped port refuses
  * instantly, so the whole sweep costs about one timeout in the worst case
  * rather than five.
  */
@@ -199,7 +199,7 @@ export function textOf(provider, data) {
 }
 
 /**
- * One completion. Resolves with {ok, text, error} — a local model being busy,
+ * One completion. Resolves with {ok, text, error} - a local model being busy,
  * cold-loading a 4GB file, or missing is an ordinary condition here, not an
  * exception worth unwinding the request for.
  */
@@ -223,7 +223,7 @@ export async function complete(provider, { system, messages, maxTokens, timeoutM
     return { ok: true, text, model: provider.model };
   } catch (e) {
     return { ok: false, error: e.message === 'timed out'
-      ? 'the local model took too long — a first request loads the weights and can be slow'
+      ? 'the local model took too long - a first request loads the weights and can be slow'
       : e.message };
   }
 }
@@ -233,7 +233,7 @@ export async function complete(provider, { system, messages, maxTokens, timeoutM
  * Turn raw telemetry into the prompt the companion actually sees.
  *
  * Local models have small context windows and get worse, not better, when fed
- * a wall of JSON. This hands over a compact, deduplicated summary — which is
+ * a wall of JSON. This hands over a compact, deduplicated summary - which is
  * also what a human would want to read.
  */
 export function briefEvents(events, { host = '', limit = 25 } = {}) {

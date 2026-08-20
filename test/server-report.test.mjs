@@ -9,7 +9,7 @@
  *  - a "frozen" report that keeps tracking the case was never frozen, so
  *    the fixtures are mutated after freezing and re-read,
  *  - and a ticket that is flagged but unwritten, or written but unflagged,
- *    must NOT appear — half-curated content reaching a client is the exact
+ *    must NOT appear - half-curated content reaching a client is the exact
  *    thing the two-part gate exists to prevent.
  */
 import { buildReport, finalizeFormal, isFormalEligible, TechnicalPolicy, FormalPolicy, policyFor, snapshotHash } from '../server/report.mjs';
@@ -33,7 +33,7 @@ const mkTicket = over => ({
   createdBy: 'ANALYST-NAME', createdAt: 1000, includeInFormal: false, formalSummary: '', ...over,
 });
 
-section('eligibility — the two-part gate');
+section('eligibility - the two-part gate');
 {
   ok('flagged AND summarised is eligible', isFormalEligible(mkTicket({ includeInFormal: true, formalSummary: 'wrote it up' })));
   ok('flagged but NOT summarised is not eligible', !isFormalEligible(mkTicket({ includeInFormal: true, formalSummary: '' })));
@@ -53,7 +53,7 @@ section('technical audience');
   eq('policyFor defaults to technical', policyFor('anything').kind, 'technical');
 }
 
-section('formal audience — what must NOT leak');
+section('formal audience - what must NOT leak');
 {
   const t = mkTicket({ includeInFormal: true, formalSummary: 'A server was encrypted and has been restored.' });
   const r = buildReport(mkCase(), [t], 'formal');

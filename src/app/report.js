@@ -1,6 +1,6 @@
 /* ================= REPORT GENERATOR ================= */
 function lkName(e){return e.id.toLowerCase().replace(/[^a-z0-9]/g,'')+'_baseline';}
-function tuneSPL(tid,eid){/* legacy shim — not used by new report */
+function tuneSPL(tid,eid){/* legacy shim - not used by new report */
  const lk=lkName(ALL().find(x=>x.id===eid)||{id:eid});
  const e=ALL().find(x=>x.id===eid);
  const meta=ALERT_META[eid]||{};
@@ -11,7 +11,7 @@ function tuneSPL(tid,eid){/* legacy shim — not used by new report */
   suppress:`${(e&&e.query.trim())||''}\n| search NOT [| inputlookup ${lk} | fields ${keyFields}]`};
 }
 function evCatalogBlock(e,seenIds){
- if(seenIds.has(e.plat+e.id))return`<div class="rp-ref">↺ <b>${e.id} — ${e.title}</b> is already in the Detection Catalog and serves this technique too. Deploy it once.</div>`;
+ if(seenIds.has(e.plat+e.id))return`<div class="rp-ref">↺ <b>${e.id} - ${e.title}</b> is already in the Detection Catalog and serves this technique too. Deploy it once.</div>`;
  seenIds.add(e.plat+e.id);
  const meta=ALERT_META[e.id]||{};
  const suppressible=meta.suppressible!==false;
@@ -27,8 +27,8 @@ function evCatalogBlock(e,seenIds){
    ${e.setup?`<div class="rp-setup"><b>Telemetry:</b> ${esc(e.setup)}</div>`:''}
    <h3>Detection query</h3>
    <pre>${esc(e.query)}</pre>
-   ${triage.length?`<div class="rp-triage"><h4>Triage — where to start</h4><ol>${triage.map(t=>`<li>${esc(t)}</li>`).join('')}</ol></div>`:''}
-   ${!isDefault?`<div class="rp-cadence-note"><b>Alert cadence deviation:</b> Use cron <code>${cadence}</code> — ${cadence.startsWith('*/5')||cadence.startsWith('* ')?'this event is too high-priority for a 15-minute window; catch it within 5 minutes.':cadence.startsWith('0 ')?'hourly is sufficient; this attack pattern plays out over hours and a tight window just adds noise.':''}</div>`:''}
+   ${triage.length?`<div class="rp-triage"><h4>Triage - where to start</h4><ol>${triage.map(t=>`<li>${esc(t)}</li>`).join('')}</ol></div>`:''}
+   ${!isDefault?`<div class="rp-cadence-note"><b>Alert cadence deviation:</b> Use cron <code>${cadence}</code> - ${cadence.startsWith('*/5')||cadence.startsWith('* ')?'this event is too high-priority for a 15-minute window; catch it within 5 minutes.':cadence.startsWith('0 ')?'hourly is sufficient; this attack pattern plays out over hours and a tight window just adds noise.':''}</div>`:''}
    <h3>${suppressible?'Suppress known-good':'Do not suppress'}</h3>
    ${suppressible?`<p>Deploy as a scheduled alert (<code>*/15 * * * *</code>, window <code>-20m@m</code> to <code>now</code>). Throttle by <code>${throttle}</code> for <code>4h</code>. Build the baseline daily; subtract it in the alert:</p>
    <pre>${q0}
@@ -37,7 +37,7 @@ function evCatalogBlock(e,seenIds){
 
 // Append to the alert search:
 | search NOT [| inputlookup ${lk} | fields ${sk.join(', ')}]</pre>
-   <p style="font-size:10.5px;color:#8b8ba6">Run the baseline builder for one week in non-alerting mode before enabling triggers — let it learn normal behaviour first.</p>`
+   <p style="font-size:10.5px;color:#8b8ba6">Run the baseline builder for one week in non-alerting mode before enabling triggers - let it learn normal behaviour first.</p>`
    :`<div class="rp-no-suppress">Every instance of this event warrants a human review. Do not add a baseline suppression. Forward logs off-host so this event cannot be tampered with before you act on it. ${!isDefault?`Schedule the alert at <code>${cadence}</code> rather than the default.`:''}</div>`}
  </div>`;
 }
@@ -105,7 +105,7 @@ function attackFlowSVG(){
  </svg>
  <div style="display:flex;gap:16px;margin-top:8px;font-family:IBM Plex Mono,monospace;font-size:9px;color:#77779a">
    <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#3a9d78;display:inline-block"></span>has detection telemetry</span>
-   <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#c98aa8;display:inline-block"></span>strategy only — no native telemetry</span>
+   <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#c98aa8;display:inline-block"></span>strategy only - no native telemetry</span>
  </div></div>`;
 }
 function buildMitTable(){
@@ -119,17 +119,17 @@ function buildMitTable(){
 }
 function buildRecs(){
  const recs=[];
- // telemetry prerequisites — only the ones that aren't default-on
+ // telemetry prerequisites - only the ones that aren't default-on
  const nonDefault=collectPanels().filter(e=>{
   const s=e.setup||'';return!s.toLowerCase().includes('on by default')&&!s.toLowerCase().includes('always recorded');
  });
  const setupSeen=new Set();
  const setupItems=nonDefault.filter(e=>{if(setupSeen.has(e.id))return false;setupSeen.add(e.id);return true;})
-  .map(e=>`<li><b>${e.id}</b> — ${esc(e.setup)}</li>`);
+  .map(e=>`<li><b>${e.id}</b> - ${esc(e.setup)}</li>`);
  if(setupItems.length)recs.push({t:'Enable non-default telemetry first',b:'<p>These detections require audit policy or data event changes before they produce results:</p><ul>'+setupItems.join('')+'</ul>'});
  // strategy-only gaps
  const gaps=[...studio].filter(id=>eventsForTech(id).length===0);
- if(gaps.length)recs.push({t:'Coverage gaps — techniques with no native telemetry',b:'<p>These techniques are in your stage plan but have no mappable Windows or CloudTrail event. Add a log source or use the AI Analyst to build a custom detection:</p><ul>'+gaps.map(id=>`<li><b>${id} · ${T(id).name}</b>${T(id).note?` — ${esc(T(id).note)}`:''}</li>`).join('')+'</ul>'});
+ if(gaps.length)recs.push({t:'Coverage gaps - techniques with no native telemetry',b:'<p>These techniques are in your stage plan but have no mappable Windows or CloudTrail event. Add a log source or use the AI Analyst to build a custom detection:</p><ul>'+gaps.map(id=>`<li><b>${id} · ${T(id).name}</b>${T(id).note?` - ${esc(T(id).note)}`:''}</li>`).join('')+'</ul>'});
  // kill-chain blind spots
  const activeStages=new Set([...studio].map(primaryStage));
  const inactive=TACTICS.map((t,i)=>[t[0],i]).filter(([,i])=>!activeStages.has(i));
@@ -139,13 +139,13 @@ function buildRecs(){
   <div class="rp-ops-item"><div class="t">Baseline before alerting</div><div class="d">Run each suppression builder for a week in non-alerting mode to learn normal, then enable triggers. Rushing baselines causes alert fatigue.</div></div>
   <div class="rp-ops-item"><div class="t">Forward logs off-host</div><div class="d">Near-real-time forwarding means 1102 (log clear) or CloudTrail StopLogging cannot destroy the evidence trail before you act on it.</div></div>
   <div class="rp-ops-item"><div class="t">Validate with Atomic Red Team</div><div class="d">Each MITRE technique ID maps directly to atomics. Detonate in your lab to confirm the detection fires before declaring it production-ready.</div></div>
-  <div class="rp-ops-item"><div class="t">Add Sysmon for deeper coverage</div><div class="d">Process injection (T1055) and LSASS access (T1003) need Sysmon EID 8/10 — native Security logs can only partially cover these gaps.</div></div>
+  <div class="rp-ops-item"><div class="t">Add Sysmon for deeper coverage</div><div class="d">Process injection (T1055) and LSASS access (T1003) need Sysmon EID 8/10 - native Security logs can only partially cover these gaps.</div></div>
   <div class="rp-ops-item"><div class="t">Tune throttle per detection</div><div class="d">4h is a starting point. Noisy detections need per-entity suppression. High-fidelity detections (1102, StopLogging) should never be throttled.</div></div>
   <div class="rp-ops-item"><div class="t">Age out baseline lookups</div><div class="d">Add _time to baseline builders and filter to the last 30–60 days so suppression lists don't grow stale and shelter new malicious behaviour.</div></div>
  </div>`});
  return recs;
 }
-/* Light-theme network topology for the report — renders the finalised hunt map
+/* Light-theme network topology for the report - renders the finalised hunt map
    with each node's live Windows Event-ID count, or its non-Windows data source. */
 function lsTopoReportSVG(){
  if(!lsNodes||!lsNodes.length)return'';
@@ -178,8 +178,8 @@ function lsTopoReportSVG(){
    ${edges}${nodes}
  </svg>
  <div style="display:flex;gap:18px;margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#77779a">
-   <span style="display:flex;align-items:center;gap:5px"><span style="width:16px;height:16px;border-radius:50%;background:#7a6cf0;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700">N</span>Windows host — number = collectable Event IDs</span>
-   <span style="display:flex;align-items:center;gap:5px"><span style="width:16px;height:16px;border-radius:50%;background:#2a7fb8;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:8px">⇄</span>Non-Windows — mapped data source</span>
+   <span style="display:flex;align-items:center;gap:5px"><span style="width:16px;height:16px;border-radius:50%;background:#7a6cf0;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700">N</span>Windows host - number = collectable Event IDs</span>
+   <span style="display:flex;align-items:center;gap:5px"><span style="width:16px;height:16px;border-radius:50%;background:#2a7fb8;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:8px">⇄</span>Non-Windows - mapped data source</span>
  </div></div>`;
 }
 function lsTopoReportSummary(){
@@ -208,7 +208,7 @@ function incidentReportSection(){
     </div>
   </div>`;
  }).join('');
- return`<p>Observations logged across the network during this hunt, ordered along the kill chain. This is the working incident picture — ${rows.length} observation${rows.length===1?'':'s'} across ${new Set(rows.map(r=>r.node.uid)).size} host${new Set(rows.map(r=>r.node.uid)).size===1?'':'s'}${compromised.length?`, ${compromised.length} assessed as compromised`:''}.</p>
+ return`<p>Observations logged across the network during this hunt, ordered along the kill chain. This is the working incident picture - ${rows.length} observation${rows.length===1?'':'s'} across ${new Set(rows.map(r=>r.node.uid)).size} host${new Set(rows.map(r=>r.node.uid)).size===1?'':'s'}${compromised.length?`, ${compromised.length} assessed as compromised`:''}.</p>
  ${worst>=3?`<div class="rp-keyfinding"><div class="rp-kf-label">Active</div><div>This map contains observations rated <strong>malicious</strong>. Treat the affected hosts (${compromised.map(n=>esc(n.label)).join(', ')||'see below'}) as compromised pending containment.</div></div>`:''}
  <div class="rp-timeline">${items}</div>`;
 }
@@ -228,7 +228,7 @@ function reportHTML(){
   return`<div class="rp-bar-row"><div class="rp-bar-label">${TACTICS[i][0]}</div><div class="rp-bar-track"><div class="rp-bar-fill" style="width:${Math.max(pct,8)}%">${pct}%</div></div></div>`;
  }).join('');
 
- // §4 Mitigation priority table — all mitigations sorted by frequency, built once
+ // §4 Mitigation priority table - all mitigations sorted by frequency, built once
  const mitTable=buildMitTable();
 
  // §3 Tactic → technique relationship table (grouped by tactic, in kill-chain order)
@@ -245,7 +245,7 @@ function reportHTML(){
   </tr>`;
  }).join('');
 
- // §6 Kill-chain technique map — grouped under tactic headers so the tactic→technique relationship is explicit
+ // §6 Kill-chain technique map - grouped under tactic headers so the tactic→technique relationship is explicit
  const techMapByTactic=stagesHit.map(i=>{
   const stagedHere=ordered.filter(id=>primaryStage(id)===i);
   const cards=stagedHere.map(id=>{
@@ -254,7 +254,7 @@ function reportHTML(){
    const mitPills=(t.mits||[]).map(m=>`<span class="rp-mit-pill">${m}</span>`).join('');
    const evPills=evs.length
     ?evs.map(e=>`<a class="rp-ev-pill" href="#cat-${e.id}">${e.id}</a>`).join('')
-    :`<span style="font-size:10.5px;color:#a83e66">No native telemetry — see §8</span>`;
+    :`<span style="font-size:10.5px;color:#a83e66">No native telemetry - see §8</span>`;
    return`<div class="rp-tech-compact">
      <div class="rp-tech-meta">
        <span class="rp-tid">${id}</span>
@@ -279,7 +279,7 @@ function reportHTML(){
   </div>`;
  }).join('');
 
- // §8 Detection catalog — each event once, curated suppression
+ // §8 Detection catalog - each event once, curated suppression
  const seenIds=new Set();
  const catalog=ordered.flatMap(id=>eventsForTech(id)).filter((e,i,a)=>
   a.findIndex(x=>x.plat===e.plat&&x.id===e.id)===i
@@ -316,8 +316,8 @@ function reportHTML(){
   </div>
 
   <div class="rp-lead">
-    <p>This report operationalises <strong>${studio.size} MITRE ATT&amp;CK technique${studio.size===1?'':'s'}</strong> into <strong>${panels.length} deployable Splunk detection${panels.length===1?'':'s'}</strong>, ordered along the attack kill chain from <strong>${esc(earliest)}</strong> to <strong>${esc(latest)}</strong>. It reads in two parts: the first establishes the threat model and where this coverage sits against it; the second is the deployment reference — the exact queries, triage steps, and suppression logic your team implements.</p>
-    ${gapCount>0?`<div class="rp-keyfinding"><div class="rp-kf-label">Key finding</div><div>Coverage spans ${stagesHit.length} of 14 kill-chain stages. ${gapCount} stage${gapCount===1?'':'s'} remain uncovered — an adversary operating there would not trip these rules${topMit?`. The single highest-leverage control is <strong>${topMit[0]} · ${MITS[topMit[0]]?MITS[topMit[0]].name:''}</strong>, which counters ${topMit[1]} of your staged techniques`:''}.</div></div>`:`<div class="rp-keyfinding good"><div class="rp-kf-label">Key finding</div><div>All 14 kill-chain stages carry at least one detection — end-to-end visibility across the intrusion lifecycle.</div></div>`}
+    <p>This report operationalises <strong>${studio.size} MITRE ATT&amp;CK technique${studio.size===1?'':'s'}</strong> into <strong>${panels.length} deployable Splunk detection${panels.length===1?'':'s'}</strong>, ordered along the attack kill chain from <strong>${esc(earliest)}</strong> to <strong>${esc(latest)}</strong>. It reads in two parts: the first establishes the threat model and where this coverage sits against it; the second is the deployment reference - the exact queries, triage steps, and suppression logic your team implements.</p>
+    ${gapCount>0?`<div class="rp-keyfinding"><div class="rp-kf-label">Key finding</div><div>Coverage spans ${stagesHit.length} of 14 kill-chain stages. ${gapCount} stage${gapCount===1?'':'s'} remain uncovered - an adversary operating there would not trip these rules${topMit?`. The single highest-leverage control is <strong>${topMit[0]} · ${MITS[topMit[0]]?MITS[topMit[0]].name:''}</strong>, which counters ${topMit[1]} of your staged techniques`:''}.</div></div>`:`<div class="rp-keyfinding good"><div class="rp-kf-label">Key finding</div><div>All 14 kill-chain stages carry at least one detection - end-to-end visibility across the intrusion lifecycle.</div></div>`}
   </div>
 
   <div class="rp-part"><span class="rp-part-n">Part I</span><span class="rp-part-t">Threat model &amp; coverage</span></div>
@@ -337,7 +337,7 @@ function reportHTML(){
   ${incidentReportSection()}`:''}
 
   <h2><span class="n">${N()}</span>Tactics &amp; techniques</h2>
-  <p>The staged techniques grouped by ATT&amp;CK tactic, in kill-chain order — the relationship between each tactic (the adversary's objective) and the techniques (their methods) addressed here.</p>
+  <p>The staged techniques grouped by ATT&amp;CK tactic, in kill-chain order - the relationship between each tactic (the adversary's objective) and the techniques (their methods) addressed here.</p>
   <table><thead><tr><th style="width:180px">Tactic / stage</th><th>Techniques staged</th></tr></thead><tbody>${tacticRows||'<tr><td colspan="2">No techniques staged.</td></tr>'}</tbody></table>
 
   <h2><span class="n">${N()}</span>Coverage assessment</h2>
@@ -345,13 +345,13 @@ function reportHTML(){
   ${barRows||'<p>No active stages.</p>'}
 
   <h2><span class="n">${N()}</span>Mitigating controls</h2>
-  <p>The ATT&amp;CK mitigations countering the staged techniques, ranked by reach. Controls at the top deliver the broadest risk reduction per unit of effort — prioritise them in remediation.</p>
+  <p>The ATT&amp;CK mitigations countering the staged techniques, ranked by reach. Controls at the top deliver the broadest risk reduction per unit of effort - prioritise them in remediation.</p>
   ${mitTable||'<p>No mitigations mapped.</p>'}
 
   <div class="rp-part"><span class="rp-part-n">Part II</span><span class="rp-part-t">Deployment reference</span></div>
 
   <h2><span class="n">${N()}</span>How every detection deploys</h2>
-  <p>Each detection in the catalogue follows this six-stage pattern. It is documented once here rather than repeated per rule; entries note only where they deviate — a different cadence, or a rule that must never be suppressed.</p>
+  <p>Each detection in the catalogue follows this six-stage pattern. It is documented once here rather than repeated per rule; entries note only where they deviate - a different cadence, or a rule that must never be suppressed.</p>
   <div class="rp-pipe">
     <div class="rp-ps"><div class="t">1 · Enable</div><div class="d">Turn on the audit policy or data event named in the entry</div></div>
     <div class="rp-ps"><div class="t">2 · Forward</div><div class="d">Universal Forwarder to Splunk, or the AWS Add-on via SQS</div></div>
@@ -366,7 +366,7 @@ function reportHTML(){
   ${techMapByTactic}
 
   <h2><span class="n">${N()}</span>Detection catalogue</h2>
-  <p>The deployable reference for each event source — query, telemetry prerequisites, triage procedure, and suppression logic. Each source appears once; where techniques share an event, the entry is shared and deployed a single time.</p>
+  <p>The deployable reference for each event source - query, telemetry prerequisites, triage procedure, and suppression logic. Each source appears once; where techniques share an event, the entry is shared and deployed a single time.</p>
   ${catalog||'<div class="rp-gap">None of the staged techniques have native Windows or CloudTrail telemetry. Add further log sources, or use the AI Analyst to design custom detections.</div>'}
 
   <h2><span class="n">${N()}</span>Risk-based alerting</h2>
@@ -479,7 +479,7 @@ td.mono{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6a5ae8;white
 .rp-ops-item .t{font-size:11.5px;font-weight:600;color:#23233a;margin-bottom:3px;}.rp-ops-item .d{font-size:11px;color:#55557a;line-height:1.55;}
 .rp-footer{margin-top:36px;padding-top:14px;border-top:1px solid #e8e5f8;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#9a9ab5;display:flex;justify-content:space-between;}
 @media print{body{background:#fff;padding:0;}.report{box-shadow:none;border-radius:0;max-width:none;padding:10mm;}.rp-card,.rp-rec,.rp-tech-compact,.rp-ops-item{break-inside:avoid;}h2{break-before:auto;}}`;
- const doc=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(title)} — AEGIS Report</title>
+ const doc=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(title)} - AEGIS Report</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>${RCSS}</style></head><body><div class="report">${inner}</div></body></html>`;
  const blob=new Blob([doc],{type:'text/html'});

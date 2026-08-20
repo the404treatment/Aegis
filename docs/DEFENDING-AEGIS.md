@@ -1,6 +1,6 @@
 # Defending AEGIS
 
-AEGIS is a target. It holds the incident record — every ticket, every case, the
+AEGIS is a target. It holds the incident record - every ticket, every case, the
 evidence, and the hash chain the formal report is signed against. An adversary
 who reaches it can read your investigation into them, and if they get far enough,
 edit it.
@@ -12,7 +12,7 @@ Everything here uses telemetry AEGIS already collects, or a shell command on the
 server. Nothing needs a new product.
 
 > **First, change the defaults.** Everything about a stock AEGIS install is
-> public — service name, port, paths, endpoints — because this repo is public.
+> public - service name, port, paths, endpoints - because this repo is public.
 > ```bash
 > node harden.mjs --show                                      # what am I running as?
 > node harden.mjs --name svc-telemetry --port 9443 --rotate   # stop matching the docs
@@ -23,7 +23,7 @@ server. Nothing needs a new product.
 
 ---
 
-## Stage 1 — Discovery
+## Stage 1 - Discovery
 
 *They are looking for the SOC platform.*
 
@@ -44,7 +44,7 @@ ss -tn state established "( sport = :9443 )" | awk 'NR>1{split($4,a,":"); print 
 ```
 
 ```spl
-* Splunk: unauthenticated probing — health checks with no session behind them
+* Splunk: unauthenticated probing - health checks with no session behind them
 index=aegis sourcetype=aegis:access uri_path IN ("/api/health","/api/auth/mode")
 | stats count dc(uri_path) as paths by src_ip
 | where count > 20
@@ -68,7 +68,7 @@ index=network (dest_port=8787 OR uri_path="/api/enroll") NOT src_ip IN (<your an
 
 ---
 
-## Stage 2 — Credential attack
+## Stage 2 - Credential attack
 
 *They found it. Now they want in.*
 
@@ -87,13 +87,13 @@ The audit chain records every failed login as `auth.login.failed` with the name
 tried, so this needs nothing but AEGIS itself:
 
 ```bash
-# Failed logins by account and hour — spray shows as many names, brute force as one
+# Failed logins by account and hour - spray shows as many names, brute force as one
 jq -r 'select(.action=="auth.login.failed") | [.timestamp[0:13], .actorId] | @tsv' \
   server/data/audit.ndjson | sort | uniq -c | sort -rn | head -20
 ```
 
 ```bash
-# Enrollments — every one should match a deployment you did
+# Enrollments - every one should match a deployment you did
 jq -r 'select(.action=="agent.enroll") | [.timestamp, .data.hostname, .data.ip] | @tsv' \
   server/data/audit.ndjson
 ```
@@ -110,7 +110,7 @@ index=aegis action IN ("auth.login.failed","auth.login")
 
 **Reduce the surface**
 
-- Named accounts are on by default. Keep them on — a shared token is a
+- Named accounts are on by default. Keep them on - a shared token is a
   credential nobody has to explain losing.
 - Rotate the enrollment token once rollout is done: `node harden.mjs --rotate`.
   Enrolled agents hold their own keys and keep working.
@@ -118,7 +118,7 @@ index=aegis action IN ("auth.login.failed","auth.login")
 
 ---
 
-## Stage 3 — They are inside
+## Stage 3 - They are inside
 
 *A valid session, as somebody.*
 
@@ -131,7 +131,7 @@ index=aegis action IN ("auth.login.failed","auth.login")
 
 **Detect**
 
-The activity feed is the fast human check — open it and look for a name doing
+The activity feed is the fast human check - open it and look for a name doing
 something they don't do. For the query version:
 
 ```bash
@@ -162,7 +162,7 @@ index=aegis action=auth.login
 
 ---
 
-## Stage 4 — Tampering with the record
+## Stage 4 - Tampering with the record
 
 *The most damaging move, and the one AEGIS is built to catch.*
 
@@ -170,8 +170,8 @@ An attacker who understands what AEGIS is will try to edit the investigation:
 delete the ticket about them, change a severity, remove an evidence hash.
 
 **This is detectable by construction.** The audit log is hash-chained and stores
-each event body, so any retroactive edit — to a body, an actor, a timestamp, or
-by deleting a row — breaks verification.
+each event body, so any retroactive edit - to a body, an actor, a timestamp, or
+by deleting a row - breaks verification.
 
 **Detect**
 
@@ -198,7 +198,7 @@ done
 
 **Reduce the surface**
 
-- Ship `audit.ndjson` off the box as it is written — to Splunk via the HEC
+- Ship `audit.ndjson` off the box as it is written - to Splunk via the HEC
   integration, or `rsyslog`. An attacker who owns the server can edit the local
   copy, but not the one that already left.
 - Back up `server/data/` somewhere they do not also control.
@@ -207,7 +207,7 @@ done
 
 ---
 
-## Stage 5 — Turning it off
+## Stage 5 - Turning it off
 
 *If they cannot read it, they will stop it.*
 
@@ -216,7 +216,7 @@ Silence looks like calm. That is what makes this the dangerous one.
 **What it looks like**
 
 - The service stopped or the unit disabled.
-- Agents stop reporting — all of them at once, or the ones on hosts they own.
+- Agents stop reporting - all of them at once, or the ones on hosts they own.
 - The port closes.
 
 **Detect**
@@ -232,7 +232,7 @@ Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-TaskScheduler/Operati
   Where-Object { $_.Message -match 'telemetry' } | Select-Object TimeCreated, Id, Message
 ```
 
-**The one that matters most — agents going quiet.** AEGIS marks an agent stale
+**The one that matters most - agents going quiet.** AEGIS marks an agent stale
 after `staleAfter` seconds, but nothing shouts about it:
 
 ```spl
@@ -249,10 +249,10 @@ suppressed, and both are worth a person's attention.**
 **Reduce the surface**
 
 - The installers set `Restart=on-failure` / `KeepAlive` / task restart, so
-  killing the process is not enough — it has to be disabled, which is louder.
+  killing the process is not enough - it has to be disabled, which is louder.
 - Externally monitor `/api/health`. If AEGIS is the only thing watching AEGIS,
   it cannot tell you it is gone.
-- Make the process itself harder to spot and kill in the first place —
+- Make the process itself harder to spot and kill in the first place -
   renaming it, running it least-privilege, and getting the record off the box so
   killing it is loud rather than silent. `docs/RUNBOOK.md` §7 is the step-by-step.
 

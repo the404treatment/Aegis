@@ -12,7 +12,7 @@ const eventsForTech=id=>ALL().filter(e=>e.mitre.includes(id));
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
-/* For untrusted text that lands inside a JS string inside an inline handler —
+/* For untrusted text that lands inside a JS string inside an inline handler -
    onclick="fn('${jsq(x)}')".
  *
  * HTML-escaping alone does NOT make that safe: the browser decodes entities in
@@ -106,7 +106,7 @@ function restoreAll(){
  lsNodes.forEach(n=>{if(!n.obs)n.obs=[];});
  if(lsNodes.length)lsStep='topology';
 }
-/* Full-case portability — the whole investigation in one file */
+/* Full-case portability - the whole investigation in one file */
 function exportCase(){
  const data={
   _aegis:'case',version:3,exported:new Date().toISOString(),
@@ -117,7 +117,7 @@ function exportCase(){
  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
  a.download=(data.name.replace(/[^a-z0-9]+/gi,'_')||'aegis')+'_case.json';a.click();
- URL.revokeObjectURL(a.href);toast('Case exported — the whole investigation in one file');
+ URL.revokeObjectURL(a.href);toast('Case exported - the whole investigation in one file');
 }
 function importCaseFile(input){
  const f=input.files&&input.files[0];if(!f)return;
@@ -138,7 +138,7 @@ function importCaseFile(input){
    persistAll();
    renderMatrix();renderStudio();renderLogSrc();updateBadges();
    go('studio');
-   toast(`Case "${d.name||'restored'}" loaded — ${studio.size} techniques, ${lsNodes.length} nodes`);
+   toast(`Case "${d.name||'restored'}" loaded - ${studio.size} techniques, ${lsNodes.length} nodes`);
   }catch(e){toast('Could not read that case file: '+e.message);}
  };
  r.readAsText(f);input.value='';
@@ -221,12 +221,12 @@ function togTips(){
 }
 
 /* ================= NAV ================= */
-const TITLES={dash:['Dashboard','Live — what is happening right now'],
+const TITLES={dash:['Dashboard','Live - what is happening right now'],
  admin:['Admin','Accounts · platform health · deployment'],
  matrix:['ATT&CK Coverage Matrix','15 tactics · full ATT&CK surface'],logsrc:['Network Map','Build · hunt · trace attacks live'],studio:['Detection Studio','Kill-chain mapping · dashboards · report'],siem:['Event Search','Field-aware search across live agent telemetry'],cases:['Cases','Incident files · tickets, evidence, write-up'],ai:['AI Analyst','Claude-powered detection research'],tickets:['Tickets','Shared incident queue']};
 function go(v,fromHash){
  if(!TITLES[v])return;
- // Admin is lead-only. The server refuses regardless — this just stops an
+ // Admin is lead-only. The server refuses regardless - this just stops an
  // analyst landing on a page that exists only to tell them no, including via
  // a #admin link someone pasted into chat.
  if(v==='admin'&&!(typeof authCan==='function'&&authCan('user.manage'))){

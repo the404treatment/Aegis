@@ -21,8 +21,8 @@
 <!-- REPORT -->
 <div id="report-veil">
   <div class="rp-actions">
-    <button class="btn mint" onclick="openReport()" data-tip="Rebuild the report from the current staged techniques and live network map — use during an active hunt as things change" data-tip-pos="bottom">↻ Refresh</button>
-    <button class="btn violet" onclick="printReport()" data-tip="Opens the system print dialog — choose 'Save as PDF' for a shareable document" data-tip-pos="bottom">Print / Save PDF</button>
+    <button class="btn mint" onclick="openReport()" data-tip="Rebuild the report from the current staged techniques and live network map - use during an active hunt as things change" data-tip-pos="bottom">↻ Refresh</button>
+    <button class="btn violet" onclick="printReport()" data-tip="Opens the system print dialog - choose 'Save as PDF' for a shareable document" data-tip-pos="bottom">Print / Save PDF</button>
     <button class="btn ghost-violet" onclick="downloadReport()" data-tip="Standalone HTML file you can email or archive" data-tip-pos="bottom">Download HTML</button>
     <button class="btn" onclick="closeReport()">Close ✕</button>
   </div>
@@ -87,7 +87,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         ATT&amp;CK Matrix<span class="rbadge" id="b-matrix">—</span>
       </div>
-      <div class="ritem" id="r-logsrc" onclick="go('logsrc')" data-tip="Live network map — build your environment, log observations during a hunt, and watch the AI trace the attack across it. Press 3." data-tip-pos="right">
+      <div class="ritem" id="r-logsrc" onclick="go('logsrc')" data-tip="Live network map - build your environment, log observations during a hunt, and watch the AI trace the attack across it. Press 3." data-tip-pos="right">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M5 8v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M12 12v4"/></svg>
         Network Map<span class="rbadge" id="b-logsrc">—</span>
       </div>
@@ -109,7 +109,7 @@
         AI Analyst<span class="rbadge hot">AI</span>
       </div>
       <div class="rlabel">Plan</div>
-      <div class="ritem" id="r-studio" onclick="go('studio')" data-tip="Stage techniques on the kill chain and compile a coverage report. Planning, not live — the Dashboard is where the incident is. Press 4." data-tip-pos="right">
+      <div class="ritem" id="r-studio" onclick="go('studio')" data-tip="Stage techniques on the kill chain and compile a coverage report. Planning, not live - the Dashboard is where the incident is. Press 4." data-tip-pos="right">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
         Detection Studio<span class="rbadge" id="b-studio">0</span>
       </div>
@@ -188,7 +188,7 @@
     <div class="view" id="v-matrix">
       <div class="coach" id="coach-matrix">
         <span class="coach-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
-        <span><b>Click any technique to stage it</b> (click again to remove) — stage as many as you like, then open Detection Studio to compile a dashboard and report. The <b>ⓘ</b> button opens its full strategy; hover for a quick preview.</span>
+        <span><b>Click any technique to stage it</b> (click again to remove) - stage as many as you like, then open Detection Studio to compile a dashboard and report. The <b>ⓘ</b> button opens its full strategy; hover for a quick preview.</span>
         <button class="coach-x" onclick="dismissCoach('matrix')" data-tip="Hide this hint">×</button>
       </div>
       <div class="mx-head">
@@ -200,14 +200,14 @@
           </div>
         </div>
         <div class="mx-legend">
-          <span class="lg" data-tip="Strong coverage — three or more detections map here"><i style="background:var(--violet)"></i>3+ events</span>
+          <span class="lg" data-tip="Strong coverage - three or more detections map here"><i style="background:var(--violet)"></i>3+ events</span>
           <span class="lg" data-tip="Moderate coverage"><i style="background:var(--violet-dim)"></i>2 events</span>
-          <span class="lg" data-tip="Thin coverage — one mapped detection"><i style="background:rgba(139,123,255,.22)"></i>1 event</span>
-          <span class="lg" data-tip="No mapped telemetry yet — strategy & mitigations only. Gaps are called out in the generated report."><i style="background:var(--raised);border:1px solid var(--line2)"></i>gap</span>
+          <span class="lg" data-tip="Thin coverage - one mapped detection"><i style="background:rgba(139,123,255,.22)"></i>1 event</span>
+          <span class="lg" data-tip="No mapped telemetry yet - strategy & mitigations only. Gaps are called out in the generated report."><i style="background:var(--raised);border:1px solid var(--line2)"></i>gap</span>
         </div>
         <div class="mx-bulk">
           <span class="mx-bulk-label">Quick stage</span>
-          <button class="chip-btn solid" onclick="stageAllHighRisk()" data-tip="Stage every technique that has 2+ mapped detections — a fast full-coverage baseline">All high-coverage</button>
+          <button class="chip-btn solid" onclick="stageAllHighRisk()" data-tip="Stage every technique that has 2+ mapped detections - a fast full-coverage baseline">All high-coverage</button>
           <button class="chip-btn" onclick="stageScenario('ransomware')" data-tip="Stage a ready-made ransomware intrusion chain: access → persistence → credential theft → lateral movement → impact">Ransomware chain</button>
           <button class="chip-btn" onclick="stageScenario('cloud')" data-tip="Stage a cloud account-takeover chain: console login → role abuse → IAM persistence → secret theft → S3 exfil">Cloud takeover</button>
           <button class="chip-btn" onclick="stageScenario('insider')" data-tip="Stage an insider / data-theft chain: valid accounts → discovery → collection → exfiltration">Insider data theft</button>
@@ -238,7 +238,7 @@
           </div>
           <div class="st-basket" id="st-basket"></div>
           <div class="st-side-foot">
-            <button class="btn ghost-violet" style="justify-content:center;" onclick="stageAllHighRisk()" data-tip="One click stages every technique with 2+ mapped detections — the fastest route to a full coverage dashboard">+ Stage all high-coverage</button>
+            <button class="btn ghost-violet" style="justify-content:center;" onclick="stageAllHighRisk()" data-tip="One click stages every technique with 2+ mapped detections - the fastest route to a full coverage dashboard">+ Stage all high-coverage</button>
             <button class="btn" style="justify-content:center;" onclick="clearStudio()" data-tip="Empty the basket">Clear all</button>
           </div>
         </aside>
@@ -259,7 +259,7 @@
     <div class="view" id="v-ai">
       <div class="ai-wrap">
         <aside class="ai-side">
-          <div class="ai-side-head"><h2>AI Analyst</h2><p>Works from your context — the staged mapping and the live hunt map — or answers any detection question.</p></div>
+          <div class="ai-side-head"><h2>AI Analyst</h2><p>Works from your context - the staged mapping and the live hunt map - or answers any detection question.</p></div>
           <div class="qp-scroll">
             <div class="side-t" style="padding:4px 4px 8px;">Active hunt</div>
             <button class="qp qp-primary" onclick="analyzeIncident()" data-tip="Correlate every observation across your hunt map into a likely attack chain, patient zero, and next steps"><b>◎</b><span>Analyse my hunt map<br><span style="color:var(--t3);font-size:9px">Correlate observations → attack chain → next steps</span></span></button>
@@ -286,7 +286,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
               </div>
               <h3>Detection engineering copilot</h3>
-              <p>The AI works from your context. During a hunt, use <b>Analyse my hunt map</b> to correlate observations into an attack chain. For engineering, <b>Tune a noisy alert</b>, <b>Explain a false positive</b>, or <b>Fill my coverage gaps</b> — or ask any detection question directly below.</p>
+              <p>The AI works from your context. During a hunt, use <b>Analyse my hunt map</b> to correlate observations into an attack chain. For engineering, <b>Tune a noisy alert</b>, <b>Explain a false positive</b>, or <b>Fill my coverage gaps</b> - or ask any detection question directly below.</p>
             </div>
           </div>
           <div class="composer">

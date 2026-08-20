@@ -1,4 +1,4 @@
-# Screenshot capture helper. Not part of the app — used to regenerate the
+# Screenshot capture helper. Not part of the app - used to regenerate the
 # images in assets/ for the README. Requires the server running locally.
 param([string]$Chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe")
 

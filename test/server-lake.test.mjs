@@ -58,7 +58,7 @@ section('the collector self-activity flag');
   eq('self:true isolates them', query(SELF, { q: 'self:true' }).total, 1);
   eq('...and it is the self event', query(SELF, { q: 'self:true' }).events[0].id, 's1');
   // A real detection that happens to name the agent path must not be hidden by
-  // the self filter — only the actual boolean flag counts.
+  // the self filter - only the actual boolean flag counts.
   const spoof = [{ id: 'x', ts: T0, host: 'h', channel: 'Security', eventId: '4688', severity: 'malicious',
     message: 'attacker ran C:\\ProgramData\\svc-telemetry\\evil.exe', fields: {}, technique: 'T1059', self: false }];
   eq('a malicious event mentioning the path is not hidden', query(spoof, { q: '-self:true' }).total, 1);

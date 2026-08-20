@@ -53,7 +53,7 @@ function lsKeys(e){
  else if(e.key==='f'&&!e.ctrlKey&&!e.metaKey){const s=document.getElementById('ls-find');if(s){e.preventDefault();s.focus();}}
 }
 /* ===== add-host menu =====
-   Lives here rather than in the triage wizard it used to share a file with —
+   Lives here rather than in the triage wizard it used to share a file with -
    it is a map function and always was. */
 function openLsAddMenu(){
  let v=document.getElementById('ls-add-veil');
@@ -169,7 +169,7 @@ function lsIncidentStrip(){
 
 
 
-/* consolidated map menu — keeps the toolbar to what you touch constantly */
+/* consolidated map menu - keeps the toolbar to what you touch constantly */
 function openLsMapMenu(){
  let v=document.getElementById('ls-map-veil');
  if(!v){v=document.createElement('div');v.id='ls-map-veil';v.className='ls-quick-veil';document.body.appendChild(v);}

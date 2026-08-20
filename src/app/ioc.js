@@ -26,7 +26,7 @@ function extractIocs(text){
  return out;
 }
 
-/* esc()-first, then regex-highlight the escaped string — same convention hl() uses for SPL. */
+/* esc()-first, then regex-highlight the escaped string - same convention hl() uses for SPL. */
 function highlightIocs(text){
  return esc(text)
   .replace(IOC_CVE,'<span class="ioc ioc-cve">$&</span>')

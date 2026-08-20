@@ -3,7 +3,7 @@
  * chain. Fully local, zero dependencies; no external timestamp authority.
  * Ported from Skyhawk's domain/audit.js to ESM.
  *
- * One global chain for the whole server (no per-case scoping exists yet —
+ * One global chain for the whole server (no per-case scoping exists yet -
  * callers filter AuditLog.all() by targetId for a per-ticket/per-case view).
  */
 import { createHash } from 'node:crypto';
@@ -27,7 +27,7 @@ export class AuditLog {
     };
     // `data` is kept alongside its hash, not just hashed away. Storing only
     // the hash made the log able to prove that SOMETHING changed while being
-    // unable to say what — so every human-readable view of it had to go to
+    // unable to say what - so every human-readable view of it had to go to
     // another source, and a chain that verifies but explains nothing is a
     // poor record. verify() re-derives dataHash from it, so keeping the body
     // tightens tamper detection rather than loosening it.

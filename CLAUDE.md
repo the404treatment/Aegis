@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Project
-**AEGIS** — SOC detection-engineering console + agent platform.
+**AEGIS** - SOC detection-engineering console + agent platform.
 - `src/` → built into `ui/index.html`, a self-contained browser app (ATT&CK matrix, hunt map, detection studio, AI analyst, tickets).
 - `server/` + `agents/` → deployable ingest platform that feeds the console in real time.
 
@@ -15,14 +15,14 @@ npm start          # server on :8787, serves ui/ and the API
 npm run serve      # build + start
 npm run lint:agent # python agent syntax
 ```
-`ui/index.html` is **generated** — it is gitignored. Never edit it; edit `src/` and rebuild.
+`ui/index.html` is **generated** - it is gitignored. Never edit it; edit `src/` and rebuild.
 
 ## Tech Stack
-- **UI**: vanilla JS, no framework, no bundler. One global scope. `src/manifest.json` defines concatenation order and is **load-bearing** — data modules before the code that reads them.
+- **UI**: vanilla JS, no framework, no bundler. One global scope. `src/manifest.json` defines concatenation order and is **load-bearing** - data modules before the code that reads them.
 - **Server**: Node 18+ ESM, **zero dependencies** (`node:http/https/fs/path/crypto`). JSON + NDJSON store.
 - **Realtime**: Server-Sent Events. No WebSocket library.
 - **Agents**: PowerShell 5.1+ (Windows), Python 3.8+ stdlib (Linux/macOS). No third-party modules.
-- **AI**: entirely local. Browser → `POST /api/llm` → `server/llm.mjs` → an inference server on the AEGIS host (Ollama / LM Studio / llama.cpp / Jan / vLLM; HF GGUF models). **There is no hosted-API path and no API key anywhere — do not add one.** A SOC console must not ship telemetry, hostnames or case detail off the host. Two surfaces share the one model: the AI Analyst tab (you ask) and the Companion (`CFG.llm.watch` — it reads telemetry and speaks first).
+- **AI**: entirely local. Browser → `POST /api/llm` → `server/llm.mjs` → an inference server on the AEGIS host (Ollama / LM Studio / llama.cpp / Jan / vLLM; HF GGUF models). **There is no hosted-API path and no API key anywhere - do not add one.** A SOC console must not ship telemetry, hostnames or case detail off the host. Two surfaces share the one model: the AI Analyst tab (you ask) and the Companion (`CFG.llm.watch` - it reads telemetry and speaks first).
 - **Integrations**: Splunk HEC out, Slack/Teams webhook out.
 
 ## Layout
@@ -75,10 +75,10 @@ aegis-agent.py             /api/heartbeat   --SSE-->  live map
 - **Offline**: with no server the console is fully functional and local-only via `localStorage`.
 
 ## Hard Rules
-1. **Never use native `confirm()` / `prompt()`.** Mobile in-app browsers suppress them and a "block further dialogs" tick makes them return false forever — this shipped three separate broken-button bugs. Use `await uiConfirm(msg,{title,ok,danger})` and `await uiPrompt(label,def,opts)`; callers must be `async`.
+1. **Never use native `confirm()` / `prompt()`.** Mobile in-app browsers suppress them and a "block further dialogs" tick makes them return false forever - this shipped three separate broken-button bugs. Use `await uiConfirm(msg,{title,ok,danger})` and `await uiPrompt(label,def,opts)`; callers must be `async`.
 2. **Never edit `ui/index.html`.** Edit `src/`, run `npm run build`.
 3. **No `<form>` tags** in the UI; use click handlers.
-4. **Map canvas is unbounded** — `LS_W=1400 LS_H=900` is nominal only. Do not reintroduce coordinate clamps; Fit/pan recovers off-screen items.
+4. **Map canvas is unbounded** - `LS_W=1400 LS_H=900` is nominal only. Do not reintroduce coordinate clamps; Fit/pan recovers off-screen items.
 5. **Zones start empty.** `ZONES = {}` on first run; the six defaults are opt-in via `lsPresetZones()`. Clear must leave zero zones.
 6. **Dragging a zone moves only the rectangle**, never its member hosts.
 
@@ -87,7 +87,7 @@ aegis-agent.py             /api/heartbeat   --SSE-->  live map
 - `localStorage` keys: `aegis-{studio,notes,nodes,edges,nodeseq,maturity,answers,zones,snaps,tune,live,lastchain,coach-*,toured}`.
 - SPL conventions (enforced by `splLint`): broad alerting + `outputlookup`/`inputlookup` suppression; `dc(ComputerName)` scoring; `ut_shannon_lookup` **always** wrapped in `tonumber()`; 4657 uses `Object_Name`=key and `New_Value`=data.
 
-## Data Invariants — `npm test` asserts all of these
+## Data Invariants - `npm test` asserts all of these
 - 15 tactics (Defense Evasion split into **Stealth** + **Defense Impairment**), 258 placements.
 - 225 techniques, **all curated** (`ref:false`), each with `summary` / `detect[]`≥3 / `pivots[]` / `mits[]` / `start`.
 - Every mitigation ref resolves; every event reachable via ≥1 technique; `SUBS` keys ⊂ `MITRE`.
@@ -95,7 +95,7 @@ aegis-agent.py             /api/heartbeat   --SSE-->  live map
 - Known gap: `T1genc` ("Generate Content") is an unverified placeholder ID with its MITRE link suppressed.
 
 ## Testing Rule
-Stubs must **mimic hostile reality**, not the happy path. `test/ui.test.mjs` stubs `confirm → false` and `prompt → null`, and simulates a page reload by re-booting the module against the *same* fake `localStorage`. An in-memory flag that "fixes" a bug passes a naive test and fails on refresh — that is exactly how the clear-map bug survived three rounds. Keep both properties when adding tests.
+Stubs must **mimic hostile reality**, not the happy path. `test/ui.test.mjs` stubs `confirm → false` and `prompt → null`, and simulates a page reload by re-booting the module against the *same* fake `localStorage`. An in-memory flag that "fixes" a bug passes a naive test and fails on refresh - that is exactly how the clear-map bug survived three rounds. Keep both properties when adding tests.
 
 ## Notes
 - `str_replace`-style edits break on apostrophes inside template literals; reword or splice.

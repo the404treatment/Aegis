@@ -74,13 +74,13 @@ function openDrawer(id,keepScroll){
   <div class="dw-summary">${t.summary}</div>
   ${t.note?`<div class="dw-note">⚠ ${t.note}</div>`:''}
   <div class="dw-actions">
-    <button class="btn ${studio.has(id)?'mint':'violet'}" id="dw-stage-btn" onclick="togStudio('${id}');refreshDrawerStage('${id}')" data-tip="${studio.has(id)?'Click to remove from the Studio':'Adds this technique + all its detections to the dashboard & report'}">${studio.has(id)?'✓ Staged — click to remove':'+ Stage in Detection Studio'}</button>
+    <button class="btn ${studio.has(id)?'mint':'violet'}" id="dw-stage-btn" onclick="togStudio('${id}');refreshDrawerStage('${id}')" data-tip="${studio.has(id)?'Click to remove from the Studio':'Adds this technique + all its detections to the dashboard & report'}">${studio.has(id)?'✓ Staged - click to remove':'+ Stage in Detection Studio'}</button>
     <button class="btn ghost-violet" onclick="askAboutTech('${id}')" data-tip="Opens the AI Analyst pre-loaded with a deep-dive prompt for this technique">Ask AI Analyst</button>
-    <button class="btn ghost-violet" onclick="openAdvisor('${id}')" data-tip="Offline, deterministic containment/eradication/recovery commands for this technique — no network, no LLM">Response playbook</button>
+    <button class="btn ghost-violet" onclick="openAdvisor('${id}')" data-tip="Offline, deterministic containment/eradication/recovery commands for this technique - no network, no LLM">Response playbook</button>
     ${t.unverified?'':`<a class="btn" href="https://attack.mitre.org/techniques/${id.replace('.','/')}/" target="_blank" rel="noopener" data-tip="Open the official MITRE page in a new tab">MITRE ↗</a>`}
   </div>`;
  document.getElementById('dw-body').innerHTML=`
-  ${t.ref?`<div class="dw-refnote"><b>Reference technique.</b> AEGIS has no hand-written detection strategy for this one yet — it is here so the matrix reflects the full ATT&CK surface and your coverage percentages are honest. Staging it marks it as a known gap.${t.unverified?'<br><span class="dw-unver">The identifier for this recently-added technique could not be verified against the published matrix, so no MITRE deep-link is shown.</span>':''}</div>`:''}
+  ${t.ref?`<div class="dw-refnote"><b>Reference technique.</b> AEGIS has no hand-written detection strategy for this one yet - it is here so the matrix reflects the full ATT&CK surface and your coverage percentages are honest. Staging it marks it as a known gap.${t.unverified?'<br><span class="dw-unver">The identifier for this recently-added technique could not be verified against the published matrix, so no MITRE deep-link is shown.</span>':''}</div>`:''}
   ${t.detect&&t.detect.length?`<div class="dw-sec"><div class="sec-t">Detection signals</div>${t.detect.map(d=>`<div class="sig">${d}</div>`).join('')}</div>`:''}
   ${t.pivots&&t.pivots.length?`<div class="dw-sec"><div class="sec-t">Pivot keys</div><div class="pivots">${t.pivots.map(p=>`<span class="pivot">${p}</span>`).join('')}</div></div>`:''}
   ${t.subs?`<div class="dw-sec"><div class="sec-t">Sub-techniques · ${t.subs}</div><div class="dw-subs">This technique has <b>${t.subs}</b> sub-technique${t.subs===1?'':'s'} in ATT&CK.${SUBS[id]?'':' AEGIS tracks it at the parent level; open MITRE for the full breakdown.'}</div>${(SUBS[id]||[]).map(s=>`<div class="dw-sub"><span class="dw-sub-id">${s[0]}</span><span class="dw-sub-name">${s[1]}</span></div>`).join('')}</div>`:''}
@@ -100,13 +100,13 @@ function refreshDrawerStage(id){
  const b=document.getElementById('dw-stage-btn');if(!b)return;
  const on=studio.has(id);
  b.className='btn '+(on?'mint':'violet');
- b.innerHTML=on?'✓ Staged — click to remove':'+ Stage in Detection Studio';
+ b.innerHTML=on?'✓ Staged - click to remove':'+ Stage in Detection Studio';
  b.setAttribute('data-tip',on?'Click to remove from the Studio':'Adds this technique + all its detections to the dashboard & report');
 }
 
 /* ================= EVENT CARDS =================
    These render inside the matrix drawer (the standalone Event Intel view was
-   merged into it — its render/filter shell is gone; jump() below is the
+   merged into it - its render/filter shell is gone; jump() below is the
    surviving entry point). */
 function eventCardHTML(e,ctx){
  const key=e.plat+'::'+e.id;const open=xp.has(key);
@@ -164,4 +164,4 @@ function jump(p,id){
  if(tid){go('matrix');openDrawer(tid);setTimeout(()=>{const el=document.getElementById(`ec-${p}-${id}`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},120);}
  else toast(id+' \u2014 no mapped technique');
 }
-function jumpById(id){const e=ALL().find(x=>x.id===id);if(e)jump(e.plat,e.id);else toast(id+' — reference event');}
+function jumpById(id){const e=ALL().find(x=>x.id===id);if(e)jump(e.plat,e.id);else toast(id+' - reference event');}

@@ -7,7 +7,7 @@
  *   node demo.mjs --url http://…  seed a different server
  *
  * Reads the tokens from server/config.json. Everything it creates goes
- * through the normal API — no back doors — so this doubles as an end-to-end
+ * through the normal API - no back doors - so this doubles as an end-to-end
  * check that enrolment, telemetry, tickets, cases and chat all work.
  *
  * Safe to run more than once; it just adds another round of data.
@@ -22,7 +22,7 @@ const val = (f, d) => { const i = argv.indexOf(f); return i > -1 && argv[i + 1] 
 
 let cfg;
 try { cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'server', 'config.json'), 'utf8')); }
-catch { console.error('No server/config.json — run `npm run setup` first.'); process.exit(1); }
+catch { console.error('No server/config.json - run `npm run setup` first.'); process.exit(1); }
 
 const BASE = (val('--url', `http://127.0.0.1:${cfg.port || 8787}`)).replace(/\/$/, '');
 const ANALYST = cfg.analystToken;
@@ -146,7 +146,7 @@ const log = (...a) => console.log('  ', ...a);
 
   // 5. a little chatter, because an empty panel shows nothing
   for (const text of [
-    'FS01 is isolated — shadow copies are gone but the off-site backup is intact.',
+    'FS01 is isolated - shadow copies are gone but the off-site backup is intact.',
     'Confirmed lsass access on WKS-042. Rotating everything that had a session there.',
     'krbtgt reset once, second pass scheduled after replication.',
   ]) await api('/api/chat', { method: 'POST', body: JSON.stringify({ text }) });

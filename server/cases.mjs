@@ -3,7 +3,7 @@
  *
  * A case is a container: a named incident that groups tickets, carries the
  * narrative an analyst writes up, and holds hashed evidence. It is
- * deliberately NOT a retrofit of the ticket model — a ticket is a single
+ * deliberately NOT a retrofit of the ticket model - a ticket is a single
  * artifact with one host and one technique, which is a different thing from
  * the incident it belongs to. Tickets gain exactly one optional `caseId`
  * field for the link; nothing else about them changes.
@@ -14,7 +14,7 @@
  * than the formal report actually needs; the two fields the report filter
  * really uses (includeInFormal, formalSummary) live on the case instead.
  *
- * This module owns no storage — the caller persists what it hands back.
+ * This module owns no storage - the caller persists what it hands back.
  */
 import crypto from 'node:crypto';
 
@@ -94,7 +94,7 @@ export function decodeEvidence(dataUrl) {
   if (!m) throw new Error('not a base64 data URL');
   const mime = m[1].toLowerCase();
   const ext = EVIDENCE_TYPES[mime];
-  if (!ext) throw new Error(`unsupported type ${mime} — allowed: ${Object.keys(EVIDENCE_TYPES).join(', ')}`);
+  if (!ext) throw new Error(`unsupported type ${mime} - allowed: ${Object.keys(EVIDENCE_TYPES).join(', ')}`);
   let buf;
   try { buf = Buffer.from(m[2], 'base64'); } catch { throw new Error('could not decode base64'); }
   if (!buf.length) throw new Error('empty file');
@@ -108,7 +108,7 @@ export const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex
 
 /**
  * Build the stored evidence record. The on-disk filename is derived from the
- * hash, never from user input — an analyst-supplied name must never be able
+ * hash, never from user input - an analyst-supplied name must never be able
  * to steer a write out of the evidence directory.
  */
 export function evidenceRecord({ buf, mime, ext }, caption, originalName, actor) {

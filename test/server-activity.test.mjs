@@ -5,14 +5,14 @@
  * DESIGN RULE: stubs mimic hostile reality. The failure modes that matter here
  * are the ones a happy-path test walks straight past:
  *  - the feed is rendered from the AUDIT log, so an unrecognised action must
- *    be DROPPED rather than rendered as "someone did ticket.frobnicate" —
+ *    be DROPPED rather than rendered as "someone did ticket.frobnicate" -
  *    a feed that invents verbs for rows it does not understand is worse than
  *    one that stays quiet,
  *  - order is load-bearing: newest first, and the `limit` must cost the tail
  *    of the log rather than a full walk, so the fixtures are deliberately
  *    longer than the limit,
  *  - and a real audit row often has a null/absent actor, a missing target, or
- *    a patch body that touched nothing worth naming — all of which have to
+ *    a patch body that touched nothing worth naming - all of which have to
  *    render as a sentence rather than "undefined undefined".
  */
 import { describe as describeEvent, feed, actors } from '../server/activity.mjs';
@@ -110,7 +110,7 @@ section('sign-in noise is filtered by default');
   const loud = feed(mixed, { includeQuiet: true });
   eq('opting in brings them back', loud.length, 4);
 
-  // The limit must apply to what SURVIVES filtering, not to rows scanned —
+  // The limit must apply to what SURVIVES filtering, not to rows scanned -
   // otherwise a burst of sign-ins silently empties the visible feed.
   const noisy = [];
   for (let i = 0; i < 50; i++) noisy.push(ev('auth.login'));

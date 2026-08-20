@@ -8,13 +8,13 @@ const ALERTMETA={
    "throttle": null
   },
   "supp": false,
-  "suppNote": "NEVER baseline-suppress — every log-clear is investigate-now",
+  "suppNote": "NEVER baseline-suppress - every log-clear is investigate-now",
   "alertKeys": [
    "ComputerName"
   ],
   "baseKeys": [],
   "deviates": true,
-  "cadenceNote": "REAL-TIME, no throttle, no suppression — page on every occurrence",
+  "cadenceNote": "REAL-TIME, no throttle, no suppression - page on every occurrence",
   "triage": [
    "Rebuild the pre-clear timeline from off-host forwarded logs immediately",
    "Join SubjectLogonId → 4624 for who cleared it and from where",
@@ -62,7 +62,7 @@ const ALERTMETA={
   "deviates": true,
   "cadenceNote": "1h throttle by source IP (spray bursts re-alert faster than 4h)",
   "triage": [
-   "Group by IpAddress — one source hitting many accounts is spray",
+   "Group by IpAddress - one source hitting many accounts is spray",
    "Check whether a 4624 success follows from the same IpAddress",
    "Look for a 4740 lockout on the targeted accounts"
   ]
@@ -108,7 +108,7 @@ const ALERTMETA={
   ],
   "deviates": false,
   "triage": [
-   "Check Process_Name — a non-backup, non-AV process on SAM/NTDS.dit is critical",
+   "Check Process_Name - a non-backup, non-AV process on SAM/NTDS.dit is critical",
    "Decode Access_Mask (0x2 write, 0x10 delete) for intent",
    "Correlate to backup/AV windows before escalating"
   ]
@@ -154,7 +154,7 @@ const ALERTMETA={
   "deviates": false,
   "triage": [
    "Read Process_Command_Line for encoding, discovery, or vssadmin/wbadmin",
-   "Check Creator_Process_Name — Office/web parents are the red flag",
+   "Check Creator_Process_Name - Office/web parents are the red flag",
    "Pivot Subject_Logon_ID → 4624 for the source IP and logon type"
   ]
  },
@@ -198,7 +198,7 @@ const ALERTMETA={
   ],
   "deviates": false,
   "triage": [
-   "Confirm which Category was disabled — Process Creation/Logon are severe",
+   "Confirm which Category was disabled - Process Creation/Logon are severe",
    "Pivot to 4688 for the process that changed policy",
    "Rule out a GPO baseline push in a change window"
   ]
@@ -243,7 +243,7 @@ const ALERTMETA={
   ],
   "deviates": false,
   "triage": [
-   "Confirm Group_Name — Administrators/Remote Desktop Users are priority",
+   "Confirm Group_Name - Administrators/Remote Desktop Users are priority",
    "Check if MemberName was created moments earlier (4720)",
    "Tie to a documented access request before closing"
   ]
@@ -256,7 +256,7 @@ const ALERTMETA={
    "throttle": "4h"
   },
   "supp": false,
-  "suppNote": "lockouts are already aggregated and rare — alert on all, don't baseline-suppress",
+  "suppNote": "lockouts are already aggregated and rare - alert on all, don't baseline-suppress",
   "alertKeys": [
    "Target_User_Name"
   ],
@@ -287,7 +287,7 @@ const ALERTMETA={
   "cadenceNote": "hourly, DC-sourced (roasting shows over minutes-hours, not seconds)",
   "triage": [
    "Confirm Ticket_Encryption_Type 0x17 (RC4) is the roasting signature",
-   "Count unique Service_Name per Account_Name — a sweep hits many SPNs",
+   "Count unique Service_Name per Account_Name - a sweep hits many SPNs",
    "Pivot Client_Address → 4688 for Rubeus/PowerShell on the source"
   ]
  },
@@ -358,7 +358,7 @@ const ALERTMETA={
   "cadenceNote": "6h throttle (very high volume; beaconing is steady, not bursty)",
   "triage": [
    "System binaries (svchost/lsass) to external hosts = injected C2",
-   "Look for regular-interval connections — beaconing",
+   "Look for regular-interval connections - beaconing",
    "Pivot Application_Name → 4688 for the process that opened it"
   ]
  },
@@ -507,14 +507,14 @@ const ALERTMETA={
    "throttle": null
   },
   "supp": false,
-  "suppNote": "NEVER suppress — treat every StopLogging/DeleteTrail as investigate-now",
+  "suppNote": "NEVER suppress - treat every StopLogging/DeleteTrail as investigate-now",
   "alertKeys": [
    "actor",
    "trail"
   ],
   "baseKeys": [],
   "deviates": true,
-  "cadenceNote": "REAL-TIME via CloudWatch alarm backstop — no throttle, no suppression",
+  "cadenceNote": "REAL-TIME via CloudWatch alarm backstop - no throttle, no suppression",
   "triage": [
    "List every API call by the actor in the 30 min AFTER the gap",
    "Confirm no approved change window covers this",

@@ -3,8 +3,8 @@ name: pages
 # Publishes the console as a live, zero-install demo. ui/index.html is a
 # build artifact (gitignored), so it is built here rather than committed.
 #
-# The console is fully functional with no backend — offline is a first-class
-# mode, not a degraded one — so a static deploy is the real app, not a
+# The console is fully functional with no backend - offline is a first-class
+# mode, not a degraded one - so a static deploy is the real app, not a
 # stripped-down preview. Anything needing the server (live agents, cases,
 # chat) shows its usual "connect to a server" state.
 
@@ -35,7 +35,7 @@ jobs:
     # A deploy that never starts must not sit in the concurrency group forever.
     # One did: its tests passed, the deploy job stayed `queued` for ten hours,
     # and because Pages deliberately does not cancel in-progress runs, every
-    # later push queued behind it — the live demo silently fell four commits
+    # later push queued behind it - the live demo silently fell four commits
     # behind while every run showed green. Failing after fifteen minutes is
     # noisy; blocking the queue indefinitely is worse, because it looks fine.
     timeout-minutes: 15

@@ -83,7 +83,7 @@ function lsEventDetailHTML(evId){
    <div class="ls-evd-why">${ev.why}</div>
    <div class="ls-evd-sec">Pulls data from</div>
    ${litNodes.length?`<div class="ls-evd-nodes">${litNodes.map(n=>`<span class="ls-evd-node">${NODE_TYPES[n.type].glyph} ${esc(n.label)}</span>`).join('')}</div>`:`<div class="ls-evd-none">No node in your current topology emits this event. Add a ${ev.roles.map(r=>LS_ROLES[r]).join(' or ')} to collect it.</div>`}
-   ${flow?`<div class="ls-evd-sec">Attack flow</div><div class="ls-evd-flow">This event reveals <b>${flow.label}</b>${flow.self?' — activity on the host itself':flow.to?` — movement toward your ${(flow.to||[]).map(z=>NODE_TYPES[z]?NODE_TYPES[z].label.split(' ')[0]:z).join('/')}`:''}. Switch to <b>Attack flow</b> view to trace it on the map.</div>`:''}
+   ${flow?`<div class="ls-evd-sec">Attack flow</div><div class="ls-evd-flow">This event reveals <b>${flow.label}</b>${flow.self?' - activity on the host itself':flow.to?` - movement toward your ${(flow.to||[]).map(z=>NODE_TYPES[z]?NODE_TYPES[z].label.split(' ')[0]:z).join('/')}`:''}. Switch to <b>Attack flow</b> view to trace it on the map.</div>`:''}
    <div class="ls-evd-sec">Enable it</div>
    <div class="ls-evd-setup">${esc(ev.setup)}</div>
    ${ev.linked?`<button class="btn ghost-violet" style="margin-top:12px;width:100%;justify-content:center" onclick="jumpById('${ev.linked}')">Open full detection ↗</button>`:''}
@@ -111,7 +111,7 @@ function openLsPlan(){
 }
 function closeLsPlan(){lsPlanOpen=false;const v=document.getElementById('ls-plan-veil');if(v)v.classList.remove('open');}
 
-/* Drag handling — bound after each canvas render */
+/* Drag handling - bound after each canvas render */
 function lsBindCanvas(){
  if(!window._lsKeys){window._lsKeys=true;document.addEventListener('keydown',lsKeys);}
  const svg=document.getElementById('ls-svg');if(!svg)return;

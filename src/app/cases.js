@@ -13,7 +13,7 @@ const csTickets=id=>LIVE.tickets.filter(t=>t.caseId===id);
 /* The server broadcasts over SSE as well as answering the POST, and the
    broadcast can land BEFORE the fetch promise resolves. Pushing the returned
    object would then duplicate it, so every local write goes through an
-   idempotent upsert instead — correct whichever arrives first, and still
+   idempotent upsert instead - correct whichever arrives first, and still
    correct if the SSE frame is dropped entirely. */
 function csUpsert(c){
  if(!c||!c.id)return null;
@@ -55,7 +55,7 @@ function renderCases(){
        <span class="cs-by">opened by ${esc(c.createdBy)}</span>
      </div>
    </div>`;}).join('')}</div>`
-  :`<div class="ls-det-sub" style="padding:20px 2px">No cases yet. Open one when an incident starts — then attach tickets and evidence to it as you work.</div>`}`;
+  :`<div class="ls-det-sub" style="padding:20px 2px">No cases yet. Open one when an incident starts - then attach tickets and evidence to it as you work.</div>`}`;
 }
 
 async function csNew(){
@@ -97,7 +97,7 @@ function csDetailHTML(c){
 
   <div class="ls-mm-sec">Write-up</div>
   ${field('execSummary','Executive summary','What happened, in plain language a manager can act on.')}
-  ${field('scope','Scope','Which hosts, accounts and data were involved — and what you ruled out.')}
+  ${field('scope','Scope','Which hosts, accounts and data were involved - and what you ruled out.')}
   ${field('remediation','Remediation','What was done to contain, eradicate and recover.')}
 
   <div class="ls-mm-sec">Tickets · ${tks.length}</div>
@@ -119,7 +119,7 @@ function csDetailHTML(c){
     <div class="cs-ev-by">added by ${esc(e.addedBy)} · ${new Date(e.addedAt).toLocaleString()}</div>
   </div>`).join(''):'<div class="ls-det-sub">Nothing collected yet.</div>'}
   <input type="file" id="cs-ev-file" style="margin-top:8px" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt" onchange="csUpload('${c.id}',this)">
-  <input class="dash-input" id="cs-ev-cap" style="width:100%;margin-top:6px" placeholder="Caption (optional) — set this before choosing the file">
+  <input class="dash-input" id="cs-ev-cap" style="width:100%;margin-top:6px" placeholder="Caption (optional) - set this before choosing the file">
 
   ${csReportHTML(c,tks)}
  </div>`;
@@ -148,7 +148,7 @@ function csReportHTML(c,tks){
       <span>#${t.num} ${esc(t.title)}</span>
     </label>
     ${t.includeInFormal?`<textarea class="art-ta" style="min-height:56px;margin-top:6px" ${canFinalize?'':'disabled'}
-      placeholder="Plain-language summary for the client-facing report — this replaces the technical detail."
+      placeholder="Plain-language summary for the client-facing report - this replaces the technical detail."
       onchange="csSetFormal('${t.id}',{formalSummary:this.value})">${esc(t.formalSummary||'')}</textarea>
       ${String(t.formalSummary||'').trim()?'':'<div class="cs-fm-warn">Needs a summary before it can appear.</div>'}`:''}
   </div>`).join(''):'<div class="ls-det-sub">No tickets attached, so there is nothing to report on yet.</div>'}
@@ -277,7 +277,7 @@ function csUpload(id,input){
  input.value='';
 }
 
-/* Evidence is fetched with the session credential and shown from a blob URL —
+/* Evidence is fetched with the session credential and shown from a blob URL -
    a plain link would hit the endpoint unauthenticated and 401. */
 async function csViewEvidence(file){
  try{

@@ -1,5 +1,5 @@
 /* ================= AI ================= */
-const SYS=`You are an elite detection engineering copilot embedded in AEGIS, a SOC analyst intelligence platform. Expertise: Windows Security Event Logs (all IDs, field semantics, correlation), AWS CloudTrail, MITRE ATT&CK (full framework incl. mitigations), Splunk SPL (advanced — joins, lookups, tstats, ML), false positive suppression.
+const SYS=`You are an elite detection engineering copilot embedded in AEGIS, a SOC analyst intelligence platform. Expertise: Windows Security Event Logs (all IDs, field semantics, correlation), AWS CloudTrail, MITRE ATT&CK (full framework incl. mitigations), Splunk SPL (advanced - joins, lookups, tstats, ML), false positive suppression.
 
 The analyst is an experienced SOC analyst / detection engineer working with Windows Security events and CloudTrail in Splunk. Their established preferences:
 - Broad alerting suppressed via lookup tables (outputlookup baselines, inputlookup suppression) over complex pre-filters
@@ -27,7 +27,7 @@ function mappingContext(){
   const stage=si<TACTICS.length?TACTICS[si][0]:'—';
   const evs=eventsForTech(id).map(e=>`${e.id}(${e.plat})`).join(', ')||'NO NATIVE TELEMETRY';
   const mits=(t.mits||[]).join(',');
-  return `- ${id} ${t.name} [stage ${si+1}: ${stage}] — events: ${evs}; mitigations: ${mits}`;
+  return `- ${id} ${t.name} [stage ${si+1}: ${stage}] - events: ${evs}; mitigations: ${mits}`;
  });
  const activeStages=new Set(ordered.map(primaryStage));
  const gaps=TACTICS.map((t,i)=>[t[0],i]).filter(([,i])=>!activeStages.has(i)).map(([n])=>n);
@@ -35,13 +35,13 @@ function mappingContext(){
  return `The analyst has staged these ${studio.size} ATT&CK techniques into their Splunk detection dashboard (kill-chain order):
 ${lines.join('\n')}
 
-Kill-chain stages with NO coverage: ${gaps.length?gaps.join(', '):'none — all 14 covered'}.
+Kill-chain stages with NO coverage: ${gaps.length?gaps.join(', '):'none - all 14 covered'}.
 Staged techniques with no native telemetry (strategy only): ${strategyOnly.length?strategyOnly.join(', '):'none'}.`;
 }
 function analyzeMapping(){
  go('ai');
  const ctx=mappingContext();
- if(!ctx){addMsg('assistant','You haven\'t staged any techniques yet. Go to the **ATT&CK Matrix** and click techniques to stage them — then I can review the mapping and suggest improvements. Try a **Quick stage** scenario button at the top of the matrix for a fast start.');return;}
+ if(!ctx){addMsg('assistant','You haven\'t staged any techniques yet. Go to the **ATT&CK Matrix** and click techniques to stage them - then I can review the mapping and suggest improvements. Try a **Quick stage** scenario button at the top of the matrix for a fast start.');return;}
  const prompt=`${ctx}
 
 Review this detection mapping as a senior detection engineer doing a peer review. Give me a prioritised, side-by-side critique in these sections, using markdown headers:
@@ -50,7 +50,7 @@ Review this detection mapping as a senior detection engineer doing a peer review
 What's well covered and why (1-2 sentences).
 
 ## Highest-priority gaps
-The 3 most important weaknesses in this mapping — missing kill-chain stages an attacker would exploit, or staged techniques with weak/no telemetry. For each, name the specific technique or event to add and why it matters.
+The 3 most important weaknesses in this mapping - missing kill-chain stages an attacker would exploit, or staged techniques with weak/no telemetry. For each, name the specific technique or event to add and why it matters.
 
 ## Correlation opportunities
 Where I have 2+ staged techniques that share a logon session, host, or identity and should be joined into a single higher-fidelity correlation search instead of separate alerts. Give me the actual SPL join for the single best opportunity, using correct Windows field names (Subject_Logon_ID, Target_Logon_ID) or CloudTrail fields.
@@ -58,7 +58,7 @@ Where I have 2+ staged techniques that share a logon session, host, or identity 
 ## Tuning priorities
 Which 2-3 of my staged detections will be noisiest in a real environment, and the specific lookup-based suppression or threshold to apply first.
 
-Be specific and reference my actual staged technique IDs. Keep it tight — this is a working review, not a textbook.`;
+Be specific and reference my actual staged technique IDs. Keep it tight - this is a working review, not a textbook.`;
  addMsg('user','Review my staged coverage and suggest improvements');
  chatLog.push({role:'user',content:prompt});
  runAI();
@@ -77,7 +77,7 @@ Based on what I've already staged, recommend the next 4-5 techniques I should ad
 function buildCorrelations(){
  go('ai');
  const ctx=mappingContext();
- if(!ctx){addMsg('assistant','Stage a few related techniques first — ideally ones that share a logon session or host (e.g. a logon, a process creation, and a service install). Then I can turn them into multi-event correlation searches.');return;}
+ if(!ctx){addMsg('assistant','Stage a few related techniques first - ideally ones that share a logon session or host (e.g. a logon, a process creation, and a service install). Then I can turn them into multi-event correlation searches.');return;}
  const prompt=`${ctx}
 
 Turn my staged single-event detections into higher-fidelity multi-event correlation searches. Identify every pair or chain among my staged techniques that can be linked by a shared key (Subject_Logon_ID/Target_Logon_ID for Windows sessions, ComputerName for host, userIdentity.arn for AWS). For the 2-3 best opportunities, give me production Splunk SPL using join or stats-based correlation with the correct exact field names, plus a one-line note on the fidelity gain versus alerting on each event separately. Follow my convention of broad detection with lookup-based suppression where relevant.`;
@@ -102,10 +102,10 @@ function incidentContext(){
  if(!lsHasIncident())return null;
  const lines=lsNodes.filter(n=>n.obs&&n.obs.length).map(n=>{
   const t=NODE_TYPES[n.type];
-  const obs=n.obs.map(o=>{const ev=LOGSRC.find(e=>e.id===o.evId);return `    · [${o.sev}] ${o.evId?o.evId+(ev?' '+ev.name:''):'(no event id)'}${o.note?' — "'+o.note+'"':''}`;}).join('\n');
-  return `- ${n.label} (${t.label}, ${n.os})${lsNodeStatus(n)?' — status '+lsNodeStatus(n).toUpperCase():''}:\n${obs}`;
+  const obs=n.obs.map(o=>{const ev=LOGSRC.find(e=>e.id===o.evId);return `    · [${o.sev}] ${o.evId?o.evId+(ev?' '+ev.name:''):'(no event id)'}${o.note?' - "'+o.note+'"':''}`;}).join('\n');
+  return `- ${n.label} (${t.label}, ${n.os})${lsNodeStatus(n)?' - status '+lsNodeStatus(n).toUpperCase():''}:\n${obs}`;
  });
- return `ACTIVE HUNT — observed events mapped across the network (kill-chain order where known):\n${lines.join('\n')}`;
+ return `ACTIVE HUNT - observed events mapped across the network (kill-chain order where known):\n${lines.join('\n')}`;
 }
 function lsTriageNode(uid){
  const n=lsNodes.find(x=>x.uid===uid);if(!n||!n.obs||!n.obs.length){toast('Log an observation first');return;}
@@ -114,12 +114,12 @@ function lsTriageNode(uid){
  const obs=n.obs.map(o=>{const ev=LOGSRC.find(e=>e.id===o.evId);return `- [${o.sev}] ${o.evId?o.evId+(ev?' ('+ev.name+')':''):'no event id'}${o.note?': "'+o.note+'"':''}`;}).join('\n');
  const prompt=`During an active hunt I'm seeing the following on a single host:
 
-Host: ${n.label} — ${t.label}, OS ${n.os}
+Host: ${n.label} - ${t.label}, OS ${n.os}
 Observations:
 ${obs}
 
 As a senior IR analyst, triage THIS host: (1) what is the most likely explanation for these observations together; (2) are they consistent with a known ATT&CK technique or chain; (3) the exact next Splunk queries or Event IDs I should pull on this host to confirm or rule it out; (4) immediate containment steps if this is malicious. Use correct Windows field names. Keep it tight and actionable.`;
- addMsg('user',`Triage ${n.label} — ${n.obs.length} observation${n.obs.length===1?'':'s'}`);
+ addMsg('user',`Triage ${n.label} - ${n.obs.length} observation${n.obs.length===1?'':'s'}`);
  chatLog.push({role:'user',content:prompt});
  runAI();
 }
@@ -138,8 +138,8 @@ As a senior incident responder, analyse this as one picture. First give a concis
 
 THEN, on the very last line, output a machine-readable chain for the map animation as a single-line JSON object with this exact shape and nothing after it:
 ATTACK_CHAIN={"steps":[{"from":"<uid>","to":"<uid>","tech":"T####","detail":"one short clause","conf":"high|medium|low"}]}
-Order steps in kill-chain sequence. Use a node's own uid for both from and to when the activity is on-host. Only reference uids from the list above. For "conf", rate how strongly the observed evidence supports each hop — "high" when a logged observation directly shows it, "low" when it's inferred to fill a gap.`;
- addMsg('user','Analyse my hunt map — correlate the observations into an attack chain');
+Order steps in kill-chain sequence. Use a node's own uid for both from and to when the activity is on-host. Only reference uids from the list above. For "conf", rate how strongly the observed evidence supports each hop - "high" when a logged observation directly shows it, "low" when it's inferred to fill a gap.`;
+ addMsg('user','Analyse my hunt map - correlate the observations into an attack chain');
  chatLog.push({role:'user',content:prompt});
  runAI({chain:true});
 }
@@ -157,7 +157,7 @@ function stripChainBlock(text){return text.replace(/\n?ATTACK_CHAIN\s*=\s*\{[\s\
 function aiProposeMap(){
  go('ai');
  const types=Object.entries(NODE_TYPES).map(([k,t])=>`${k} (${t.label})`).join(', ');
- openAiInput('Describe your environment in a sentence or two — roughly how many workstations and servers, whether you have a DC, DMZ, cloud, VPN, OT, etc. I\'ll lay out a starter network map you can then edit and hunt on.',
+ openAiInput('Describe your environment in a sentence or two - roughly how many workstations and servers, whether you have a DC, DMZ, cloud, VPN, OT, etc. I\'ll lay out a starter network map you can then edit and hunt on.',
   'e.g. Small AD shop: 1 DC, 2 file servers, ~15 workstations, a public web server in a DMZ, and an AWS account.',
   (text)=>`Design a starter network topology from this description: "${text}".\n\nAvailable node types (use the short key): ${types}.\n\nOutput ONLY a single-line JSON object, nothing else, with this shape:\nNETWORK_MAP={"nodes":[{"type":"<key>","label":"<short label>"}]}\nRules: use only the listed type keys; keep it to 6–14 nodes (collapse large fleets to 2–3 representative workstations); always include an "internet" node and a perimeter (fw/router/vpn) if anything is internet-facing; give each a short human label. No prose, just the JSON line.`,
   {mapgen:true});
@@ -311,7 +311,7 @@ function aiTuner(){
 /* ---- AI: false-positive explainer (feeds a Notebook note) ---- */
 function aiFPExplain(){
  go('ai');
- openAiInput('Paste a single raw event (the fields you have). I\'ll explain whether it\'s likely benign or malicious, why, and what single field or pivot would settle it — then save it as a note on that event in the technique drawer.',
+ openAiInput('Paste a single raw event (the fields you have). I\'ll explain whether it\'s likely benign or malicious, why, and what single field or pivot would settle it - then save it as a note on that event in the technique drawer.',
   'Paste one raw event here…',
   (text)=>`Here is a single event that fired an alert:\n\n${text}\n\nExplain like a tier-2 analyst: (1) most likely benign explanation vs malicious explanation; (2) the specific fields in THIS event that point one way or the other; (3) the single most decisive pivot or follow-up query to settle it; (4) a one-line verdict I could paste into my notes. Be concise.`);
 }
@@ -319,9 +319,9 @@ function aiFPExplain(){
 function aiGapDetection(){
  const strategyOnly=[...studio].filter(id=>eventsForTech(id).length===0);
  go('ai');
- if(!strategyOnly.length){addMsg('assistant','Good news — every technique you\'ve staged already has at least one native detection mapped. Stage a technique with no telemetry (they show as "strategy only" in the basket) and I\'ll draft a detection approach for it.');return;}
+ if(!strategyOnly.length){addMsg('assistant','Good news - every technique you\'ve staged already has at least one native detection mapped. Stage a technique with no telemetry (they show as "strategy only" in the basket) and I\'ll draft a detection approach for it.');return;}
  const list=strategyOnly.map(id=>`${id} ${T(id).name}`).join(', ');
- const prompt=`These staged techniques have no native Windows/CloudTrail detection mapped in my current set — they're strategy-only gaps: ${list}.\n\nFor each, as a detection engineer: (1) the most practical data source to detect it (Sysmon EID, a specific Event ID, EDR, or a derived/behavioural signal); (2) a starter Splunk SPL detection; (3) the key false-positive to expect and how to suppress it. Prioritise the ones with the highest detection value for the least deployment effort.`;
+ const prompt=`These staged techniques have no native Windows/CloudTrail detection mapped in my current set - they're strategy-only gaps: ${list}.\n\nFor each, as a detection engineer: (1) the most practical data source to detect it (Sysmon EID, a specific Event ID, EDR, or a derived/behavioural signal); (2) a starter Splunk SPL detection; (3) the key false-positive to expect and how to suppress it. Prioritise the ones with the highest detection value for the least deployment effort.`;
  addMsg('user',`Draft detections for my ${strategyOnly.length} coverage gap${strategyOnly.length===1?'':'s'}`);
  chatLog.push({role:'user',content:prompt});
  runAI();
@@ -401,11 +401,11 @@ function aiUnreachableMsg(err){
  if(!LIVE.connected)
   return `**The AI Analyst needs your AEGIS server.**${detail}\n\n`
    +'Click the connection indicator in the top bar to connect. The model runs on that '
-   +'machine — nothing is sent anywhere else.\n\nThe matrix, hunt map, studio, ingest, '
+   +'machine - nothing is sent anywhere else.\n\nThe matrix, hunt map, studio, ingest, '
    +'response playbooks and the report all work fully offline without it.';
  return `**No local model answered.**${detail}\n\n`
   +'The AI Analyst runs entirely on your AEGIS host. Set one up with `npm run ai:setup` '
-  +'on that machine — it takes about two minutes and needs no API key. See `LOCAL-AI.md`.\n\n'
+  +'on that machine - it takes about two minutes and needs no API key. See `LOCAL-AI.md`.\n\n'
   +'Everything else in AEGIS works without it.';
 }
 async function runAI(opts){
@@ -464,7 +464,7 @@ async function lsBuildProposedMap(){
  if(lsNodes.length&&!await uiConfirm('Replace the current map with the AI-proposed one? Export the case first if you want to keep the current map.'))return;
  lsApplyProposedMap(_lsProposedMap);
  go('logsrc');
- toast('AI-proposed map built — edit and hunt on it');
+ toast('AI-proposed map built - edit and hunt on it');
 }
 try{const _lc=read('aegis-lastchain','');if(_lc)lsPendingChain=JSON.parse(_lc);}catch(e){}
 function lsTracePending(){
@@ -479,7 +479,7 @@ function lsTracePending(){
 function fillNoteEvents(){
  if(!document.getElementById('nt-plat'))return;
  const p=document.getElementById('nt-plat').value;const evs=p==='windows'?WIN:AWS;
- document.getElementById('nt-event').innerHTML=evs.map(e=>`<option value="${e.id}">${e.id} — ${e.title}</option>`).join('');
+ document.getElementById('nt-event').innerHTML=evs.map(e=>`<option value="${e.id}">${e.id} - ${e.title}</option>`).join('');
 }
 function saveNote(){
  const p=document.getElementById('nt-plat').value;const id=document.getElementById('nt-event').value;const txt=document.getElementById('nt-text').value;
@@ -496,7 +496,7 @@ function renderNotes(){
  if(!document.getElementById('nt-main'))return;
  const host=document.getElementById('nt-main');
  const entries=Object.entries(notes).filter(([,v])=>v.trim());
- if(!entries.length){host.innerHTML='<div class="nt-empty">No notes yet — knowledge you save here persists across sessions.</div>';return;}
+ if(!entries.length){host.innerHTML='<div class="nt-empty">No notes yet - knowledge you save here persists across sessions.</div>';return;}
  host.innerHTML=entries.map(([key,txt])=>{
   const [p,id]=key.split('::');const e=(p==='windows'?WIN:AWS).find(x=>x.id===id);
   return`<div class="ncard">
@@ -530,19 +530,19 @@ function closeKeys(){document.getElementById('keys-veil').classList.remove('open
 
 /* ================= TOUR ================= */
 /* The in-app guide, for everyone. Deliberately about *using* AEGIS during an
-   incident — not about running the server. Anything that needs a shell, a
+   incident - not about running the server. Anything that needs a shell, a
    config file or an admin lives in docs/RUNBOOK.md instead, because an analyst
    at 3am should not be reading systemd instructions. */
 const TOUR=[
  {target:null,title:'Welcome to AEGIS',step:'Getting started',body:'AEGIS is where your team works an incident together: live telemetry from your endpoints, a map of your estate, shared cases, and a signed record of who did what. This 60-second tour shows you round.'},
- {target:'#dash-grid',title:'1 · What is happening',step:'Dashboard',body:'Your first screen, and all of it is live. Threat level for the last hour, malicious events as they land, the noisiest hosts, ATT&CK techniques actually <b>observed</b> in your telemetry, and any agent that has gone quiet. <b>⚙ Customise</b> picks your own cards — it is remembered in this browser, so triage and engineering shifts can differ.',pre:()=>go('dash')},
+ {target:'#dash-grid',title:'1 · What is happening',step:'Dashboard',body:'Your first screen, and all of it is live. Threat level for the last hour, malicious events as they land, the noisiest hosts, ATT&CK techniques actually <b>observed</b> in your telemetry, and any agent that has gone quiet. <b>⚙ Customise</b> picks your own cards - it is remembered in this browser, so triage and engineering shifts can differ.',pre:()=>go('dash')},
  {target:'#r-logsrc',title:'2 · Your estate',step:'Network Map',body:'Enrolled hosts appear here automatically. <b>Click a node</b> to log what you are seeing on it during a hunt, raise a ticket for it, or open a response playbook. You can draw your own links, trace an attack path by hand, and scrub the incident timeline.',pre:()=>go('logsrc')},
- {target:'#r-siem',title:'3 · Find the evidence',step:'Event Search',body:'Field-aware search across everything your agents have reported. Try <code>severity:malicious</code>, <code>host:DC01</code>, or <code>technique:T1003</code> — the facets under the box are clickable. <b>Live</b> keeps it re-running as new telemetry arrives.',pre:()=>go('siem')},
+ {target:'#r-siem',title:'3 · Find the evidence',step:'Event Search',body:'Field-aware search across everything your agents have reported. Try <code>severity:malicious</code>, <code>host:DC01</code>, or <code>technique:T1003</code> - the facets under the box are clickable. <b>Live</b> keeps it re-running as new telemetry arrives.',pre:()=>go('siem')},
  {target:'#r-cases',title:'4 · Build the case',step:'Cases',body:'Group tickets and evidence under one incident. Uploaded evidence is stored by its <b>SHA-256</b>, so a file that changes is a file you can prove changed, and the formal report is frozen against a snapshot hash when you finalize it.',pre:()=>go('cases')},
- {target:'#co-ind',title:'The AI runs on your own machine',step:'Local AI',body:'Both AI features run on the AEGIS host — no API key, nothing sent to the internet. The <b>Companion</b> reads telemetry as it lands and comments on anything suspicious <i>without being asked</i>; the <b>AI Analyst</b> tab answers longer questions you type. Greyed out means no model is set up yet.'},
+ {target:'#co-ind',title:'The AI runs on your own machine',step:'Local AI',body:'Both AI features run on the AEGIS host - no API key, nothing sent to the internet. The <b>Companion</b> reads telemetry as it lands and comments on anything suspicious <i>without being asked</i>; the <b>AI Analyst</b> tab answers longer questions you type. Greyed out means no model is set up yet.'},
  {target:'#presence-ind',title:'You are not alone in here',step:'The team',body:'The dots show who else is connected right now. <b>◷ Activity</b> is what everyone has been doing, read straight out of the tamper-evident audit chain, and <b>✻ Chat</b> is the room. Every action is recorded against the person who took it.'},
- {target:'#r-matrix',title:'Reference, when you need it',step:'Matrix & Studio',body:'The <b>ATT&CK Matrix</b> is the full technique library — what you <i>could</i> detect, with the telemetry and SPL for each. <b>Detection Studio</b> under Plan lays staged techniques on the kill chain and compiles a coverage report. Both are planning tools, which is why they sit behind the live views.',pre:()=>go('matrix')},
- {target:null,title:'You\'re ready',step:'Done',body:'<b>1–8</b> switch views, <b>⌘K</b> jumps anywhere, <b>?</b> restarts this tour.<br><br>Something broken rather than confusing? That is a job for whoever runs your server — point them at <b>docs/RUNBOOK.md</b>, which has a step-by-step fix for every failure this thing has.'}
+ {target:'#r-matrix',title:'Reference, when you need it',step:'Matrix & Studio',body:'The <b>ATT&CK Matrix</b> is the full technique library - what you <i>could</i> detect, with the telemetry and SPL for each. <b>Detection Studio</b> under Plan lays staged techniques on the kill chain and compiles a coverage report. Both are planning tools, which is why they sit behind the live views.',pre:()=>go('matrix')},
+ {target:null,title:'You\'re ready',step:'Done',body:'<b>1–8</b> switch views, <b>⌘K</b> jumps anywhere, <b>?</b> restarts this tour.<br><br>Something broken rather than confusing? That is a job for whoever runs your server - point them at <b>docs/RUNBOOK.md</b>, which has a step-by-step fix for every failure this thing has.'}
 ];
 let tourStep=-1;
 function startTour(){tourStep=0;document.getElementById('tour-veil').classList.add('open');placeTour();document.addEventListener('keydown',tourKeys);}

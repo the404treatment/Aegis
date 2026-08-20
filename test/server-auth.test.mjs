@@ -138,7 +138,7 @@ section('login rate limiting');
   ok('the fifth failure locks', L.blockedFor(k) > 0);
   ok('lockout is reported in seconds, near 15 minutes', L.blockedFor(k) > 890 && L.blockedFor(k) <= 900);
 
-  // a lock must expire — a permanent lock is a self-inflicted outage
+  // a lock must expire - a permanent lock is a self-inflicted outage
   const e = L.attempts.get(k);
   e.lockUntil = Date.now() - 1;
   eq('lock expires', L.blockedFor(k), 0);
@@ -150,7 +150,7 @@ section('login rate limiting');
   const L2 = new LoginLimiter({ max: 3, windowMs: 100, lockMs: 1000 });
   const k2 = 'ip|u';
   L2.fail(k2, 1000); L2.fail(k2, 1050);
-  L2.fail(k2, 5000); // well outside the window — the counter restarts
+  L2.fail(k2, 5000); // well outside the window - the counter restarts
   eq('failures outside the window do not accumulate into a lock', L2.blockedFor(k2, 5000), 0);
 
   // different users on one IP are tracked separately

@@ -37,13 +37,13 @@ function renderNodeEditor(n,t){
        ${Object.keys(ZONES).map(z=>`<option value="${z}" ${nodeZone(n)===z?'selected':''}>${esc(zoneLabel(z))}</option>`).join('')}
        <option value="__new">＋ New zone…</option>
      </select>
-     <button class="ls-ne-zedit" onclick="openLsZoneMgr()" data-tip="Manage zones — rename, recolour, reorder">⚙</button>
+     <button class="ls-ne-zedit" onclick="openLsZoneMgr()" data-tip="Manage zones - rename, recolour, reorder">⚙</button>
    </div>
    ${(()=>{const d=lsNodeDetections(n);return studio.size&&d.covers.length?`<div class="ls-ne-det">✓ <b>${d.covers.length}</b> staged detection${d.covers.length===1?'':'s'} fire here: ${d.covers.slice(0,6).map(id=>`<span>${id}</span>`).join(' ')}${d.covers.length>6?' …':''}</div>`:'';})()}
 
    ${LIVE.connected?`<button class="ls-snap-btn" style="width:100%;margin-bottom:8px" onclick="tkFromNode('${n.uid}')">\u2691 Raise a ticket for this host</button>`:''}
    <div class="ls-ne-obs-head">Observed on this host <span>${obs.length?obs.length:''}</span></div>
-   ${lsPendingStage?`<div class="ls-ne-stageoffer">Detected <b>${lsPendingStage.tid} ${esc(lsPendingStage.name)}</b> — stage it in the Studio?<div class="ls-ne-stageoffer-btns"><button class="btn mint" onclick="lsAcceptStage()">Stage it</button><button class="btn" onclick="lsDismissStage()">Not now</button></div></div>`:''}
+   ${lsPendingStage?`<div class="ls-ne-stageoffer">Detected <b>${lsPendingStage.tid} ${esc(lsPendingStage.name)}</b> - stage it in the Studio?<div class="ls-ne-stageoffer-btns"><button class="btn mint" onclick="lsAcceptStage()">Stage it</button><button class="btn" onclick="lsDismissStage()">Not now</button></div></div>`:''}
    ${obs.length?`<div class="ls-ne-obs-list">${obs.map(o=>{const ev=LOGSRC.find(e=>e.id===o.evId);return`<div class="ls-ne-obs inc-${o.sev}">
       <div class="ls-ne-obs-top"><span class="ls-ne-obs-sev inc-${o.sev}">${SEV_META[o.sev].label}</span>${o.evId?`<span class="ls-ne-obs-ev">${o.evId}</span>`:''}${o.tech?`<span class="ls-ne-obs-tech">${esc(o.tech)}</span>`:''}<button class="ls-ne-obs-x" onclick="lsDelObs('${n.uid}','${o.id}')">×</button></div>
       ${ev?`<div class="ls-ne-obs-name">${ev.name}</div>`:''}
@@ -54,7 +54,7 @@ function renderNodeEditor(n,t){
      ${emit.length?`<label class="ls-ne-label">Event ID (quick pick)</label>
      <select class="nsel" id="ls-obs-ev" style="width:100%">
        <option value="">— none / other —</option>
-       ${emit.map(e=>`<option value="${e.id}">${e.id} — ${e.name}</option>`).join('')}
+       ${emit.map(e=>`<option value="${e.id}">${e.id} - ${e.name}</option>`).join('')}
      </select>`:''}
      <label class="ls-ne-label">Note (what did you see?)</label>
      <input class="dash-input" id="ls-obs-note" style="width:100%" placeholder="e.g. encoded PowerShell spawned by winword.exe">
@@ -68,9 +68,9 @@ function renderNodeEditor(n,t){
    </div>
 
    ${obs.length?`<button class="btn ghost-violet" style="width:100%;justify-content:center;margin-top:8px" onclick="lsTriageNode('${n.uid}')" data-tip="Ask the AI Analyst what this host's observations mean and what to check next">◎ AI: triage this host</button>`:''}
-   <button class="btn ghost-violet" style="width:100%;justify-content:center;margin-top:8px" onclick="openAdvisor(null,'${n.uid}')" data-tip="Offline, deterministic containment/eradication/recovery commands for this host — no network, no LLM">▤ Response playbook</button>
+   <button class="btn ghost-violet" style="width:100%;justify-content:center;margin-top:8px" onclick="openAdvisor(null,'${n.uid}')" data-tip="Offline, deterministic containment/eradication/recovery commands for this host - no network, no LLM">▤ Response playbook</button>
    ${status==='malicious'?`<div class="ls-ne-contain">
-     <div class="ls-ne-contain-h">⚠ Containment — ${esc(n.label)}</div>
+     <div class="ls-ne-contain-h">⚠ Containment - ${esc(n.label)}</div>
      <label class="ls-contain-item"><input type="checkbox"> Isolate host from the network (EDR contain / switch ACL)</label>
      <label class="ls-contain-item"><input type="checkbox"> Disable / reset implicated account credentials</label>
      <label class="ls-contain-item"><input type="checkbox"> Capture volatile memory &amp; triage image before reboot</label>
@@ -116,7 +116,7 @@ function lsQuickObs(uid){
    <div class="ls-quick-head">${t.glyph} ${esc(n.label)} <span>quick log</span></div>
    ${emit.length?`<select class="nsel" id="ls-quick-ev" style="width:100%;margin-bottom:8px">
      <option value="">— Event ID (optional) —</option>
-     ${emit.map(e=>`<option value="${e.id}">${e.id} — ${e.name}</option>`).join('')}
+     ${emit.map(e=>`<option value="${e.id}">${e.id} - ${e.name}</option>`).join('')}
    </select>`:''}
    <input class="dash-input" id="ls-quick-note" style="width:100%;margin-bottom:8px" placeholder="What did you see?">
    <div class="ls-sev-pick" style="margin-bottom:10px">
@@ -159,7 +159,7 @@ function lsResultHTML(){
    <div class="ls-res-head">
      <div class="ls-res-title">
        <h2>Event-ID plan · ${picks.length} sources</h2>
-       <span class="ls-res-sub">Derived from your ${lsNodes.filter(n=>NODE_TYPES[n.type].win).length} Windows host${lsNodes.filter(n=>NODE_TYPES[n.type].win).length===1?'':'s'} — ${esc(roles)}</span>
+       <span class="ls-res-sub">Derived from your ${lsNodes.filter(n=>NODE_TYPES[n.type].win).length} Windows host${lsNodes.filter(n=>NODE_TYPES[n.type].win).length===1?'':'s'} - ${esc(roles)}</span>
      </div>
      <div class="ls-res-actions">
        <button class="btn ghost-violet" onclick="lsCopyChecklist()" data-tip="Copy the audit-policy + inputs.conf enablement checklist">Copy checklist</button>
@@ -175,9 +175,9 @@ function lsResultHTML(){
    <div class="ls-res-stats">
      <span class="chain-sum-pill"><b>${picks.length}</b> event IDs</span>
      <span class="chain-sum-pill"><b>${withDet}</b> with ready detections</span>
-     ${noisy?`<span class="chain-sum-pill" style="border-color:var(--magenta-line);color:var(--magenta)"><b>${noisy}</b> high-volume — scope these</span>`:''}
+     ${noisy?`<span class="chain-sum-pill" style="border-color:var(--magenta-line);color:var(--magenta)"><b>${noisy}</b> high-volume - scope these</span>`:''}
    </div>
-   ${(lsResult.fromTopo&&(lsResult.nonWin.cloud||lsResult.nonWin.fw))?`<div class="ls-nonwin-note"><div class="ls-nonwin-h">Your network also has non-Windows sources</div>${lsResult.nonWin.fw?`<div class="ls-nonwin-row"><b>${NODE_TYPES.fw.glyph} Firewall / Router / VPN →</b> ${NODE_TYPES.fw.src}. ${NODE_TYPES.fw.inputs[0]}.</div>`:''}${lsResult.nonWin.cloud?`<div class="ls-nonwin-row"><b>${NODE_TYPES.cloud.glyph} Cloud →</b> ${NODE_TYPES.cloud.src}. ${NODE_TYPES.cloud.inputs[0]}. AEGIS has full CloudTrail detections — open any cloud technique in the Matrix.</div>`:''}</div>`:''}
+   ${(lsResult.fromTopo&&(lsResult.nonWin.cloud||lsResult.nonWin.fw))?`<div class="ls-nonwin-note"><div class="ls-nonwin-h">Your network also has non-Windows sources</div>${lsResult.nonWin.fw?`<div class="ls-nonwin-row"><b>${NODE_TYPES.fw.glyph} Firewall / Router / VPN →</b> ${NODE_TYPES.fw.src}. ${NODE_TYPES.fw.inputs[0]}.</div>`:''}${lsResult.nonWin.cloud?`<div class="ls-nonwin-row"><b>${NODE_TYPES.cloud.glyph} Cloud →</b> ${NODE_TYPES.cloud.src}. ${NODE_TYPES.cloud.inputs[0]}. AEGIS has full CloudTrail detections - open any cloud technique in the Matrix.</div>`:''}</div>`:''}
    ${chans.map(ch=>`
      <div class="ls-ch-group">
        <div class="ls-ch-head"><span>${ch}</span><span class="ls-ch-count">${byCh[ch].length}</span></div>
@@ -228,23 +228,23 @@ function lsChecklistText(){
  const channels=[...new Set(picks.map(p=>p.ev.ch))];
  const lines=[];
  lines.push('===============================================================');
- lines.push(' HOST-BASED LOG SOURCE ENABLEMENT CHECKLIST — generated by AEGIS');
+ lines.push(' HOST-BASED LOG SOURCE ENABLEMENT CHECKLIST - generated by AEGIS');
  lines.push(` Mode: ${lsMode.toUpperCase()} · ${picks.length} event IDs`);
  lines.push('===============================================================\n');
- lines.push('STEP 1 — ENABLE AUDIT POLICY / LOGGING (per event ID)\n');
+ lines.push('STEP 1 - ENABLE AUDIT POLICY / LOGGING (per event ID)\n');
  picks.forEach(p=>{lines.push(`[ ] ${p.ev.id}  ${p.ev.name}`);lines.push(`      why:   ${p.ev.why}`);lines.push(`      setup: ${p.ev.setup}`);lines.push(`      tune:  ${p.ev.tune}\n`);});
- lines.push('STEP 2 — FORWARD THE CHANNELS (inputs.conf on the Universal Forwarder)\n');
+ lines.push('STEP 2 - FORWARD THE CHANNELS (inputs.conf on the Universal Forwarder)\n');
  const chMap={};[...new Set(picks.map(p=>p.ev.ch))].forEach(ch=>chMap[ch]=lsChannelSource(ch));
  channels.forEach(ch=>{const src=chMap[ch]||ch;lines.push(`[${src}]`);lines.push('disabled = 0');lines.push('index = win_host');
   if(ch==='Security'){const wl=picks.filter(p=>p.ev.ch==='Security'&&/^\d+$/.test(p.ev.id)).map(p=>p.ev.id);if(wl.length)lines.push('# optional whitelist to cut volume: whitelist = '+wl.join('|'));}
   lines.push('');});
- lines.push('STEP 3 — VERIFY IT IS FLOWING');
- lines.push('Import the AEGIS health dashboard (Health dashboard XML) — each panel shows whether that event ID has arrived in the last 24h, per host.');
+ lines.push('STEP 3 - VERIFY IT IS FLOWING');
+ lines.push('Import the AEGIS health dashboard (Health dashboard XML) - each panel shows whether that event ID has arrived in the last 24h, per host.');
  return lines.join('\n');
 }
 function lsCopyChecklist(){navigator.clipboard.writeText(lsChecklistText()).then(()=>toast('Enablement checklist copied'));}
 
-/* Health dashboard — is each event flowing? */
+/* Health dashboard - is each event flowing? */
 function lsHealthDashXML(){
  const picks=lsCurrentPicks();
  const title=`AEGIS ${lsMode==='baseline'?'Baseline':'Hunt'} Log-Source Health`;
@@ -256,7 +256,7 @@ function lsHealthDashXML(){
   else if(!numeric){q=`index=win_host source="${src}"\n| stats count as events, dc(host) as hosts, max(_time) as last_seen\n| eval status=if(events>0,"✓ flowing","✗ MISSING"), last_seen=strftime(last_seen,"%F %T")`;}
   else{q=`index=win_host source="${src}" EventCode=${ev.id}\n| stats count as events, dc(ComputerName) as hosts, max(_time) as last_seen\n| eval status=if(events>0,"✓ flowing","✗ MISSING"), last_seen=strftime(last_seen,"%F %T")`;}
   return `    <panel>
-      <title>${xmlEsc(ev.id+' — '+ev.name)}</title>
+      <title>${xmlEsc(ev.id+' - '+ev.name)}</title>
       <table>
         <search>
           <query>${xmlEsc(q)}</query>
@@ -269,7 +269,7 @@ function lsHealthDashXML(){
  const rows=[];for(let i=0;i<picks.length;i+=3)rows.push(picks.slice(i,i+3));
  return `<dashboard version="1.1" theme="dark">
   <label>${xmlEsc(title)}</label>
-  <description>Generated by AEGIS Log Sources — confirms each recommended event ID is arriving. Adjust index=win_host to your index.</description>
+  <description>Generated by AEGIS Log Sources - confirms each recommended event ID is arriving. Adjust index=win_host to your index.</description>
 ${rows.map(r=>`  <row>\n${r.map(panel).join('\n')}\n  </row>`).join('\n')}
 </dashboard>`;
 }

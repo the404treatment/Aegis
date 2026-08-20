@@ -1,7 +1,7 @@
 /* ================= RESPONSE ADVISOR ================= */
 /* Offline, deterministic response advisor: turns ATT&CK technique IDs, an
    affected host, and any IOCs observed on it into phased, copy-pasteable
-   containment / eradication / recovery / hardening guidance. 100% local —
+   containment / eradication / recovery / hardening guidance. 100% local -
    no network, no LLM. Ported from Skyhawk's response-advisor engine and
    rekeyed to AEGIS's own MITRE data (T()) and 15-tactic taxonomy instead of
    a second technique list. */
@@ -46,7 +46,7 @@ function raPreserveEvidence(h){
  return items;
 }
 function raIsolateHost(h,attackerIp){
- const items=[raA(`Network-contain ${h.host} in your EDR`,"edr","","One click in your EDR severs the host from the network but keeps the EDR link for investigation — cleaner than a firewall change.")];
+ const items=[raA(`Network-contain ${h.host} in your EDR`,"edr","","One click in your EDR severs the host from the network but keeps the EDR link for investigation - cleaner than a firewall change.")];
  if(h.os==='windows'||h.os==='either')items.push(raA(
   `Firewall-isolate ${h.host}${h.ip?' ('+h.ip+')':''}, keeping only your admin subnet`,"windows",
   `# Run on ${h.host}. Replace 10.0.0.0/24 with your responder/management subnet.\n`+
@@ -64,7 +64,7 @@ function raIsolateHost(h,attackerIp){
   "Accept your admin host first, then drop everything else in/out."));
  if(h.os==='network')items.push(raA(
   `Shut the compromised interface / pull the ACL on ${h.host}`,"network",
-  `! Cisco IOS example — shut the affected port\nconf t\n interface <Gi0/x>\n  shutdown\nend\nwrite memory`,
+  `! Cisco IOS example - shut the affected port\nconf t\n interface <Gi0/x>\n  shutdown\nend\nwrite memory`,
   "Isolate at the port/ACL level and preserve its running-config + logs."));
  return items;
 }
@@ -76,7 +76,7 @@ function raCutSessions(h,attackerIp){
    `sudo ss -K dst ${ip}\n`+
    `sudo pkill -KILL -t pts/1   # or terminate a specific login shell by TTY from 'who'\n`+
    `sudo passwd -l <username> && sudo pkill -KILL -u <username>`,
-   "Isolation stops new connections but an interactive session already open can still act — terminate it explicitly."),
+   "Isolation stops new connections but an interactive session already open can still act - terminate it explicitly."),
   raA(`Kill the attacker's live RDP/interactive session(s) on ${h.host}`,"windows",
    `query session\nlogoff <SESSIONID>\n`+
    `New-NetFirewallRule -DisplayName "IR-Block-RDP-${ip}" -Direction Inbound -Protocol TCP -LocalPort 3389 -RemoteAddress ${ip} -Action Block`,
@@ -113,9 +113,9 @@ const RA_TECH={
  "T1543.003":{eradicate:[raA("Find and delete the malicious Windows service","windows",`Get-CimInstance Win32_Service | Where-Object { $_.PathName -notmatch 'C:\\\\Windows|Program Files' } | Select-Object Name,PathName,StartName\nStop-Service -Name "<svc>" -Force\nsc.exe delete "<svc>"`,"Services from odd paths are classic persistence.")],
   harden:[raA("Alert on service installs (Event ID 7045)","manual","","System 7045 logs every new service.")]},
  T1547:{eradicate:[raA("Enumerate and clean autostart / Run keys","windows",`reg query "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"\nreg query "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"\nreg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "<ValueName>" /f`,"Run/RunOnce keys and the Startup folder are the most common userland persistence.")]},
- T1055:{eradicate:[raA("Identify the injected host process and terminate it","windows",`Get-CimInstance Win32_Process | Select-Object ProcessId,Name,CommandLine | Sort-Object Name\nStop-Process -Id <pid> -Force`,"Injected code lives inside a legit process — find the anomalous parent/child and kill it.")],
+ T1055:{eradicate:[raA("Identify the injected host process and terminate it","windows",`Get-CimInstance Win32_Process | Select-Object ProcessId,Name,CommandLine | Sort-Object Name\nStop-Process -Id <pid> -Force`,"Injected code lives inside a legit process - find the anomalous parent/child and kill it.")],
   recover:[raA("Reboot to clear memory-resident implants, then re-scan","manual","","Injection is often fileless; a reboot plus fresh EDR scan clears what killing the process may miss.")]},
- T1003:{contain:[raA("Assume every credential used on this host is stolen — plan a rotation","manual","","Credential dumping means cached/logged-on secrets are gone.")],
+ T1003:{contain:[raA("Assume every credential used on this host is stolen - plan a rotation","manual","","Credential dumping means cached/logged-on secrets are gone.")],
   eradicate:[raA("Force-reset every exposed user and privileged account","ad",`Set-ADAccountPassword -Identity <samAccountName> -Reset -NewPassword (Read-Host -AsSecureString "New password")\nSet-ADUser -Identity <samAccountName> -ChangePasswordAtLogon $true`,"Rotate all accounts that had sessions on the host, prioritising admins and service accounts."),
    raA("Rotate the local administrator password (all hosts, via LAPS)","windows",`Reset-LapsPassword -ComputerName <host>   # if LAPS is deployed`,"A dumped local admin hash enables lateral movement everywhere it's reused.")],
   recover:[raA("Reset the krbtgt account TWICE if a DC or domain admin was exposed","ad",`# Do TWICE with AD replication (10h+) between resets:\nSet-ADAccountPassword -Identity krbtgt -Reset -NewPassword (ConvertTo-SecureString ([System.Web.Security.Membership]::GeneratePassword(64,10)) -AsPlainText -Force)`,"Invalidates forged Kerberos (golden) tickets. Space the two resets by one replication cycle.")],
@@ -133,27 +133,27 @@ const RA_TECH={
   harden:[raA("Restrict RDP to jump hosts + Network Level Authentication + MFA","manual","","Never expose RDP flat; broker it through MFA-gated jump hosts.")]},
  "T1021.002":{contain:[raA("Cut SMB from the attacker and audit admin-share access","windows",`New-NetFirewallRule -DisplayName "IR-Block-SMB" -Direction Inbound -Protocol TCP -LocalPort 445 -RemoteAddress <attacker-ip> -Action Block\nGet-SmbSession | Format-Table ClientComputerName,ClientUserName\nClose-SmbSession -Force`,"Block 445 from the source and close live SMB sessions.")],
   harden:[raA("Disable admin shares where unneeded and enforce SMB signing","manual","","Reduce C$/ADMIN$ exposure and require signing to blunt relay/lateral abuse.")]},
- T1570:{eradicate:[raA("Find and remove tools the attacker copied in","windows",`Get-ChildItem C:\\Users\\*\\AppData\\Local\\Temp,C:\\Windows\\Temp,C:\\ProgramData -Recurse -Include *.exe,*.dll,*.ps1 -ErrorAction SilentlyContinue | Where-Object {$_.LastWriteTime -gt (Get-Date).AddDays(-2)} | Select-Object FullName,LastWriteTime`,"Staged tooling usually lands in Temp/ProgramData — hunt by recent write time.")]},
+ T1570:{eradicate:[raA("Find and remove tools the attacker copied in","windows",`Get-ChildItem C:\\Users\\*\\AppData\\Local\\Temp,C:\\Windows\\Temp,C:\\ProgramData -Recurse -Include *.exe,*.dll,*.ps1 -ErrorAction SilentlyContinue | Where-Object {$_.LastWriteTime -gt (Get-Date).AddDays(-2)} | Select-Object FullName,LastWriteTime`,"Staged tooling usually lands in Temp/ProgramData - hunt by recent write time.")]},
  T1105:{contain:[raA("Block the download source at the perimeter and DNS","manual","","Cut the channel the attacker pulls tools/payloads through.")],
   eradicate:[raA("Remove downloaded payloads and record their hashes","windows",`Get-FileHash <path-to-file> -Algorithm SHA256`,"Hash before deleting so the indicator can be swept fleet-wide.")]},
  T1071:{contain:[raA("Sinkhole/deny the C2 domains and IPs everywhere","manual","","Block at firewall egress, DNS and proxy so beacons can't reach home.")],
   harden:[raA("Force outbound web through an inspecting proxy; alert on beacons","manual","","Deny direct egress; jittered/periodic callbacks stand out through a proxy.")]},
- T1486:{contain:[raA("Isolate every encrypting host and protect the backups NOW","manual","","Ransomware spreads fast — segment first, and get backups offline/read-only."),
+ T1486:{contain:[raA("Isolate every encrypting host and protect the backups NOW","manual","","Ransomware spreads fast - segment first, and get backups offline/read-only."),
    raA("Identify the ransomware family and stop the spread mechanism","manual","","Knowing the family tells you the propagation method (SMB, GPO, PsExec) to cut.")],
-  eradicate:[raA("Rebuild encrypted hosts from clean media; remove persistence","manual","","Do not just decrypt in place — the intrusion that delivered ransomware is still present.")],
+  eradicate:[raA("Rebuild encrypted hosts from clean media; remove persistence","manual","","Do not just decrypt in place - the intrusion that delivered ransomware is still present.")],
   recover:[raA("Restore from verified clean backups, rebuilding tier-0 first","manual","","Validate backup integrity before restoring; bring DCs/identity back first."),
-   raA("Rotate ALL credentials including krbtgt (twice) and service accounts","ad",`# See T1003 krbtgt guidance — reset twice, one replication cycle apart.`,"Ransomware crews almost always have domain admin — assume total credential compromise.")],
+   raA("Rotate ALL credentials including krbtgt (twice) and service accounts","ad",`# See T1003 krbtgt guidance - reset twice, one replication cycle apart.`,"Ransomware crews almost always have domain admin - assume total credential compromise.")],
   harden:[raA("Segment, enforce MFA, and keep offline immutable backups","manual","","Immutable/offline backups + segmentation turn a domain-wide event into a contained one.")]},
- T1490:{contain:[raA("Confirm shadow-copy/backup deletion and protect what remains","windows",`vssadmin list shadows`,"Attackers delete VSS/backups before encrypting — check what's gone and lock down the rest immediately.")],
+ T1490:{contain:[raA("Confirm shadow-copy/backup deletion and protect what remains","windows",`vssadmin list shadows`,"Attackers delete VSS/backups before encrypting - check what's gone and lock down the rest immediately.")],
   recover:[raA("Restore from off-host backups the attacker couldn't reach","manual","","On-host shadow copies are usually destroyed; rely on offline/immutable copies.")]},
  T1489:{eradicate:[raA("Identify what stopped critical services and restart them cleanly","windows",`Get-WinEvent -FilterHashtable @{LogName='System';Id=7036} -MaxEvents 50 | Select-Object TimeCreated,Message\nStart-Service -Name <svc>`,"Attackers stop AV/DB/backup services before acting.")]},
  T1562:{contain:[raA("Re-enable the security tooling the attacker disabled","windows",`Set-MpPreference -DisableRealtimeMonitoring $false\nStart-Service WinDefend\nGet-MpComputerStatus | Select-Object RealTimeProtectionEnabled,AntivirusEnabled,AMServiceEnabled`,"Turn defenses back on so you're not blind.")],
   harden:[raA("Enable Tamper Protection and alert when AV/EDR is disabled","manual","","Tamper Protection blocks the disable; alerting catches attempts.")]},
  "T1562.001":{contain:[raA("Re-enable the security tooling the attacker disabled","windows",`Set-MpPreference -DisableRealtimeMonitoring $false\nStart-Service WinDefend\nGet-MpComputerStatus | Select-Object RealTimeProtectionEnabled,AntivirusEnabled,AMServiceEnabled`,"Turn defenses back on so you're not blind.")],
   harden:[raA("Enable Tamper Protection and alert when AV/EDR is disabled","manual","","Tamper Protection blocks the disable; alerting catches attempts.")]},
- T1136:{eradicate:[raA("Find and disable recently-created rogue accounts","ad",`Get-ADUser -Filter { whenCreated -gt (Get-Date).AddDays(-7) } -Properties whenCreated | Format-Table Name,whenCreated\nDisable-ADAccount -Identity <samAccountName>`,"Backdoor accounts are persistence — disable, don't delete, to preserve for evidence.")],
+ T1136:{eradicate:[raA("Find and disable recently-created rogue accounts","ad",`Get-ADUser -Filter { whenCreated -gt (Get-Date).AddDays(-7) } -Properties whenCreated | Format-Table Name,whenCreated\nDisable-ADAccount -Identity <samAccountName>`,"Backdoor accounts are persistence - disable, don't delete, to preserve for evidence.")],
   harden:[raA("Alert on account creation (4720) and privileged group changes (4728/4732)","manual","","New-account and group-add events flag this technique early.")]},
- "T1136.001":{eradicate:[raA("Find and disable recently-created rogue accounts","ad",`Get-ADUser -Filter { whenCreated -gt (Get-Date).AddDays(-7) } -Properties whenCreated | Format-Table Name,whenCreated\nDisable-ADAccount -Identity <samAccountName>`,"Backdoor accounts are persistence — disable, don't delete, to preserve for evidence.")],
+ "T1136.001":{eradicate:[raA("Find and disable recently-created rogue accounts","ad",`Get-ADUser -Filter { whenCreated -gt (Get-Date).AddDays(-7) } -Properties whenCreated | Format-Table Name,whenCreated\nDisable-ADAccount -Identity <samAccountName>`,"Backdoor accounts are persistence - disable, don't delete, to preserve for evidence.")],
   harden:[raA("Alert on account creation (4720) and privileged group changes (4728/4732)","manual","","New-account and group-add events flag this technique early.")]},
  T1070:{contain:[raA("Check for cleared logs and switch to off-host logging now","windows",`Get-WinEvent -FilterHashtable @{LogName='Security';Id=1102} -MaxEvents 10 | Select-Object TimeCreated,Message`,"Event ID 1102 = audit log cleared. If logs were wiped, forward everything to a SIEM the attacker can't reach.")],
   harden:[raA("Ship logs off-host in real time and restrict who can clear them","manual","","Central logging defeats local log deletion.")]},
@@ -161,9 +161,9 @@ const RA_TECH={
   harden:[raA("Ship logs off-host in real time and restrict who can clear them","manual","","Central logging defeats local log deletion.")]},
  T1552:{eradicate:[raA("Hunt for and purge credentials sitting in files/config","linux",`grep -RilnE "password|passwd|secret|api[_-]?key|BEGIN (RSA|OPENSSH) PRIVATE KEY" /home /etc /var/www 2>/dev/null | head -50`,"Find plaintext secrets the attacker likely already grabbed, then rotate every one you find.")],
   harden:[raA("Move secrets into a vault and scan repos/configs in CI","manual","","A secrets manager + pre-commit/CI scanning stops credentials living in files.")]},
- T1098:{eradicate:[raA("Review and revert recent account/group changes and added keys","ad",`Get-ADGroupMember "Domain Admins" | Get-ADUser -Properties whenChanged | Sort-Object whenChanged -Descending | Format-Table Name,whenChanged\nRemove-ADGroupMember -Identity "Domain Admins" -Members <samAccountName> -Confirm:$false`,"Attackers grant themselves persistence by adding accounts to privileged groups — audit and revert each.")],
+ T1098:{eradicate:[raA("Review and revert recent account/group changes and added keys","ad",`Get-ADGroupMember "Domain Admins" | Get-ADUser -Properties whenChanged | Sort-Object whenChanged -Descending | Format-Table Name,whenChanged\nRemove-ADGroupMember -Identity "Domain Admins" -Members <samAccountName> -Confirm:$false`,"Attackers grant themselves persistence by adding accounts to privileged groups - audit and revert each.")],
   harden:[raA("Alert on group changes (4728/4732/4756) and new credential registration","manual","","Privileged-group additions and new MFA/keys should page someone.")]},
- T1036:{eradicate:[raA("Verify the suspect binary's real path, signature and hash","windows",`Get-CimInstance Win32_Process -Filter "Name='svchost.exe'" | Select-Object ProcessId,ExecutablePath,CommandLine\nGet-AuthenticodeSignature <path-to-exe> | Select-Object Status,SignerCertificate\nGet-FileHash <path-to-exe> -Algorithm SHA256`,"Masquerading hides malware as a trusted name — confirm path, signature and hash.")],
+ T1036:{eradicate:[raA("Verify the suspect binary's real path, signature and hash","windows",`Get-CimInstance Win32_Process -Filter "Name='svchost.exe'" | Select-Object ProcessId,ExecutablePath,CommandLine\nGet-AuthenticodeSignature <path-to-exe> | Select-Object Status,SignerCertificate\nGet-FileHash <path-to-exe> -Algorithm SHA256`,"Masquerading hides malware as a trusted name - confirm path, signature and hash.")],
   harden:[raA("Enable application control (WDAC/AppLocker) to block untrusted binaries","manual","","Signed-and-allowed-only execution defeats renamed/relocated malware.")]},
 };
 
@@ -178,26 +178,26 @@ const RA_TACTIC_FALLBACK={
  "Resource Development":{contain:[raA("Block the attacker infrastructure and pre-position detections","manual","","If you've identified attacker domains/accounts/tooling being staged, block them and watch for their use.")],
   harden:[raA("Monitor for newly-registered look-alike domains and leaked credentials","manual","","Typosquat/brand monitoring and credential-leak alerting catch staging before it's used.")]},
  "Initial Access":{contain:[raA("Cut the entry vector and isolate the entry host","manual","","Disable the exploited service, block the sender, or pull the exposed account, then isolate the first host.")],
-  eradicate:[raA("Remove the foothold the attacker established on entry","manual","","Webshell, dropped tool, added account or mail rule — find and remove whatever gave them a way back in.")],
+  eradicate:[raA("Remove the foothold the attacker established on entry","manual","","Webshell, dropped tool, added account or mail rule - find and remove whatever gave them a way back in.")],
   harden:[raA("Patch the entry point and require MFA on all external access","manual","","Close the specific vector and add MFA so a repeat attempt fails.")]},
  "Execution":{eradicate:[raA("Identify and kill the malicious process, capturing its command line","windows",`Get-CimInstance Win32_Process | Select-Object ProcessId,Name,CommandLine | Sort-Object Name\nStop-Process -Id <pid> -Force`,"Grab the full command line (for IOCs) before terminating the payload.")],
   harden:[raA("Enable command-line + script logging and application control","windows",`reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit" /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1 /f`,"Full command-line auditing plus WDAC/AppLocker makes execution both visible and harder.")]},
- "Persistence":{eradicate:[raA("Sweep the host for persistence and remove the attacker's mechanism","windows",`Get-CimInstance Win32_StartupCommand | Select-Object Name,Command,Location\nGet-ScheduledTask | Where-Object State -ne 'Disabled' | Select-Object TaskName,TaskPath`,"Persistence hides in run keys, services, tasks and WMI subscriptions — enumerate and remove what's attacker-owned.")],
+ "Persistence":{eradicate:[raA("Sweep the host for persistence and remove the attacker's mechanism","windows",`Get-CimInstance Win32_StartupCommand | Select-Object Name,Command,Location\nGet-ScheduledTask | Where-Object State -ne 'Disabled' | Select-Object TaskName,TaskPath`,"Persistence hides in run keys, services, tasks and WMI subscriptions - enumerate and remove what's attacker-owned.")],
   recover:[raA("If persistence can't be fully proven clean, rebuild the host","manual","","For anything critical, reimaging is safer than chasing every persistence artifact.")],
   harden:[raA("Baseline autoruns and alert on new persistence (4698/7045)","manual","","Alerting on service/task creation surfaces the next attempt fast.")]},
  "Privilege Escalation":{contain:[raA("Identify what the attacker escalated to and constrain that access","windows",`whoami /priv\nGet-LocalGroupMember -Group Administrators`,"Confirm which privileges/groups were gained so you know the blast radius.")],
   eradicate:[raA("Patch the escalation vector and remove attacker-added privileges","manual","","Close the exploited weakness and revoke any rights they granted themselves.")],
   harden:[raA("Enforce least privilege and keep hosts patched","manual","","Fewer local admins + timely patching removes most escalation paths.")]},
- "Stealth":{contain:[raA("Re-enable and verify security tooling; check for cleared logs","windows",`Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled,AntivirusEnabled,AMServiceEnabled\nGet-WinEvent -FilterHashtable @{LogName='Security';Id=1102} -MaxEvents 5`,"Evasion works by blinding you — restore AV/EDR and confirm logs weren't wiped.")],
+ "Stealth":{contain:[raA("Re-enable and verify security tooling; check for cleared logs","windows",`Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled,AntivirusEnabled,AMServiceEnabled\nGet-WinEvent -FilterHashtable @{LogName='Security';Id=1102} -MaxEvents 5`,"Evasion works by blinding you - restore AV/EDR and confirm logs weren't wiped.")],
   eradicate:[raA("Remove the evasion artifacts (masqueraded files, hidden persistence)","manual","","Hunt renamed/hidden binaries and tampered config, then restore them.")],
   harden:[raA("Enable Tamper Protection and ship logs off-host in real time","manual","","Tamper Protection blocks defense-disabling; central logging defeats local log deletion.")]},
- "Defense Impairment":{contain:[raA("Re-enable and verify security tooling; check for cleared logs","windows",`Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled,AntivirusEnabled,AMServiceEnabled\nGet-WinEvent -FilterHashtable @{LogName='Security';Id=1102} -MaxEvents 5`,"Evasion works by blinding you — restore AV/EDR and confirm logs weren't wiped.")],
+ "Defense Impairment":{contain:[raA("Re-enable and verify security tooling; check for cleared logs","windows",`Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled,AntivirusEnabled,AMServiceEnabled\nGet-WinEvent -FilterHashtable @{LogName='Security';Id=1102} -MaxEvents 5`,"Evasion works by blinding you - restore AV/EDR and confirm logs weren't wiped.")],
   eradicate:[raA("Remove the evasion artifacts (masqueraded files, hidden persistence)","manual","","Hunt renamed/hidden binaries and tampered config, then restore them.")],
   harden:[raA("Enable Tamper Protection and ship logs off-host in real time","manual","","Tamper Protection blocks defense-disabling; central logging defeats local log deletion.")]},
  "Credential Access":{contain:[raA("Assume the targeted credentials are stolen and plan rotation","manual","","Scope which accounts/secrets were reachable from the affected host.")],
   eradicate:[raA("Force-reset the exposed credentials","ad",`Set-ADAccountPassword -Identity <samAccountName> -Reset -NewPassword (Read-Host -AsSecureString "New password")\nSet-ADUser -Identity <samAccountName> -ChangePasswordAtLogon $true`,"Rotate every credential the attacker could have captured.")],
   harden:[raA("Enforce MFA, LSA Protection and phishing-resistant auth","windows",`reg add HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa /v RunAsPPL /t REG_DWORD /d 1 /f`,"MFA + protected LSASS + FIDO2 blunt most credential theft.")]},
- "Discovery":{contain:[raA("Treat discovery as a live intruder mapping your environment","manual","","Enumeration precedes lateral movement — hunt the same host/account for the next stage now.")],
+ "Discovery":{contain:[raA("Treat discovery as a live intruder mapping your environment","manual","","Enumeration precedes lateral movement - hunt the same host/account for the next stage now.")],
   harden:[raA("Limit what low-privileged accounts can enumerate; alert on recon bursts","manual","","Restrict anonymous/LDAP enumeration and alert on rapid discovery from one host.")]},
  "Lateral Movement":{contain:[raA("Cut the lateral protocols from the source and reset the pivot account","windows",`New-NetFirewallRule -DisplayName "IR-Block-Lateral" -Direction Inbound -Protocol TCP -LocalPort 445,3389,5985 -RemoteAddress <attacker-ip> -Action Block`,"Block SMB/RDP/WinRM from the compromised host and rotate the account being used to move.")],
   eradicate:[raA("Remove tooling the attacker transferred to reached hosts","windows",`Get-ChildItem C:\\Windows\\Temp,C:\\ProgramData -Include *.exe,*.dll,*.ps1 -Recurse -ErrorAction SilentlyContinue | Where-Object LastWriteTime -gt (Get-Date).AddDays(-2)`,"Sweep each reached host for staged binaries.")],
@@ -208,8 +208,8 @@ const RA_TACTIC_FALLBACK={
   harden:[raA("Force outbound through an inspecting proxy and alert on beaconing","manual","","Default-deny egress with proxy inspection makes periodic callbacks stand out.")]},
  "Exfiltration":{contain:[raA("Block the exfil destination, throttle egress, and size the loss","manual","","Cut the channel, then use proxy/DLP/netflow logs to determine what and how much left.")],
   harden:[raA("Egress-filter outbound traffic and deploy DLP","manual","","Default-deny egress + DLP detects and blocks bulk data leaving.")]},
- "Impact":{contain:[raA("Isolate affected hosts to stop the spread and protect backups","manual","","Destructive actions spread fast — segment immediately and get backups offline/read-only.")],
-  eradicate:[raA("Remove the tool causing impact and the intrusion behind it","manual","","Don't just undo the damage — the access that delivered it is still present.")],
+ "Impact":{contain:[raA("Isolate affected hosts to stop the spread and protect backups","manual","","Destructive actions spread fast - segment immediately and get backups offline/read-only.")],
+  eradicate:[raA("Remove the tool causing impact and the intrusion behind it","manual","","Don't just undo the damage - the access that delivered it is still present.")],
   recover:[raA("Restore from verified clean backups, rebuilding identity/tier-0 first","manual","","Validate backup integrity, bring DCs/identity back first, and rotate all credentials.")],
   harden:[raA("Keep offline immutable backups and segment the network","manual","","Immutable backups + segmentation turn a fleet-wide event into a contained one.")]},
 };
@@ -260,7 +260,7 @@ function buildAdvisory(opts){
    raCutSessions(h,attackerIp).forEach(it=>buckets.contain.push(it));
   });
  }else{
-  buckets.contain.push(raA("Isolate the affected host(s)","edr","","No host is attached to this yet — open it from the hunt map for host-specific commands."));
+  buckets.contain.push(raA("Isolate the affected host(s)","edr","","No host is attached to this yet - open it from the hunt map for host-specific commands."));
  }
 
  const applied=new Set();
@@ -324,7 +324,7 @@ function openAdvisor(id,uid){
  v.innerHTML=`<div class="ls-det-sheet ra-sheet">
   <div class="ls-ne-grip" onclick="closeAdvisor()"></div>
   <div class="ls-det-head">Response playbook${label?` · ${esc(label)}`:''}</div>
-  <div class="ls-det-sub">Deterministic, offline containment / eradication / recovery guidance. No network, no LLM — copy, paste, and adapt to your environment.</div>
+  <div class="ls-det-sub">Deterministic, offline containment / eradication / recovery guidance. No network, no LLM - copy, paste, and adapt to your environment.</div>
   ${adv.sections.length?adv.sections.map(s=>`
    <div class="ra-phase">
     <div class="ra-phase-h">${esc(s.label)}</div>

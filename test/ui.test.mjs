@@ -261,7 +261,7 @@ section('host import inference');
   eq('FW-EDGE -> fw', api.lsGuessType('FW-EDGE'), 'fw');
   eq('web01 -> dmz', api.lsGuessType('web01'), 'dmz');
 
-  // Guessing from a name is still load-bearing — the ingest wizard uses it
+  // Guessing from a name is still load-bearing - the ingest wizard uses it
   // whenever a tool export mentions a host that is not on the map yet.
   eq('an unrecognisable name falls back to a server', api.lsGuessType('zzz'), 'srv');
   eq('an empty name does not throw', api.lsGuessType(''), 'srv');
@@ -366,7 +366,7 @@ function buildMiniPcap() {
   return buf;
 }
 
-section('ingest — format auto-detection');
+section('ingest - format auto-detection');
 {
   const { api } = boot({}, EXPORTS);
   eq('detects Chainsaw CSV by header', api.ingDetect('timestamp,detections\n2024-01-01,Test', 'export.csv'), 'chainsaw');
@@ -376,7 +376,7 @@ section('ingest — format auto-detection');
   eq('unrecognised text has no profile', api.ingDetect('just some random text', ''), null);
 }
 
-section('ingest — Chainsaw');
+section('ingest - Chainsaw');
 {
   const { api } = boot({}, EXPORTS);
   const csv = 'timestamp,detections,Computer,User,Source IP,Event ID,Command Line,level,tags\n'
@@ -389,7 +389,7 @@ section('ingest — Chainsaw');
   ok('IOC extracted from the source IP field', parsed.iocs.some(x => x.value === '203.0.113.5'));
 }
 
-section('ingest — Suricata');
+section('ingest - Suricata');
 {
   const { api } = boot({}, EXPORTS);
   const line = JSON.stringify({ timestamp: '2024-01-01T00:00:00.000Z', event_type: 'alert', src_ip: '203.0.113.5', src_port: 4444,
@@ -404,7 +404,7 @@ section('ingest — Suricata');
   eq('event source address captured', parsed.events[0].saddr, '203.0.113.5');
 }
 
-section('ingest — Zeek');
+section('ingest - Zeek');
 {
   const { api } = boot({}, EXPORTS);
   const tsv = '#separator \\x09\n#fields\tts\tuid\tid.orig_h\tid.orig_p\tid.resp_h\tid.resp_p\tnote\tmsg\n'
@@ -415,7 +415,7 @@ section('ingest — Zeek');
   ok('notice title includes the note type', parsed.findings[0].title.includes('Password_Guessing'));
 }
 
-section('ingest — PCAP');
+section('ingest - PCAP');
 {
   const { api } = boot({}, EXPORTS);
   const parsed = api.ingParsePcap(buildMiniPcap());
@@ -426,7 +426,7 @@ section('ingest — PCAP');
   eq('protocol decoded as tcp', parsed.events[0].proto, 'tcp');
 }
 
-section('ingest — map building and commit');
+section('ingest - map building and commit');
 {
   const { api } = boot({}, EXPORTS);
   const before = api.getNodes().length;
@@ -525,7 +525,7 @@ section('cases view');
   ok('offline it renders no case cards', !/cs-card/.test(html));
 
   // With no cases loaded the ticket sheet must not render a dangling empty
-  // dropdown — the selector only earns its space once cases exist.
+  // dropdown - the selector only earns its space once cases exist.
   eq('no case selector on a ticket when there are no cases', api.csTicketSelectHTML({ id: 't1', caseId: '' }), '');
   api.LIVE.cases = [{ id: 'cs_1', num: 1, title: 'Test case', status: 'open', severity: 'high', createdBy: 'x', createdAt: 1, updatedAt: 1, evidence: [] }];
   const sel = api.csTicketSelectHTML({ id: 't1', caseId: 'cs_1' });

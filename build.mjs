@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * AEGIS build — concatenates src/ modules into the single-file ui/index.html.
+ * AEGIS build - concatenates src/ modules into the single-file ui/index.html.
  *
  * There is no bundler on purpose. The app is one global scope; modules are
  * plain script fragments joined in the order given by src/manifest.json.
@@ -45,7 +45,7 @@ function build() {
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, html);
 
-  // Fast structural checks — catches a truncated module immediately.
+  // Fast structural checks - catches a truncated module immediately.
   const open = (html.match(/<div/g) || []).length;
   const close = (html.match(/<\/div>/g) || []).length;
   let syntax = 'OK';

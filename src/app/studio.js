@@ -31,13 +31,13 @@ function stageScenario(key){
 function clearStudio(){studio.clear();store('aegis-studio','[]');updateBadges();renderMatrix();if(view==='studio')renderStudio();toast('Studio cleared');}
 /* ---- threat-profile coverage scoring ----
    Score staged coverage against a named adversary's known techniques, not the
-   whole framework — a far more meaningful readiness signal. Technique lists are
+   whole framework - a far more meaningful readiness signal. Technique lists are
    scoped to what exists in this app's MITRE set. */
 const THREAT_PROFILES={
- apt29:{name:'APT29 (Cozy Bear)',blurb:'Stealthy state-sponsored espionage — identity abuse, living-off-the-land, cloud.',techs:['T1566','T1059','T1078','T1098','T1550','T1552','T1003','T1021','T1070','T1562','T1526','T1530']},
- fin7:{name:'FIN7',blurb:'Financially-motivated — phishing to execution to lateral movement and collection.',techs:['T1566','T1059','T1053','T1543.003','T1003','T1021','T1005','T1560','T1048','T1070']},
- lockbit:{name:'LockBit (RaaS)',blurb:'Ransomware affiliate playbook — access, escalate, disable defenses, encrypt.',techs:['T1078','T1059','T1543.003','T1003','T1021','T1562','T1490','T1489','T1486','T1070']},
- scattered:{name:'Scattered Spider',blurb:'Identity-first intrusion — social engineering, MFA fatigue, cloud + on-prem pivot.',techs:['T1566','T1078','T1098','T1548','T1552','T1621','T1556','T1530','T1021','T1567']}
+ apt29:{name:'APT29 (Cozy Bear)',blurb:'Stealthy state-sponsored espionage - identity abuse, living-off-the-land, cloud.',techs:['T1566','T1059','T1078','T1098','T1550','T1552','T1003','T1021','T1070','T1562','T1526','T1530']},
+ fin7:{name:'FIN7',blurb:'Financially-motivated - phishing to execution to lateral movement and collection.',techs:['T1566','T1059','T1053','T1543.003','T1003','T1021','T1005','T1560','T1048','T1070']},
+ lockbit:{name:'LockBit (RaaS)',blurb:'Ransomware affiliate playbook - access, escalate, disable defenses, encrypt.',techs:['T1078','T1059','T1543.003','T1003','T1021','T1562','T1490','T1489','T1486','T1070']},
+ scattered:{name:'Scattered Spider',blurb:'Identity-first intrusion - social engineering, MFA fatigue, cloud + on-prem pivot.',techs:['T1566','T1078','T1098','T1548','T1552','T1621','T1556','T1530','T1021','T1567']}
 };
 let threatSel=null;
 function threatCoverage(key){
@@ -108,7 +108,7 @@ function renderStudio(){
       <div class="bk-id">${id}</div>
       <div class="bk-name">${t.name}</div>
       <div class="bk-count">${n} mapped detection${n===1?'':'s'}${n===0?' · strategy only':''}</div>
-      <button class="bk-mat" style="--mc:${mat[2]}" onclick="cycleMaturity('${id}',event)" data-tip="Detection maturity — click to advance: Idea → Tested → Tuned → Production">● ${mat[1]}</button>
+      <button class="bk-mat" style="--mc:${mat[2]}" onclick="cycleMaturity('${id}',event)" data-tip="Detection maturity - click to advance: Idea → Tested → Tuned → Production">● ${mat[1]}</button>
     </div>
     <button class="bk-x" data-tip="Remove" onclick="togStudio('${id}')">×</button>
   </div>`;
@@ -156,7 +156,7 @@ function renderStudio(){
 }
 function renderThreat(){
  return`<div class="threat-wrap">
-   <div class="threat-intro">Score your staged coverage against a specific adversary's known techniques — a sharper readiness signal than raw framework percentages. Pick a profile to see what you'd catch and what they'd get away with.</div>
+   <div class="threat-intro">Score your staged coverage against a specific adversary's known techniques - a sharper readiness signal than raw framework percentages. Pick a profile to see what you'd catch and what they'd get away with.</div>
    <div class="threat-cards">
      ${Object.entries(THREAT_PROFILES).map(([k,p])=>{const c=threatCoverage(k);const on=threatSel===k;
       return`<div class="threat-card${on?' on':''}" onclick="setThreat('${k}')">
@@ -180,9 +180,9 @@ function threatDetail(key){
  const covered=c.known.filter(id=>studio.has(id));
  const gaps=c.known.filter(id=>!studio.has(id));
  return`<div class="threat-detail">
-   <div class="threat-detail-head"><h3>${c.profile.name} — ${c.pct}% covered</h3>${gaps.length?`<button class="btn violet" onclick="stageThreatGaps('${key}')">Stage all ${gaps.length} gap${gaps.length===1?'':'s'} →</button>`:'<span class="threat-clear">Full coverage of known techniques</span>'}</div>
+   <div class="threat-detail-head"><h3>${c.profile.name} - ${c.pct}% covered</h3>${gaps.length?`<button class="btn violet" onclick="stageThreatGaps('${key}')">Stage all ${gaps.length} gap${gaps.length===1?'':'s'} →</button>`:'<span class="threat-clear">Full coverage of known techniques</span>'}</div>
    ${covered.length?`<div class="threat-sec">Covered</div>${covered.map(id=>row(id,'covered')).join('')}`:''}
-   ${gaps.length?`<div class="threat-sec">Gaps — ${c.profile.name} could use these unseen</div>${gaps.map(id=>row(id,'gap')).join('')}`:''}
+   ${gaps.length?`<div class="threat-sec">Gaps - ${c.profile.name} could use these unseen</div>${gaps.map(id=>row(id,'gap')).join('')}`:''}
  </div>`;
 }
 
@@ -216,12 +216,12 @@ function renderChain(){
   if(i<TACTICS.length-1){const lit=i>=minA&&i<maxA;html+=`<div class="carrow${lit?' lit':''}">→</div>`;}
  });
  html+='</div></div>';
- html+=`<p style="font-size:11px;color:var(--t2);margin-top:6px;max-width:640px;line-height:1.6">Staged techniques are placed at their primary kill-chain stage. Lit arrows trace the span of the attack you're building coverage for — from the earliest staged stage to the latest. Click any node for its full strategy, or generate the report to get this same sequence with setup steps and SPL.</p>`;
+ html+=`<p style="font-size:11px;color:var(--t2);margin-top:6px;max-width:640px;line-height:1.6">Staged techniques are placed at their primary kill-chain stage. Lit arrows trace the span of the attack you're building coverage for - from the earliest staged stage to the latest. Click any node for its full strategy, or generate the report to get this same sequence with setup steps and SPL.</p>`;
  return html;
 }
 
 function renderPanels(panels){
- if(!panels.length)return`<div class="st-empty" style="padding:40px"><p>Your staged techniques are strategy-only (no mapped telemetry yet). They still appear in the kill chain and report with mitigation guidance — but there are no dashboard panels to compile. Stage a technique with mapped events (a colored matrix cell) to get SPL panels.</p></div>`;
+ if(!panels.length)return`<div class="st-empty" style="padding:40px"><p>Your staged techniques are strategy-only (no mapped telemetry yet). They still appear in the kill chain and report with mitigation guidance - but there are no dashboard panels to compile. Stage a technique with mapped events (a colored matrix cell) to get SPL panels.</p></div>`;
  return panels.map(p=>`
    <div class="panel-card">
      <div class="pc-head">
@@ -261,7 +261,7 @@ function renderRBA(){
     <div class="rba-intro-icon">⚡</div>
     <div>
       <h3 style="font-size:14px;font-weight:600;margin-bottom:4px">Risk-based alerting turns ${dets.length} noisy detections into one high-fidelity alert</h3>
-      <p style="font-size:11.5px;color:var(--t2);line-height:1.6">Instead of paging on every individual detection, each one writes a <b>scored risk event</b> to a dedicated <code style="font-family:var(--mono);font-size:10px;color:var(--violet)">index=risk</code>. A single correlation search sums risk per user or host and fires only when the total crosses <b>${threshold}</b> across <b>${minTactics}+ ATT&amp;CK tactics</b> — surfacing entities that show a genuine attack <i>chain</i>, not isolated events.</p>
+      <p style="font-size:11.5px;color:var(--t2);line-height:1.6">Instead of paging on every individual detection, each one writes a <b>scored risk event</b> to a dedicated <code style="font-family:var(--mono);font-size:10px;color:var(--violet)">index=risk</code>. A single correlation search sums risk per user or host and fires only when the total crosses <b>${threshold}</b> across <b>${minTactics}+ ATT&amp;CK tactics</b> - surfacing entities that show a genuine attack <i>chain</i>, not isolated events.</p>
     </div>
   </div>
   <div style="display:flex;gap:8px;margin:14px 0">
@@ -273,11 +273,11 @@ function renderRBA(){
     <thead><tr><th>Event</th><th>Detection</th><th>Technique</th><th>Tactic</th><th>Risk object</th><th style="text-align:center">Score</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>
-  <div class="sec-t" style="margin:22px 0 10px">The correlation search — your only alerting rule</div>
+  <div class="sec-t" style="margin:22px 0 10px">The correlation search - your only alerting rule</div>
   <div class="qwrap"><div class="qblock">${hl(corr)}</div>
   <button class="cpy" onclick="copyText(this,${JSON.stringify(corr).replace(/"/g,'&quot;')})">COPY</button></div>
   <div class="sec-t" style="margin:22px 0 10px">Example: one detection, enriched to write risk</div>
-  <p style="font-size:11px;color:var(--t2);margin-bottom:8px">Each staged detection is wrapped like this — the original search plus risk metadata, collected into the risk index. All ${dets.length} are in the exported package.</p>
+  <p style="font-size:11px;color:var(--t2);margin-bottom:8px">Each staged detection is wrapped like this - the original search plus risk metadata, collected into the risk index. All ${dets.length} are in the exported package.</p>
   <div class="qwrap"><div class="qblock">${hl(rbaDetectionSPL(sample.e,sample.tid))}</div>
   <button class="cpy" onclick="copyText(this,${JSON.stringify(rbaDetectionSPL(sample.e,sample.tid)).replace(/"/g,'&quot;')})">COPY</button></div>`;
 }
@@ -291,7 +291,7 @@ function buildDashXML(){
   <description>Generated by AEGIS Detection Studio · ${studio.size} techniques · kill-chain ordered</description>
 ${rows.map(row=>`  <row>
 ${row.map(p=>`    <panel>
-      <title>${xmlEsc(p.id+' — '+p.title+' ['+p.tech+' · '+TACTICS[primaryStage(p.tech)][0]+']')}</title>
+      <title>${xmlEsc(p.id+' - '+p.title+' ['+p.tech+' · '+TACTICS[primaryStage(p.tech)][0]+']')}</title>
       <table>
         <search>
           <query>${xmlEsc(p.query)}</query>
@@ -305,14 +305,14 @@ ${row.map(p=>`    <panel>
   </row>`).join('\n')}
 </dashboard>`;
 }
-function copyDashXML(){navigator.clipboard.writeText(buildDashXML()).then(()=>toast('Dashboard XML copied — paste into Splunk source editor'));}
+function copyDashXML(){navigator.clipboard.writeText(buildDashXML()).then(()=>toast('Dashboard XML copied - paste into Splunk source editor'));}
 function downloadDashXML(){
  const blob=new Blob([buildDashXML()],{type:'application/xml'});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='attack_coverage_dashboard.xml';a.click();
  URL.revokeObjectURL(a.href);toast('Dashboard XML downloaded');
 }
 function copyAllSPL(){
- const out=[];collectPanels().forEach(e=>{out.push(`\`\`\` ${e.id} — ${e.title} [${e.tech} · ${TACTICS[primaryStage(e.tech)][0]}] \`\`\`\n${e.query}`);});
+ const out=[];collectPanels().forEach(e=>{out.push(`\`\`\` ${e.id} - ${e.title} [${e.tech} · ${TACTICS[primaryStage(e.tech)][0]}] \`\`\`\n${e.query}`);});
  navigator.clipboard.writeText(out.join('\n\n')).then(()=>toast('All SPL queries copied'));
 }
 function navLayer(){
@@ -361,13 +361,13 @@ detection:
 ${sel}
   condition: selection
 falsepositives:
-  - Legitimate administrative activity — baseline before enabling
+  - Legitimate administrative activity - baseline before enabling
 level: ${sev}`;
 }
 function buildSigmaBundle(){
  const panels=collectPanels();
  const out=['# ===================================================================',
-  '# AEGIS — Sigma rule pack',
+  '# AEGIS - Sigma rule pack',
   `# ${panels.length} rules · generated ${new Date().toISOString().slice(0,10)}`,
   '# Convert to your SIEM with sigma-cli, e.g.:  sigma convert -t splunk -p splunk_windows this.yml',
   '# Each rule is separated by the standard YAML document marker (---).',
@@ -386,7 +386,7 @@ function buildSavedSearches(){
  const panels=collectPanels();
  const app=(document.getElementById('dash-name')?.value||'AEGIS Coverage');
  const out=['# ===================================================================',
-  '# AEGIS — savedsearches.conf (Splunk detection-as-code)',
+  '# AEGIS - savedsearches.conf (Splunk detection-as-code)',
   `# ${panels.length} scheduled detections · generated ${new Date().toISOString().slice(0,10)}`,
   '# Drop into $SPLUNK_HOME/etc/apps/<your_app>/local/savedsearches.conf',
   '# Adjust the cron, index, and email/action.* to your environment.',
@@ -397,7 +397,7 @@ function buildSavedSearches(){
   const cron=cad.sched==='5m'?'*/5 * * * *':cad.sched==='60m'||cad.sched==='1h'?'0 * * * *':'*/15 * * * *';
   const q=(e.query||'').replace(/\n/g,' ');
   out.push(`[AEGIS - ${e.id} - ${e.title}]`);
-  out.push(`description = ${T(tid).name} (${tid}) — AEGIS-generated detection from ${e.id}`);
+  out.push(`description = ${T(tid).name} (${tid}) - AEGIS-generated detection from ${e.id}`);
   out.push(`search = ${q}`);
   out.push('dispatch.earliest_time = '+(cad.window||'-20m@m'));
   out.push('dispatch.latest_time = now');
@@ -502,7 +502,7 @@ function rbaFullText(){
  if(!dets.length)return'// Stage at least one technique with mapped telemetry to generate RBA searches.';
  const parts=[];
  parts.push(`===============================================================
- RISK-BASED ALERTING PACKAGE — generated by AEGIS
+ RISK-BASED ALERTING PACKAGE - generated by AEGIS
  ${dets.length} contributing detections · correlation threshold ${threshold} across ${minTactics}+ tactics
 ===============================================================
 
@@ -518,13 +518,13 @@ on isolated, low-value events.
 SETUP (once):
   1. Create an index named 'risk' (Settings > Indexes).
   2. Save each CONTRIBUTING DETECTION below as a scheduled search (cron */15).
-     They are silent — they only write to the risk index, no alert action.
+     They are silent - they only write to the risk index, no alert action.
   3. Save the CORRELATION SEARCH as your alerting rule (cron */15, alert on
      results > 0). This is the only search that notifies an analyst.
   4. Tune the threshold after a week of live risk data.
 
 `);
- parts.push(`--- CONTRIBUTING DETECTIONS (${dets.length}) — each writes to index=risk ---\n`);
+ parts.push(`--- CONTRIBUTING DETECTIONS (${dets.length}) - each writes to index=risk ---\n`);
  dets.forEach(({e,tid},i)=>{
   parts.push(`# ${i+1}. ${e.id} ${e.title}  [${tid} · ${TACTICS[primaryStage(tid)][0]}]  risk_score=${riskScore(e,tid)}, risk_object=${riskObjectFor(e)[1]} (${riskObjectFor(e)[0]})`);
   parts.push(rbaDetectionSPL(e,tid));
@@ -550,12 +550,12 @@ function rbaReportSection(){
   return`<tr><td class="mono">${e.id}</td><td>${e.title}</td><td class="mono">${tid}</td><td>${TACTICS[primaryStage(tid)][0]}</td><td class="mono">${roType}:${roField}</td><td style="text-align:center;font-weight:600;color:#5747d6">${riskScore(e,tid)}</td></tr>`;
  }).join('');
  const corr=rbaCorrelationSPL(threshold,minTactics);
- return`<p>Rather than alerting on each detection independently, this rule set can be deployed as a <strong>risk-based alerting (RBA)</strong> layer. Each contributing detection writes a scored risk event — carrying its risk value, the entity it concerns, and its ATT&amp;CK metadata — into a dedicated risk index. A single correlation search then aggregates risk per entity and raises one notable only when accumulated risk crosses <strong>${threshold}</strong> across <strong>${minTactics} or more ATT&amp;CK tactics</strong>. This dramatically reduces alert volume while raising fidelity: an analyst is engaged when an entity exhibits a chain of related behaviour, not for isolated low-value events.</p>
+ return`<p>Rather than alerting on each detection independently, this rule set can be deployed as a <strong>risk-based alerting (RBA)</strong> layer. Each contributing detection writes a scored risk event - carrying its risk value, the entity it concerns, and its ATT&amp;CK metadata - into a dedicated risk index. A single correlation search then aggregates risk per entity and raises one notable only when accumulated risk crosses <strong>${threshold}</strong> across <strong>${minTactics} or more ATT&amp;CK tactics</strong>. This dramatically reduces alert volume while raising fidelity: an analyst is engaged when an entity exhibits a chain of related behaviour, not for isolated low-value events.</p>
  <h3>Risk contribution by detection</h3>
  <p>The score each detection contributes, derived from its severity and how late in the kill chain it occurs. Later-stage, higher-severity, and non-suppressible events carry more weight.</p>
  <table><thead><tr><th>Event</th><th>Detection</th><th>Technique</th><th>Tactic</th><th>Risk object</th><th style="text-align:center">Score</th></tr></thead><tbody>${rows}</tbody></table>
  <h3>Correlation search (the alerting rule)</h3>
  <p>This is the only search that notifies an analyst. The contributing detections above run silently, writing to the risk index; this rule surfaces the entities worth investigating.</p>
  <pre>${esc(corr)}</pre>
- <p style="font-size:11px;color:#77779a">The full package — every contributing detection enriched with risk metadata, plus this correlation search and setup instructions — is available from the <strong>RBA package</strong> export in the Detection Studio.</p>`;
+ <p style="font-size:11px;color:#77779a">The full package - every contributing detection enriched with risk metadata, plus this correlation search and setup instructions - is available from the <strong>RBA package</strong> export in the Detection Studio.</p>`;
 }

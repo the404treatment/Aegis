@@ -1,7 +1,7 @@
 # Line endings matter here, and getting them wrong breaks things silently.
 #
 # A shell script checked out with CRLF fails on Linux with an opaque
-# "bad interpreter: /usr/bin/env bash^M" — which looks like the script is
+# "bad interpreter: /usr/bin/env bash^M" - which looks like the script is
 # broken rather than the checkout. Since AEGIS is developed on Windows and
 # deployed to Linux, pin the ones that must be LF.
 

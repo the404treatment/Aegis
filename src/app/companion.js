@@ -1,7 +1,7 @@
 /* ================= LOCAL AI COMPANION ================= */
 /* A model running on your own machine, watching the same telemetry you are.
  *
- * The distinction from the AI Analyst tab is not which model — it is who
+ * The distinction from the AI Analyst tab is not which model - it is who
  * starts the conversation. The Analyst waits to be asked, which is fine when
  * you know the question. This one reads events as they land and offers an
  * opinion first, which is what you actually want at 3am when you do not yet
@@ -46,7 +46,7 @@ function coToggle(){
 async function coExplain(){
  await uiConfirm(
   'No local model is running on the AEGIS host.\n\n'
- +'The companion needs an inference server on that machine — Ollama is the '
+ +'The companion needs an inference server on that machine - Ollama is the '
  +'easiest, and LM Studio, llama.cpp and Jan all work too.\n\n'
  +'Install one, then run:  npm run ai:setup\n\n'
  +'It is entirely optional and everything else in AEGIS works without it. '
@@ -107,7 +107,7 @@ function renderCompanionButton(){
   :'◈ Local AI';
  b.title=CO.available
   ?`${CO.name} · ${CO.model}${CO.watch?' · watching telemetry':''}`
-  :'No local model running — click to find out how';
+  :'No local model running - click to find out how';
  b.onclick=coToggle;
 }
 

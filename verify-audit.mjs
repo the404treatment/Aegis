@@ -34,7 +34,7 @@ const FILE = val('--file', path.join(ROOT, 'server', 'data', 'audit.ndjson'));
 
 if (!fs.existsSync(FILE)) {
   console.error(`\n  ${c.y('No audit log at')} ${FILE}`);
-  console.error(`  ${c.d('A server that has never recorded anything has no chain yet — that is not a fault.')}\n`);
+  console.error(`  ${c.d('A server that has never recorded anything has no chain yet - that is not a fault.')}\n`);
   process.exit(2);
 }
 
@@ -58,7 +58,7 @@ say(`  file    ${FILE}`);
 say(`  rows    ${rows.length}`);
 
 if (badLine) {
-  say(`  ${c.y('unparseable line ' + badLine.n)} ${c.d('— truncated write, most likely an unclean shutdown')}`);
+  say(`  ${c.y('unparseable line ' + badLine.n)} ${c.d('- truncated write, most likely an unclean shutdown')}`);
   say(`  ${c.d(badLine.text)}`);
 }
 
@@ -68,7 +68,7 @@ if (!rows.length) {
 }
 
 /* Walk forward one row at a time. The first prefix that fails to verify ends
-   at the tampered row — everything before it is intact. */
+   at the tampered row - everything before it is intact. */
 let firstBad = -1;
 for (let i = 1; i <= rows.length; i++) {
   if (!new AuditLog().load(rows.slice(0, i)).verify()) { firstBad = i - 1; break; }
@@ -79,7 +79,7 @@ const when = r => (r && r.timestamp) || 'unknown time';
 if (firstBad === -1 && !badLine) {
   say(`  span    ${c.d(when(rows[0]))}  →  ${c.d(when(rows[rows.length - 1]))}`);
   say('');
-  say(`  ${c.g('INTACT')} — every row hashes to its recorded value and the chain is unbroken.`);
+  say(`  ${c.g('INTACT')} - every row hashes to its recorded value and the chain is unbroken.`);
   say('');
   process.exit(0);
 }
@@ -96,14 +96,14 @@ say('');
    in an incident report. */
 const sha256 = s => crypto.createHash('sha256').update(s).digest('hex');
 const reasons = [];
-if (bad && prev && bad.prevHash !== prev.hash) reasons.push('its prevHash does not match the row before it — a row was inserted, deleted or reordered');
-if (bad && bad.data !== undefined && sha256(JSON.stringify(bad.data ?? null)) !== bad.dataHash) reasons.push('its stored body no longer hashes to the recorded dataHash — the body was edited');
+if (bad && prev && bad.prevHash !== prev.hash) reasons.push('its prevHash does not match the row before it - a row was inserted, deleted or reordered');
+if (bad && bad.data !== undefined && sha256(JSON.stringify(bad.data ?? null)) !== bad.dataHash) reasons.push('its stored body no longer hashes to the recorded dataHash - the body was edited');
 {
   const { hash, ...base } = bad || {};
-  if (bad && AuditLog.digest(base) !== hash) reasons.push('its own fields no longer hash to the recorded hash — actor, action, target or timestamp was changed');
+  if (bad && AuditLog.digest(base) !== hash) reasons.push('its own fields no longer hash to the recorded hash - actor, action, target or timestamp was changed');
 }
 for (const r of reasons) say(`    ${c.y('·')} ${r}`);
-if (!reasons.length) say(`    ${c.y('·')} the row verifies alone but breaks the chain — check the rows around it`);
+if (!reasons.length) say(`    ${c.y('·')} the row verifies alone but breaks the chain - check the rows around it`);
 
 say('');
 say(`  ${c.b('The row as it now stands:')}`);
@@ -117,7 +117,7 @@ say(`  ${c.g('Rows 0–' + (firstBad - 1) + ' are still provably intact')} ${c.d
 say(`  ${c.d('Anything recorded from row ' + firstBad + ' onward is unverified until this is explained.')}`);
 say('');
 say(`  ${c.b('Do this first:')}`);
-say(`    1. ${c.cy('cp ' + FILE + ' /somewhere/safe/')}  ${c.d('— preserve it before anything else')}`);
+say(`    1. ${c.cy('cp ' + FILE + ' /somewhere/safe/')}  ${c.d('- preserve it before anything else')}`);
 say(`    2. Check the host for an unclean shutdown or a full disk around ${c.d(when(bad))}`);
 say(`    3. If neither explains it, treat it as tampering: docs/DEFENDING-AEGIS.md §4`);
 say('');

@@ -1,13 +1,13 @@
 /**
  * The team pulse.
  *
- * Everything anyone does already lands in the hash-chained audit log — that log
+ * Everything anyone does already lands in the hash-chained audit log - that log
  * exists to prove what happened, so it is machine-shaped: `ticket.update` with
  * a patch body. Nobody watches a hash chain to find out what their colleague is
  * doing.
  *
  * This module is the other half of that: the same rows, rendered as sentences,
- * newest first. One source of truth, two readings — the audit view for "prove
+ * newest first. One source of truth, two readings - the audit view for "prove
  * it", the activity feed for "what's everyone on right now".
  *
  * It deliberately holds no state. Presence (who is connected) is a live
@@ -36,7 +36,7 @@ const VERBS = {
    one of them for when you actually need to ask who was on at 3am. */
 const QUIET = new Set(['auth.login', 'auth.logout']);
 
-/** A short, human label for what changed — not a diff dump. */
+/** A short, human label for what changed - not a diff dump. */
 function detailOf(e) {
   const d = e.data;
   if (!d || typeof d !== 'object') return '';
@@ -46,7 +46,7 @@ function detailOf(e) {
     if (d.severity) bits.push(`severity → ${d.severity}`);
     if (d.assignee) bits.push(`assigned to ${d.assignee}`);
     // A patch that touched nothing worth naming is still worth showing as an
-    // edit — just without inventing detail for it.
+    // edit - just without inventing detail for it.
     return bits.join(', ');
   }
   if (e.action === 'case.update') {
@@ -94,7 +94,7 @@ export function describe(e, titles = {}, names = {}) {
 /**
  * Newest-first feed.
  *
- * `includeQuiet` pulls sign-in/out back in — off by default so the feed shows
+ * `includeQuiet` pulls sign-in/out back in - off by default so the feed shows
  * work, not attendance.
  */
 export function feed(events, { limit = 60, titles = {}, names = {}, includeQuiet = false } = {}) {
@@ -112,7 +112,7 @@ export function feed(events, { limit = 60, titles = {}, names = {}, includeQuiet
 
 /**
  * Who has been active recently, and on what. Drives the "3 people on this
- * incident today" line — distinct from live presence, which is who has a
+ * incident today" line - distinct from live presence, which is who has a
  * stream open right now.
  */
 export function actors(events, sinceMs, names = {}) {
