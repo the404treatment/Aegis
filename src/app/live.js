@@ -19,28 +19,35 @@ async function liveApi(path,opts){
    design: failure just leaves the console offline, which is a supported
    state, not an error worth interrupting anyone over. */
 async function liveAutoConnect(){
- if(LIVE.url&&LIVE.token){try{await liveConnect({quiet:true});}catch{}return;}
- if(LIVE.url)return; // a server is saved but not yet connected - the offline badge is the way back in, don't guess further
- // Nothing configured at all. A stock npm start / start.sh / Docker install
- // serves this console from the same origin as its own API, so if that origin
- // answers /api/health, it is almost certainly the server this analyst wants -
- // not a stranger's. Detecting it removes a step most first-time analysts have
- // no reason to expect exists: pasting the address of the page they are
- // already looking at into a dialog to "connect" it to itself. Never fires
- // against the static offline build or a file:// open, since neither serves
- // that endpoint.
- if(location.protocol==='file:')return;
- let health=null;
- try{const r=await fetch(location.origin+'/api/health');if(r.ok)health=await r.json();}catch{}
- if(!health||!health.ok)return;
- LIVE.url=location.origin;liveSave();liveBadge();
+ // Which server should this console talk to? An explicitly saved one, or - for
+ // a stock npm start / start.sh / Docker install that serves the console from
+ // the same origin as its own API - this origin, if it answers /api/health.
+ // Same-origin detection removes a step first-time analysts have no reason to
+ // expect: pasting the address of the page they are already looking at into a
+ // dialog. Never fires against the static offline build or a file:// open,
+ // since neither serves that endpoint.
+ const freshlyDetected=!LIVE.url;
+ if(!LIVE.url && location.protocol!=='file:'){
+  let health=null;
+  try{const r=await fetch(location.origin+'/api/health');if(r.ok)health=await r.json();}catch{}
+  if(health&&health.ok){LIVE.url=location.origin;liveSave();liveBadge();}
+ }
+ if(!LIVE.url)return; // nothing to connect to: offline build, file://, or an unreachable origin
+ // Hold a token? Try it. A refresh with a live session must land straight back
+ // in, not drop silently to offline mode with the token sitting right there.
+ if(LIVE.token){try{await liveConnect({quiet:true});}catch{}}
+ if(LIVE.connected)return;
+ // Not connected. What the server wants decides how hard we prompt. This is the
+ // point the old code skipped when a URL was saved but its token was empty or
+ // stale: on a login-required server that left the console usable offline with
+ // no sign-in, which read as "the login can just be dismissed". A required
+ // login is now a hard, non-dismissable gate whenever there is no live session.
  const mode=await authMode(LIVE.url);
- if(mode.requireLogin){_authNeedsSetup=!!mode.needsSetup;openLogin();return;}
- // Accounts are off for this deployment - there is no login to trigger, but
- // there is now a real server to point the analyst token at. Open the same
- // dialog the offline badge does, pre-filled, instead of leaving the console
- // silent about a server it just found.
- openLiveSetup();
+ if(mode.requireLogin){_authNeedsSetup=!!mode.needsSetup;_authDefaults=mode.defaults||[];_authMandatory=true;openLogin();return;}
+ // Accounts are off: the console is legitimately usable local-only, so never
+ // force anything. Only nudge with the token dialog the first time we detect a
+ // server on this origin - never nag a saved-but-idle one on every reload.
+ if(freshlyDetected)openLiveSetup();
 }
 async function liveConnect(opts){
  if(!LIVE.url){toast('Set the server URL first');return;}
@@ -48,7 +55,7 @@ async function liveConnect(opts){
  // bare 401 the analyst can't act on.
  if(!LIVE.token){
   const mode=await authMode(LIVE.url);
-  if(mode.requireLogin){_authNeedsSetup=!!mode.needsSetup;openLogin();return;}
+  if(mode.requireLogin){_authNeedsSetup=!!mode.needsSetup;_authDefaults=mode.defaults||[];_authMandatory=true;openLogin();return;}
   toast('Set the analyst token first');return;
  }
  try{
@@ -59,7 +66,7 @@ async function liveConnect(opts){
   // The dashboard is rendered at boot, before this resolves, so it starts out
   // showing the offline state. Without this it would sit there claiming to be
   // disconnected while live telemetry streamed in behind it.
-  renderLogSrc();renderTickets();renderCases();renderDash();liveBadge();updateBadges();
+  renderLogSrc();renderTickets();renderCases();renderDash();if(view==='matrix')renderMatrix();liveBadge();updateBadges();
   await authFetchMe();authRenderWho();renderChat();renderActivity();activityLoad();coStatus();
   if(!(opts&&opts.quiet))toast(`Connected \u00b7 ${LIVE.agents.length} agent${LIVE.agents.length===1?'':'s'}`);
  }catch(e){
@@ -69,7 +76,7 @@ async function liveConnect(opts){
   if(/HTTP 401|unauthorized/i.test(e.message)){
    const mode=await authMode(LIVE.url);
    if(mode.requireLogin){
-    LIVE.token='';liveSave();_authNeedsSetup=!!mode.needsSetup;
+    LIVE.token='';liveSave();_authNeedsSetup=!!mode.needsSetup;_authDefaults=mode.defaults||[];_authMandatory=true;
     // On a silent reconnect don't ambush someone with a login box they
     // didn't ask for; the connect button is right there when they want it.
     if(!(opts&&opts.quiet))openLogin('That session has expired. Sign in again.');
@@ -83,7 +90,7 @@ function liveDisconnect(){
  if(LIVE.es){try{LIVE.es.close()}catch{}LIVE.es=null;}
  LIVE.connected=false;chatOpen=false;activityOpen=false;coOpen=false;PRESENCE=[];
  CO={available:false,name:'',model:'',watch:false};
- liveBadge();authRenderWho();renderChat();renderPresence();renderActivity();renderCompanion();renderLogSrc();renderDash();
+ liveBadge();authRenderWho();renderChat();renderPresence();renderActivity();renderCompanion();renderLogSrc();renderDash();if(view==='matrix')renderMatrix();
  toast('Disconnected \u2014 back to local mode');
 }
 function liveOpenStream(){
@@ -108,6 +115,7 @@ function liveOpenStream(){
   evs.forEach(liveIngestEvent);
   if(view==='logsrc')renderLogSrc();
   if(view==='dash')renderDash();
+  if(view==='matrix')renderMatrix();   // light up techniques as their telemetry lands
   if(typeof siemLivePing==='function')siemLivePing();
   updateBadges();
   const bad=evs.filter(x=>x.severity==='malicious');
@@ -273,12 +281,71 @@ function renderTickets(){
     </div>
   </div>`).join(''):'<div class="ls-det-sub" style="padding:30px;text-align:center">No tickets in this view.</div>'}`;
 }
-async function tkNew(){
- const title=await uiPrompt('What is the ticket about?','',{title:'New ticket',ok:'Create',placeholder:'e.g. Encoded PowerShell on DC01'});
- if(title===null||!title.trim())return;
+/* Facts about one machine, pulled from its enrolled agent. Drives the auto-
+   populated info block on the ticket form and detail view: an analyst raising a
+   ticket should not have to remember what OS a box is or whether it is even
+   reporting. Falls back gracefully for a hostname with no agent - which is
+   exactly the "the machine is down, I typed it in by hand" case. */
+function tkAgentFor(host){
+ const h=String(host||'').trim().toLowerCase();
+ if(!h)return null;
+ return (LIVE.agents||[]).find(a=>(a.hostname||'').toLowerCase()===h)||null;
+}
+function tkHostFacts(host){
+ const a=tkAgentFor(host);
+ if(!host||!host.trim())return '';
+ if(!a)return `<div class="tk-facts down"><b>▣ ${esc(host)}</b> · not an enrolled agent.
+   Either it has no AEGIS agent, or it is down. The ticket still records the name; fill in details by hand.</div>`;
+ const seen=a.lastSeen?new Date(a.lastSeen).toLocaleString():'unknown';
+ const gaps=(a.gaps||[]);
+ return `<div class="tk-facts ${a.stale?'stale':'ok'}">
+   <div class="tk-facts-h"><b>▣ ${esc(a.hostname)}</b>
+     <span class="tk-facts-badge ${a.stale?'stale':'ok'}">${a.stale?'gone quiet':'reporting'}</span></div>
+   <div class="tk-facts-grid">
+     ${a.os?`<span>OS</span><span>${esc(a.os)}</span>`:''}
+     ${a.ip?`<span>IP</span><span>${esc(a.ip)}</span>`:''}
+     ${a.nodeType?`<span>Type</span><span>${esc(a.nodeType)}</span>`:''}
+     ${a.zone?`<span>Zone</span><span>${esc(a.zone)}</span>`:''}
+     <span>Events</span><span>${a.eventCount||0}</span>
+     <span>Last seen</span><span>${esc(seen)}</span>
+     ${a.version?`<span>Agent</span><span>v${esc(a.version)}</span>`:''}
+   </div>
+   ${gaps.length?`<div class="tk-facts-gaps">⚠ ${gaps.length} logging gap${gaps.length===1?'':'s'}: ${gaps.map(g=>esc(g.label)).join(', ')}</div>`:''}
+ </div>`;
+}
+/* Live-refresh the info block on the new-ticket form as the host field changes. */
+function tkNewHostInfo(host){const el=document.getElementById('tk-new-info');if(el)el.innerHTML=tkHostFacts(host);}
+async function tkNew(prefill){
+ prefill=prefill||{};
+ const hosts=(LIVE.agents||[]).slice().sort((a,b)=>(a.hostname||'').localeCompare(b.hostname||''));
+ let v=document.getElementById('tk-veil');
+ if(!v){v=document.createElement('div');v.id='tk-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
+ v.innerHTML=`<div class="ls-det-sheet" style="width:min(480px,100vw)">
+  <div class="ls-ne-grip" onclick="tkClose()"></div>
+  <div class="ls-det-head">New ticket</div>
+  <label class="ls-ne-label">What is it about?</label>
+  <input class="ui-dlg-input" id="tk-new-title" placeholder="e.g. Encoded PowerShell on DC01" value="${esc(prefill.title||'')}"
+    onkeydown="if(event.key==='Enter')document.getElementById('tk-new-host').focus()">
+  <label class="ls-ne-label">Machine ${hosts.length?'- pick one, or type a name if it is down':'- type the affected host'}</label>
+  <input class="ui-dlg-input" id="tk-new-host" list="tk-new-hosts" placeholder="${hosts.length?'start typing, or pick from the list':'hostname'}"
+    value="${esc(prefill.host||'')}" oninput="tkNewHostInfo(this.value)">
+  <datalist id="tk-new-hosts">${hosts.map(a=>`<option value="${esc(a.hostname)}">${a.stale?'gone quiet':a.os||''}</option>`).join('')}</datalist>
+  <div id="tk-new-info">${tkHostFacts(prefill.host||'')}</div>
+  <label class="ls-ne-label">Severity</label>
+  <select class="ui-dlg-input" id="tk-new-sev">${['low','medium','high','critical'].map(s=>`<option ${((prefill.severity||'medium')===s)?'selected':''}>${s}</option>`).join('')}</select>
+  <button class="btn violet" style="width:100%;justify-content:center;margin-top:12px" onclick="tkCreate()">Create ticket</button>
+ </div>`;
+ v.classList.add('open');v.onclick=(e)=>{if(e.target===v)tkClose();};
+ setTimeout(()=>{const t=document.getElementById('tk-new-title');if(t&&t.focus)t.focus();},60);
+}
+async function tkCreate(){
+ const title=(document.getElementById('tk-new-title')||{}).value||'';
+ const host=(document.getElementById('tk-new-host')||{}).value||'';
+ const severity=(document.getElementById('tk-new-sev')||{}).value||'medium';
+ if(!title.trim()){toast('Give the ticket a title');return;}
  try{
-  await liveApi('/api/tickets',{method:'POST',body:JSON.stringify({title:title.trim(),severity:'medium',createdBy:'analyst'})});
-  toast('Ticket created');
+  await liveApi('/api/tickets',{method:'POST',body:JSON.stringify({title:title.trim(),host:host.trim()||undefined,severity})});
+  tkClose();toast('Ticket created');
  }catch(e){toast('Failed: '+e.message);}
 }
 /* raise a ticket straight from a host on the map */
@@ -304,11 +371,20 @@ async function tkOpen(id){
   <div class="ls-ne-grip" onclick="tkClose()"></div>
   <div class="tk-d-head">#${t.num} \u00b7 ${esc(t.title)}</div>
   <div class="tk-d-row">
-   <select onchange="tkPatch('${t.id}',{status:this.value})">${['open','contained','closed'].map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}</select>
+   ${(() => {
+     // Only a lead may close. For everyone else, drop 'closed' from the choices
+     // (unless it is already closed, which we still want to display) and let the
+     // server be the real gate - see the PATCH handler.
+     const canClose=authCan('ticket.editAny');
+     const opts=['open','contained'].concat((canClose||t.status==='closed')?['closed']:[]);
+     return `<select onchange="tkPatch('${t.id}',{status:this.value})">${opts.map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}</select>`;
+   })()}
    <select onchange="tkPatch('${t.id}',{severity:this.value})">${['low','medium','high','critical'].map(s=>`<option ${t.severity===s?'selected':''}>${s}</option>`).join('')}</select>
    <input placeholder="assignee" value="${esc(t.assignee||'')}" onchange="tkPatch('${t.id}',{assignee:this.value})">
   </div>
-  ${t.host||t.technique?`<div class="tk-d-tags">${t.host?`<span>\u25a3 ${esc(t.host)}</span>`:''}${t.technique?`<span>${esc(t.technique)}</span>`:''}</div>`:''}
+  ${authCan('ticket.editAny')?'':'<div class="ls-det-sub" style="margin:-2px 0 6px">Set it to <b>Contained</b> when handled - a lead signs off the close.</div>'}
+  ${t.host?tkHostFacts(t.host):''}
+  ${t.technique?`<div class="tk-d-tags"><span>${esc(t.technique)}</span></div>`:''}
   ${csTicketSelectHTML(t)}
   ${t.body?`<div class="tk-d-body">${highlightIocs(t.body).replace(/\n/g,'<br>')}</div>`:''}
   <div class="ls-mm-sec">Activity</div>
@@ -321,7 +397,7 @@ async function tkOpen(id){
 function tkClose(){const v=document.getElementById('tk-veil');if(v)v.classList.remove('open');}
 async function tkPatch(id,patch){
  try{await liveApi('/api/tickets/'+id,{method:'PATCH',body:JSON.stringify(patch)});renderTickets();}
- catch(e){toast('Failed: '+e.message);}
+ catch(e){toast(e.message);const v=document.getElementById('tk-veil');if(v&&v.classList.contains('open'))tkOpen(id);}
 }
 async function tkComment(id){
  const ta=document.getElementById('tk-c-in');if(!ta||!ta.value.trim())return;

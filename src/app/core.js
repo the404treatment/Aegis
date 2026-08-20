@@ -244,6 +244,7 @@ function go(v,fromHash){
  document.getElementById('bar-sub').textContent=TITLES[v][1];
  document.getElementById('gq').value='';
  if(v==='dash')renderDash();
+ if(v==='matrix')renderMatrix();   // refresh live-hit overlay on entry
  if(v==='admin')renderAdmin();
  if(v==='studio')renderStudio();
  if(v==='logsrc')renderLogSrc();

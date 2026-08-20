@@ -1,7 +1,61 @@
 /* ================= MATRIX ================= */
+/* Live hits per technique, built from real telemetry. The matrix's static
+   colour already says "can I detect this" (how many catalog events map here);
+   this is the orthogonal signal "is this happening right now". Two deliberate
+   choices keep it readable when a noisy host floods events:
+     - we key on the DISTINCT HOST, not the event count, so ten 4104s from one
+       box read as "1 host", not "10 hits". That is the delineation the busy
+       case needs.
+     - a cell takes the worst severity seen, and the overlay is a separate
+       visual channel (a glow + a small pill) layered over the coverage colour,
+       so the two never fight for the same border.
+   A live event maps to a technique two ways: its own `technique` tag if the
+   agent set one, and every technique the catalog links to its event ID. Agent
+   self-telemetry (scheduled collector runs) is excluded - that is not an
+   attacker doing something. */
+let _evIdToTechs=null;
+function evIdToTechs(){
+ if(_evIdToTechs)return _evIdToTechs;
+ _evIdToTechs=new Map();
+ ALL().forEach(e=>_evIdToTechs.set(String(e.id),e.mitre||[]));
+ return _evIdToTechs;
+}
+const SEV_RANK={info:1,suspicious:2,malicious:3};
+/* Fold any technique id onto the cell the matrix actually draws. Sub-technique
+   tags like T1003.001 have no cell of their own - AEGIS tracks at the parent
+   level (T1003) - so a hit on a sub-technique must light its parent, or it
+   lights nothing and the overlay looks broken exactly when telemetry is richest. */
+function matrixCellFor(tid){
+ if(!tid)return null;
+ if(MITRE[tid])return tid;
+ const parent=String(tid).split('.')[0];
+ return MITRE[parent]?parent:null;
+}
+function liveHitsByTech(){
+ const map=new Map();  // tid -> {hosts:Set, sev, n}
+ if(!(typeof LIVE!=='undefined'&&LIVE&&LIVE.connected))return map;
+ const idx=evIdToTechs();
+ (LIVE.events||[]).forEach(e=>{
+  if(e.self)return;
+  const techs=new Set();
+  const own=matrixCellFor(e.technique);if(own)techs.add(own);
+  (idx.get(String(e.eventId))||[]).forEach(t=>{const c=matrixCellFor(t);if(c)techs.add(c);});
+  if(!techs.size)return;
+  const host=e.host||'unknown';
+  const sev=e.severity||'info';
+  techs.forEach(tid=>{
+   const rec=map.get(tid)||{hosts:new Set(),sev:'info',n:0};
+   rec.hosts.add(host);rec.n++;
+   if((SEV_RANK[sev]||0)>(SEV_RANK[rec.sev]||0))rec.sev=sev;
+   map.set(tid,rec);
+  });
+ });
+ return map;
+}
 function renderMatrix(){
  const q=(document.getElementById('gq').value||'').toLowerCase();
  const host=document.getElementById('matrix');
+ const hits=liveHitsByTech();
  host.innerHTML=TACTICS.map(([tac,slug,techs])=>{
   let covered=0;
   const cells=techs.filter(id=>{
@@ -14,11 +68,16 @@ function renderMatrix(){
    const cov=n>=3?'cov-hi':n===2?'cov-md':n===1?'cov-lo':'cov-no';
    const inS=studio.has(id)?' in-studio':'';
    const rf=t.ref?' is-ref':'';
-   return`<div class="tcell ${cov}${inS}${rf}" onclick="togStudio('${id}')" onmouseenter="showPeek(event,'${id}')" onmouseleave="hidePeek()" data-tip="Click to ${studio.has(id)?'unstage':'stage'} · ⓘ for full strategy">
+   const h=hits.get(id);
+   const hitCls=h?` hit hit-${h.sev}`:'';
+   const nh=h?h.hosts.size:0;
+   const hitPill=h?`<span class="tcell-hit ${h.sev}" onclick="event.stopPropagation();openDrawer('${id}')"
+       data-tip="Live: ${h.n} event${h.n===1?'':'s'} on ${nh} host${nh===1?'':'s'} (${[...h.hosts].slice(0,6).map(esc).join(', ')}${nh>6?'…':''}) · worst severity ${h.sev}. Click for detail.">● ${nh}</span>`:'';
+   return`<div class="tcell ${cov}${inS}${rf}${hitCls}" onclick="togStudio('${id}')" onmouseenter="showPeek(event,'${id}')" onmouseleave="hidePeek()" data-tip="Click to ${studio.has(id)?'unstage':'stage'} · ⓘ for full strategy">
      <div class="tcell-id">${id}${t.subs?`<span class="tcell-sub">${t.subs}</span>`:''}</div>
      <div class="tcell-name">${t.name}</div>
      <div class="tcell-meta">
-       <span class="cov-pip">${t.ref&&!n?'reference':n+' evt'+(n===1?'':'s')}</span>
+       ${hitPill||`<span class="cov-pip">${t.ref&&!n?'reference':n+' evt'+(n===1?'':'s')}</span>`}
        <span class="tcell-info" onclick="event.stopPropagation();openDrawer('${id}')" data-tip="Full strategy, fields & mitigations">ⓘ</span>
      </div>
    </div>`;
@@ -26,7 +85,24 @@ function renderMatrix(){
   if(!cells)return'';
   return`<div class="tac-col"><div class="tac-head"><b>${tac}</b><span class="cvr">${covered}</span>/${techs.length} covered</div>${cells}</div>`;
  }).join('')||'<div class="no-match">No techniques match.</div>';
+ // Live banner: when telemetry is lighting cells, say so above the matrix so it
+ // reads as a live threat surface, not a static reference. Its own container
+ // (not inside the horizontally-scrolling flex row), so it spans the full width
+ // and clears itself when nothing is live.
+ const bh=document.getElementById('mx-live-host');
+ if(bh)bh.innerHTML=matrixLiveBanner(hits);
  updateStats();
+}
+function matrixLiveBanner(hits){
+ if(!hits||!hits.size)return'';
+ const allHosts=new Set();let worst='info';
+ hits.forEach(h=>{h.hosts.forEach(x=>allHosts.add(x));if((SEV_RANK[h.sev]||0)>(SEV_RANK[worst]||0))worst=h.sev;});
+ const nt=hits.size,nh=allHosts.size;
+ return`<div class="mx-live ${worst}">
+   <span class="mx-live-dot"></span>
+   <b>${nt} technique${nt===1?'':'s'} active</b> across ${nh} host${nh===1?'':'s'} right now
+   <span class="mx-live-sub">worst severity ${worst} · cells with a ● are lit by live telemetry, not just detection coverage</span>
+ </div>`;
 }
 
 /* ================= PEEK ================= */
