@@ -315,6 +315,14 @@ function tkHostFacts(host){
 }
 /* Live-refresh the info block on the new-ticket form as the host field changes. */
 function tkNewHostInfo(host){const el=document.getElementById('tk-new-info');if(el)el.innerHTML=tkHostFacts(host);}
+/* Dropdown -> hidden text field: picking a known host fills it and refreshes the
+   facts; "Other" reveals the field to type an unenrolled/down host by hand. The
+   text field is always the value tkCreate reads, so both paths converge. */
+function tkNewHostPick(val){
+ const other=document.getElementById('tk-new-host');if(!other)return;
+ if(val==='__other'){other.style.display='block';other.value='';other.focus();tkNewHostInfo('');}
+ else{other.style.display='none';other.value=val;tkNewHostInfo(val);}
+}
 async function tkNew(prefill){
  prefill=prefill||{};
  const hosts=(LIVE.agents||[]).slice().sort((a,b)=>(a.hostname||'').localeCompare(b.hostname||''));
@@ -324,12 +332,21 @@ async function tkNew(prefill){
   <div class="ls-ne-grip" onclick="tkClose()"></div>
   <div class="ls-det-head">New ticket</div>
   <label class="ls-ne-label">What is it about?</label>
-  <input class="ui-dlg-input" id="tk-new-title" placeholder="e.g. Encoded PowerShell on DC01" value="${esc(prefill.title||'')}"
-    onkeydown="if(event.key==='Enter')document.getElementById('tk-new-host').focus()">
-  <label class="ls-ne-label">Machine ${hosts.length?'- pick one, or type a name if it is down':'- type the affected host'}</label>
-  <input class="ui-dlg-input" id="tk-new-host" list="tk-new-hosts" placeholder="${hosts.length?'start typing, or pick from the list':'hostname'}"
-    value="${esc(prefill.host||'')}" oninput="tkNewHostInfo(this.value)">
-  <datalist id="tk-new-hosts">${hosts.map(a=>`<option value="${esc(a.hostname)}">${a.stale?'gone quiet':a.os||''}</option>`).join('')}</datalist>
+  <input class="ui-dlg-input" id="tk-new-title" placeholder="e.g. Encoded PowerShell on DC01" value="${esc(prefill.title||'')}">
+  <label class="ls-ne-label">Machine</label>
+  ${hosts.length?(()=>{
+    // A real dropdown of every enrolled host - online and gone-quiet alike, so
+    // a box that dropped offline is still one click away and never has to be
+    // retyped. "Other" reveals a free-text field for a host with no agent.
+    const known=hosts.some(a=>a.hostname===prefill.host);
+    return `<select class="ui-dlg-input" id="tk-new-host-sel" onchange="tkNewHostPick(this.value)">
+      <option value="">— select a host —</option>
+      ${hosts.map(a=>`<option value="${esc(a.hostname)}" ${prefill.host===a.hostname?'selected':''}>${esc(a.hostname)}${a.stale?' · offline':''}${a.os?' · '+esc(a.os):''}</option>`).join('')}
+      <option value="__other" ${(prefill.host&&!known)?'selected':''}>Other / not enrolled (type it)…</option>
+    </select>
+    <input class="ui-dlg-input" id="tk-new-host" style="margin-top:6px;display:${(prefill.host&&!known)?'block':'none'}" placeholder="hostname of a machine with no agent, or one that's down"
+      value="${esc(prefill.host||'')}" oninput="tkNewHostInfo(this.value)">`;
+  })():`<input class="ui-dlg-input" id="tk-new-host" placeholder="hostname of the affected host" value="${esc(prefill.host||'')}" oninput="tkNewHostInfo(this.value)">`}
   <div id="tk-new-info">${tkHostFacts(prefill.host||'')}</div>
   <label class="ls-ne-label">Severity</label>
   <select class="ui-dlg-input" id="tk-new-sev">${['low','medium','high','critical'].map(s=>`<option ${((prefill.severity||'medium')===s)?'selected':''}>${s}</option>`).join('')}</select>
