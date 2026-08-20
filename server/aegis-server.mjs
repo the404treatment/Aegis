@@ -936,7 +936,10 @@ const server = http.createServer(async (req, res) => {
         body: String(b.body || '').slice(0, 20000),
         status: 'open',
         severity: ['low', 'medium', 'high', 'critical'].includes(b.severity) ? b.severity : 'medium',
-        assignee: b.assignee || '',
+        // Auto-assign to whoever raised it, rather than making them type a name.
+        // A shared-token creator has no identity to own it, so it stays open.
+        assignee: actor.shared ? (b.assignee || '') : actor.name,
+        assigneeId: actor.shared ? '' : actor.id,
         host: b.host || '',
         technique: b.technique || '',
         // The one field tickets gain for the case layer. Optional: a ticket
@@ -968,8 +971,17 @@ const server = http.createServer(async (req, res) => {
       // else's needs ticket.editAny (leads). Tickets created before accounts
       // existed have no owner id, so they fall to the editAny check.
       const own = !actor.shared && t.createdById && t.createdById === actor.id;
-      if (denied(res, actor, own ? 'ticket.editOwn' : 'ticket.editAny')) return;
       const b = await readBody(req);
+      // Picking up a ticket is open to anyone signed in: an analyst can assign
+      // ANY ticket to themselves (or drop their own assignment) without needing
+      // edit rights on it. Assigning it to someone ELSE is a normal edit and
+      // still needs editOwn (your ticket) or editAny (a lead, anyone's).
+      const bk = Object.keys(b);
+      const selfAssignOnly = !actor.shared && b.assignee !== undefined
+        && bk.every(k => k === 'assignee' || k === 'assigneeId')
+        && (b.assignee === actor.name                              // pick it up yourself
+          || (b.assignee === '' && t.assignee === actor.name));    // or drop only your OWN
+      if (!selfAssignOnly && denied(res, actor, own ? 'ticket.editOwn' : 'ticket.editAny')) return;
       // Closing a ticket is a lead's decision - it is the sign-off that says
       // the incident is handled, and an analyst reopening their own work to
       // close it should not be that sign-off. An analyst can still move a
@@ -979,9 +991,12 @@ const server = http.createServer(async (req, res) => {
       if (b.status === 'closed' && t.status !== 'closed' && !can(actor.role, 'ticket.editAny')) {
         return json(res, 403, { error: 'only a lead can close a ticket - set it to Contained and a lead will sign it off' });
       }
-      for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'host', 'technique', 'caseId']) {
+      for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'assigneeId', 'host', 'technique', 'caseId']) {
         if (b[k] !== undefined) t[k] = b[k];
       }
+      // On a self-assign, the id is the session's, never whatever the body
+      // claimed - so nobody can pin a colour/identity that is not their own.
+      if (selfAssignOnly) t.assigneeId = b.assignee ? actor.id : '';
       // Curating what reaches a client-facing report is a lead's call, not
       // the raising analyst's - so these two need report.finalize, whether
       // or not the ticket is your own.

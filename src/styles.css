@@ -1773,6 +1773,18 @@ body.touch [data-tip]::after,body.touch [data-tip]::before{display:none !importa
 .tk-facts-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-family:var(--mono);font-size:10px;}
 .tk-facts-grid span:nth-child(odd){color:var(--t2);}
 .tk-facts-gaps{margin-top:7px;font-size:10px;color:var(--amber);}
+/* colour-coded person chips + assignment controls */
+.tk-who{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:500;}
+.tk-who-dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block;}
+.tk-assign{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 10px;}
+.tk-assign-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);}
+.tk-unassigned{font-size:10.5px;color:var(--t3);font-style:italic;}
+.tk-assign-btn{border:1px solid var(--line2);background:var(--ink2);color:var(--t1);border-radius:99px;padding:4px 11px;font-size:10px;cursor:pointer;}
+.tk-assign-btn:hover{border-color:var(--violet);color:var(--violet);}
+.tk-assign-btn.me{background:var(--violet-soft);border-color:var(--line-hi);color:var(--violet);}
+.tk-assign-sel{background:var(--ink2);border:1px solid var(--line2);color:var(--t1);border-radius:8px;padding:4px 8px;font-size:10px;margin-left:auto;}
+.tk-new-assignnote{font-size:10px;color:var(--t3);margin-top:8px;}
+.tk-c-a{display:inline-flex;align-items:center;gap:5px;}
 .tk-c{padding:9px 0;border-top:1px solid var(--line);font-size:12px;color:var(--t2);line-height:1.55;}
 .tk-c-a{font-weight:600;color:var(--t1);margin-right:8px;}
 .tk-c-t{font-family:var(--mono);font-size:8.5px;color:var(--t3);}

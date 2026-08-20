@@ -2,7 +2,7 @@
    Connects to an AEGIS server: agents populate the map, events land as
    observations, and tickets sync in real time over SSE. Fully optional -
    with no server configured the app stays exactly as it was, local-only. */
-let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],cases:[],chat:[],events:[],lastError:''};
+let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],cases:[],chat:[],events:[],users:null,lastError:''};
 function liveLoad(){
  try{const c=JSON.parse(read('aegis-live','{}'));LIVE.url=c.url||'';LIVE.token=c.token||'';}catch{}
 }
@@ -125,8 +125,14 @@ function liveOpenStream(){
  es.addEventListener('ticket',e=>{
   const tk=JSON.parse(e.data);
   const i=LIVE.tickets.findIndex(x=>x.id===tk.id);
+  const prev=i>=0?LIVE.tickets[i]:null;
   if(i>=0)LIVE.tickets[i]=tk;else LIVE.tickets.push(tk);
+  // Tell me the moment someone puts me on a ticket (assignment I didn't make).
+  const me=ME&&!ME.shared?ME.name:null;
+  if(me&&tk.assignee===me&&(!prev||prev.assignee!==me))toast(`⚑ You were assigned #${tk.num}: ${tk.title}`);
   if(view==='tickets')renderTickets();
+  // Keep an open ticket sheet in sync so "who's on it" updates live.
+  const v=document.getElementById('tk-veil');if(v&&v.classList.contains('open'))tkOpen(tk.id);
   if(view==='cases')renderCases();
   if(view==='dash')renderDash();
   liveBadge();updateBadges();activityPing();
@@ -274,7 +280,7 @@ function renderTickets(){
         <span class="tk-status ${t.status}">${t.status}</span>
         ${t.host?`<span>\u25a3 ${esc(t.host)}</span>`:''}
         ${t.technique?`<span>${esc(t.technique)}</span>`:''}
-        ${t.assignee?`<span>\u25cf ${esc(t.assignee)}</span>`:''}
+        ${t.assignee?userChip(t.assignee):''}
         ${t.comments&&t.comments.length?`<span>\u25cb ${t.comments.length}</span>`:''}
         <span class="tk-when">${new Date(t.updatedAt).toLocaleString()}</span>
       </div>
@@ -314,6 +320,19 @@ function tkHostFacts(host){
  </div>`;
 }
 /* Live-refresh the info block on the new-ticket form as the host field changes. */
+/* A stable colour per person, so "who's on this ticket" reads at a glance and
+   the same analyst is the same colour everywhere. Hash the name -> a hue on a
+   fixed saturation/lightness that stays legible on the dark theme. */
+function userColor(name){
+ const s=String(name||'');if(!s)return 'var(--t3)';
+ let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;
+ return `hsl(${h%360} 70% 66%)`;
+}
+function userChip(name,extra){
+ if(!name)return '';
+ const c=userColor(name);
+ return `<span class="tk-who"${extra||''}><span class="tk-who-dot" style="background:${c}"></span>${esc(name)}</span>`;
+}
 function tkNewHostInfo(host){const el=document.getElementById('tk-new-info');if(el)el.innerHTML=tkHostFacts(host);}
 /* Dropdown -> hidden text field: picking a known host fills it and refreshes the
    facts; "Other" reveals the field to type an unenrolled/down host by hand. The
@@ -348,9 +367,12 @@ async function tkNew(prefill){
       value="${esc(prefill.host||'')}" oninput="tkNewHostInfo(this.value)">`;
   })():`<input class="ui-dlg-input" id="tk-new-host" placeholder="hostname of the affected host" value="${esc(prefill.host||'')}" oninput="tkNewHostInfo(this.value)">`}
   <div id="tk-new-info">${tkHostFacts(prefill.host||'')}</div>
+  <label class="ls-ne-label">Description ${prefill.body?'- pre-filled from the event, edit as needed':'(optional)'}</label>
+  <textarea class="ui-dlg-input" id="tk-new-body" style="min-height:70px;resize:vertical" placeholder="What was seen, where it came from, what you've checked so far">${esc(prefill.body||'')}</textarea>
   <label class="ls-ne-label">Severity</label>
   <select class="ui-dlg-input" id="tk-new-sev">${['low','medium','high','critical'].map(s=>`<option ${((prefill.severity||'medium')===s)?'selected':''}>${s}</option>`).join('')}</select>
-  <button class="btn violet" style="width:100%;justify-content:center;margin-top:12px" onclick="tkCreate()">Create ticket</button>
+  <div class="tk-new-assignnote">You'll be assigned automatically as ${ME&&!ME.shared?`<b>${esc(ME.name)}</b>`:'the raiser'} - reassign from the ticket once it's open.</div>
+  <button class="btn violet" style="width:100%;justify-content:center;margin-top:10px" onclick="tkCreate()">Create ticket</button>
  </div>`;
  v.classList.add('open');v.onclick=(e)=>{if(e.target===v)tkClose();};
  setTimeout(()=>{const t=document.getElementById('tk-new-title');if(t&&t.focus)t.focus();},60);
@@ -358,10 +380,11 @@ async function tkNew(prefill){
 async function tkCreate(){
  const title=(document.getElementById('tk-new-title')||{}).value||'';
  const host=(document.getElementById('tk-new-host')||{}).value||'';
+ const body=(document.getElementById('tk-new-body')||{}).value||'';
  const severity=(document.getElementById('tk-new-sev')||{}).value||'medium';
  if(!title.trim()){toast('Give the ticket a title');return;}
  try{
-  await liveApi('/api/tickets',{method:'POST',body:JSON.stringify({title:title.trim(),host:host.trim()||undefined,severity})});
+  await liveApi('/api/tickets',{method:'POST',body:JSON.stringify({title:title.trim(),body:body.trim()||undefined,host:host.trim()||undefined,severity})});
   tkClose();toast('Ticket created');
  }catch(e){toast('Failed: '+e.message);}
 }
@@ -382,6 +405,8 @@ async function tkFromNode(uid){
 }
 async function tkOpen(id){
  const t=LIVE.tickets.find(x=>x.id===id);if(!t)return;
+ // Leads get an assign-to-anyone dropdown; load the roster once, then reopen.
+ if(authCan('user.manage')&&!LIVE.users)tkLoadUsers(id);
  let v=document.getElementById('tk-veil');
  if(!v){v=document.createElement('div');v.id='tk-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
  v.innerHTML=`<div class="ls-det-sheet">
@@ -397,7 +422,22 @@ async function tkOpen(id){
      return `<select onchange="tkPatch('${t.id}',{status:this.value})">${opts.map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}</select>`;
    })()}
    <select onchange="tkPatch('${t.id}',{severity:this.value})">${['low','medium','high','critical'].map(s=>`<option ${t.severity===s?'selected':''}>${s}</option>`).join('')}</select>
-   <input placeholder="assignee" value="${esc(t.assignee||'')}" onchange="tkPatch('${t.id}',{assignee:this.value})">
+  </div>
+  <div class="tk-assign">
+   <span class="tk-assign-lbl">On it</span>
+   ${t.assignee?userChip(t.assignee):'<span class="tk-unassigned">unassigned</span>'}
+   ${(() => {
+     const me=ME&&!ME.shared?ME.name:null;
+     const mine=me&&t.assignee===me;
+     const btns=[];
+     if(me&&!mine)btns.push(`<button class="tk-assign-btn me" onclick="tkPatch('${t.id}',{assignee:${JSON.stringify(me)}})">Assign to me</button>`);
+     if(mine)btns.push(`<button class="tk-assign-btn" onclick="tkPatch('${t.id}',{assignee:''})">Drop it</button>`);
+     // Leads can hand a ticket to anyone. The user list is fetched lazily.
+     if(authCan('user.manage')&&LIVE.users&&LIVE.users.length){
+       btns.push(`<select class="tk-assign-sel" onchange="if(this.value!=='__')tkAssignTo('${t.id}',this.value)"><option value="__">Assign to…</option>${LIVE.users.map(u=>`<option value="${esc(u.id)}" ${t.assigneeId===u.id?'selected':''}>${esc(u.name)}${u.role==='lead'?' (admin)':''}</option>`).join('')}</select>`);
+     }
+     return btns.join('');
+   })()}
   </div>
   ${authCan('ticket.editAny')?'':'<div class="ls-det-sub" style="margin:-2px 0 6px">Set it to <b>Contained</b> when handled - a lead signs off the close.</div>'}
   ${t.host?tkHostFacts(t.host):''}
@@ -405,7 +445,7 @@ async function tkOpen(id){
   ${csTicketSelectHTML(t)}
   ${t.body?`<div class="tk-d-body">${highlightIocs(t.body).replace(/\n/g,'<br>')}</div>`:''}
   <div class="ls-mm-sec">Activity</div>
-  ${(t.comments||[]).map(c=>`<div class="tk-c"><span class="tk-c-a">${esc(c.author)}</span><span class="tk-c-t">${new Date(c.at).toLocaleString()}</span><div>${esc(c.text).replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="ls-det-sub">No comments yet.</div>'}
+  ${(t.comments||[]).map(c=>`<div class="tk-c"><span class="tk-c-a" style="color:${userColor(c.author)}"><span class="tk-who-dot" style="background:${userColor(c.author)}"></span>${esc(c.author)}</span><span class="tk-c-t">${new Date(c.at).toLocaleString()}</span><div>${esc(c.text).replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="ls-det-sub">No comments yet.</div>'}
   <textarea id="tk-c-in" class="art-ta" style="min-height:70px;margin-top:8px" placeholder="Add an update\u2026"></textarea>
   <button class="btn violet" style="width:100%;justify-content:center;margin-top:8px" onclick="tkComment('${t.id}')">Post update</button>
  </div>`;
@@ -413,8 +453,20 @@ async function tkOpen(id){
 }
 function tkClose(){const v=document.getElementById('tk-veil');if(v)v.classList.remove('open');}
 async function tkPatch(id,patch){
- try{await liveApi('/api/tickets/'+id,{method:'PATCH',body:JSON.stringify(patch)});renderTickets();}
+ try{await liveApi('/api/tickets/'+id,{method:'PATCH',body:JSON.stringify(patch)});renderTickets();
+  const v=document.getElementById('tk-veil');if(v&&v.classList.contains('open'))tkOpen(id);}
  catch(e){toast(e.message);const v=document.getElementById('tk-veil');if(v&&v.classList.contains('open'))tkOpen(id);}
+}
+/* Lead assigns a ticket to a chosen user (name + id from the session-verified
+   list). Analysts never reach this - they only ever self-assign via tkPatch. */
+function tkAssignTo(id,userId){
+ const u=(LIVE.users||[]).find(x=>x.id===userId);if(!u)return;
+ tkPatch(id,{assignee:u.name,assigneeId:u.id});
+}
+/* The user roster for the lead's assign dropdown, fetched once and cached. */
+async function tkLoadUsers(reopenId){
+ try{LIVE.users=await liveApi('/api/users');}catch{LIVE.users=[];}
+ const v=document.getElementById('tk-veil');if(reopenId&&v&&v.classList.contains('open'))tkOpen(reopenId);
 }
 async function tkComment(id){
  const ta=document.getElementById('tk-c-in');if(!ta||!ta.value.trim())return;

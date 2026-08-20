@@ -327,6 +327,28 @@ section('accounts enabled (requireLogin on)');
     }));
     eq('a lead CAN edit anyone\'s ticket', r.status, 200);
 
+    /* --- assignment: auto to the creator, self-assign open to anyone --- */
+    eq('a new ticket is auto-assigned to whoever raised it', anaTicket.assignee, 'ana1');
+    // an analyst can pick up ANY ticket for themselves, even a lead's...
+    r = await api(S.base, `/api/tickets/${leadTicket.id}`, withTok(ana.token, {
+      method: 'PATCH', body: JSON.stringify({ assignee: 'ana1' }),
+    }));
+    eq('an analyst can self-assign any ticket', r.status, 200);
+    let ll = await (await api(S.base, '/api/tickets', withTok(ana.token))).json();
+    const lt = ll.find(x => x.id === leadTicket.id);
+    eq('...and the assignee is now the analyst', lt.assignee, 'ana1');
+    eq('...with the id taken from the session, not the body', lt.assigneeId, ana.user.id);
+    // ...but cannot hand someone else's ticket to a third person.
+    r = await api(S.base, `/api/tickets/${leadTicket.id}`, withTok(ana.token, {
+      method: 'PATCH', body: JSON.stringify({ assignee: 'lead1' }),
+    }));
+    eq('an analyst CANNOT assign a ticket to someone else', r.status, 403);
+    // a lead can assign anyone.
+    r = await api(S.base, `/api/tickets/${leadTicket.id}`, withTok(lead.token, {
+      method: 'PATCH', body: JSON.stringify({ assignee: 'lead1', assigneeId: lead.user.id }),
+    }));
+    eq('a lead can assign a ticket to another user', r.status, 200);
+
     /* --- logout revokes immediately --- */
     r = await api(S.base, '/api/auth/logout', withTok(ana.token, { method: 'POST' }));
     eq('logout succeeds', r.status, 200);
