@@ -450,6 +450,20 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .ls-canvas{background:radial-gradient(circle at 30% 20%,rgba(139,123,255,.05),transparent 60%),var(--ink2);border:1px solid var(--line);border-radius:var(--r);flex:1;min-height:360px;overflow:hidden;position:relative;background-size:22px 22px;background-image:linear-gradient(rgba(139,123,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(139,123,255,.04) 1px,transparent 1px);}
 .ls-canvas-hint{font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:8px;text-align:center;}
 .ls-canvas-hint b{color:var(--violet);}
+/* trace (attack-path) step chips */
+.ls-chain-steps{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:8px auto 0;max-width:820px;padding:8px 12px;border-radius:10px;
+  background:rgba(255,77,143,.06);border:1px solid var(--magenta-line,rgba(255,77,143,.4));font-size:11px;}
+.ls-chain-steps.empty{color:var(--t3);font-family:var(--mono);font-size:9.5px;justify-content:center;}
+.ls-chain-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--magenta);margin-right:2px;}
+.ls-chain-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 5px 3px 8px;border-radius:99px;background:var(--card);border:1px solid var(--line2);}
+.ls-chain-chip b{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--magenta);color:#fff;font-size:9px;}
+.ls-chain-chip button{border:none;background:transparent;color:var(--t3);cursor:pointer;font-size:13px;line-height:1;padding:0 2px;}
+.ls-chain-chip button:hover{color:var(--magenta);}
+.ls-chain-arrow{color:var(--magenta);opacity:.6;}
+.ls-chain-clear{margin-left:auto;border:1px solid var(--line2);background:transparent;color:var(--t2);border-radius:99px;padding:3px 10px;font-size:9px;cursor:pointer;font-family:var(--mono);}
+.ls-chain-clear:hover{border-color:var(--magenta);color:var(--magenta);}
+.ls-ne-hint{font-size:9.5px;color:var(--t3);line-height:1.45;margin:5px 0 2px;}
+.ls-ne-hint b{color:var(--t2);}
 /* svg node styles */
 .ls-edge{stroke:rgba(139,123,255,.22);stroke-width:1.5;}
 .ls-node-box{fill:var(--card);stroke:var(--line-hi);stroke-width:1.5;transition:.15s;}

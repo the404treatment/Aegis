@@ -1,8 +1,38 @@
 /* ---- manual chain builder (build an attack path without the AI) ---- */
 function lsToggleChainMode(){lsChainMode=!lsChainMode;lsConnectMode=false;lsConnectFrom=null;lsManualChain=[];renderLogSrc();}
 function lsChainAddNode(uid){
- if(lsManualChain[lsManualChain.length-1]===uid){lsManualChain.pop();renderLogSrc();return;}
+ // Click a host to add it as the next hop; click any host already in the path
+ // to pull it back out (not just the last one), so re-pointing a hop at a
+ // different computer is one click to remove and one to re-add - no need to
+ // unwind the whole chain.
+ const at=lsManualChain.indexOf(uid);
+ if(at>=0){lsManualChain.splice(at,1);renderLogSrc();return;}
  lsManualChain.push(uid);renderLogSrc();
+}
+/* Remove one hop from the trace by its position (from the steps list). */
+function lsChainRemoveAt(i){lsManualChain.splice(i,1);renderLogSrc();}
+function lsChainClear(){lsManualChain=[];renderLogSrc();}
+/* The ordered steps of the trace being built, as removable chips. */
+function lsChainStepsHTML(){
+ if(!lsChainMode)return'';
+ if(!lsManualChain.length)return`<div class="ls-chain-steps empty">Trace: click hosts on the map in attack order - first host the attacker touched, then each hop. They number as you go.</div>`;
+ const chips=lsManualChain.map((uid,i)=>{const n=lsNodes.find(x=>x.uid===uid);const label=n?n.label:'(deleted)';
+  return`<span class="ls-chain-chip"><b>${i+1}</b> ${esc(label)}<button onclick="lsChainRemoveAt(${i})" data-tip="Remove this hop">×</button></span>`;}).join('<span class="ls-chain-arrow">→</span>');
+ return`<div class="ls-chain-steps"><span class="ls-chain-lbl">Attack path</span>${chips}<button class="ls-chain-clear" onclick="lsChainClear()">clear</button></div>`;
+}
+/* Pick an OS from the list, or type a custom one. The advisor/response playbook
+   classifies whatever free-text lands in n.os (network gear, Linux, Windows),
+   so a typed "Palo Alto PAN-OS" drives network-device guidance with no extra
+   wiring - the only thing missing before was a way to type it. */
+async function lsPickNodeOS(uid,val){
+ const n=lsNodes.find(x=>x.uid===uid);if(!n)return;
+ if(val==='__custom'){
+  const v=await uiPrompt('OS / platform for this host:',NODE_TYPES[n.type].os.includes(n.os)?'':n.os,
+    {title:'Custom OS / platform',ok:'Set',placeholder:'e.g. Palo Alto PAN-OS, MikroTik RouterOS, VMware ESXi'});
+  if(v===null||!v.trim()){renderNodeEditor(n,NODE_TYPES[n.type]);return;}
+  lsSetNodeOS(uid,v.trim());
+ } else lsSetNodeOS(uid,val);
+ renderNodeEditor(n,NODE_TYPES[n.type]);   // keep the editor open on the same host
 }
 function lsPlayManualChain(){
  if(lsManualChain.length<2){toast('Click at least two nodes to build a path');return;}
@@ -28,9 +58,12 @@ function renderNodeEditor(n,t){
    <label class="ls-ne-label">Name</label>
    <input class="dash-input" style="width:100%" value="${esc(n.label)}" oninput="lsSetNodeLabel('${n.uid}',this.value)">
    <label class="ls-ne-label">OS / platform</label>
-   <select class="nsel" style="width:100%" onchange="lsSetNodeOS('${n.uid}',this.value)">
-     ${t.os.map(o=>`<option ${o===n.os?'selected':''}>${o}</option>`).join('')}
+   <select class="nsel" style="width:100%" onchange="lsPickNodeOS('${n.uid}',this.value)">
+     ${t.os.map(o=>`<option ${o===n.os?'selected':''}>${esc(o)}</option>`).join('')}
+     ${t.os.includes(n.os)?'':`<option selected>${esc(n.os)}</option>`}
+     <option value="__custom">✎ Other / not listed…</option>
    </select>
+   <div class="ls-ne-hint">Not listed? Choose <b>Other</b> and type it - e.g. "Palo Alto PAN-OS", "MikroTik RouterOS", "VMware ESXi". The response playbook adapts to what you enter (network gear, Linux, Windows…).</div>
    <div class="ls-ne-zonerow">
      <span class="ls-ne-zlabel">Zone</span>
      <select class="nsel ls-ne-zsel" onchange="if(this.value==='__new'){const z=lsAddZone();if(z)lsSetNodeZone('${n.uid}',z);else renderLogSrc();}else lsSetNodeZone('${n.uid}',this.value)">

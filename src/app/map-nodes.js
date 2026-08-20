@@ -226,12 +226,15 @@ function lsTopologyHTML(){
  const cats=Object.keys(byCat).sort();
  return`<div class="ls-topo">
    <div class="ls-quiz-head">
-     <div class="ls-topo-title"><span class="ls-topo-titletag">Network Map</span> - drag to build your environment, click a node to log what you're seeing, then let the AI trace the attack across it</div>
+     <div class="ls-topo-title"><span class="ls-topo-titletag">Network Map</span> - ${(typeof LIVE!=='undefined'&&LIVE.connected&&(LIVE.agents||[]).length)
+       ?`live hosts from your agents. Click one to triage what you're seeing, or use <b>Trace</b> to map how the attack spread.`
+       :`a planning board before the range is live. Drag hosts in, group them into <b>zones</b>, then use <b>Trace</b> to map the attack paths you expect. Once agents are deployed, real hosts appear here automatically.`}</div>
    </div>
    <div class="ls-topo-grid">
      <div class="ls-topo-canvaswrap">
        <div class="ls-topo-toolbar">
          <button class="ls-toolbtn primary" onclick="openLsAddMenu()" data-tip="Add a host to the map">\uff0b Add host</button>
+         <button class="ls-toolbtn" onclick="lsAddZoneAt()" data-tip="Draw a network segment (zone) - group hosts into DMZ, OT cell, VLANs, etc. No need to open a host first.">\u25a4 Add zone</button>
          <button class="ls-toolbtn" onclick="openLsTemplates()" data-tip="Start from a named template">\u29c9 Templates</button>
          <span class="ls-tb-div"></span>
          <div class="ls-toolgrp" data-tip="Pointer selects and drags. Hand pans the map \u2014 or hold Space with the pointer.">
@@ -272,9 +275,10 @@ function lsTopologyHTML(){
        ${lsIncidentStrip()}
        <div class="ls-canvas-hint">${
          lsConnectMode?`<b style="color:var(--sky)">Connect mode</b> - click a node, then another, to link them.${lsConnectFrom?' Source selected - pick the destination.':''} Click <b>Connect</b> again to exit.`
-         :lsChainMode?`<b style="color:var(--magenta)">Trace mode</b> - click nodes in attack order (${lsManualChain.length} selected)${lsManualChain.length>=2?' - then ▶ Play path below':''}. Click the last node again to undo.`
+         :lsChainMode?`<b style="color:var(--magenta)">Trace mode</b> - map how an attacker moves across this network. Click hosts in the order they'd be hit; each becomes a numbered hop. Click a host again to pull it back out. Then <b>▶ Play path</b> animates the route. Click <b>Trace</b> again to exit.`
          :`<b>Click</b> a host to triage \u00b7 <b>double-click</b> to rename \u00b7 <b>drag between lanes</b> to change its zone${lsSelEvent?` \u00b7 showing <b>${lsSelEvent}</b>`:''}`
        }</div>
+       ${lsChainStepsHTML()}
        ${(()=>{const r=lsObsTimeRange();if(!r||r.min===r.max)return'';const cur=lsScrubT==null?r.max:lsScrubT;const shown=lsNodes.reduce((a,n)=>a+lsNodeObs(n).length,0);return`<div class="ls-scrubber">
          <span class="ls-scrub-icon" data-tip="Scrub through the incident - drag to replay how observations appeared over time">◷</span>
          <input type="range" id="ls-scrub" min="${r.min}" max="${r.max}" value="${cur}" step="1000" oninput="lsScrubSet(this.value)">
@@ -340,7 +344,6 @@ function lsNodesSVG(){
     <text x="0" y="9" text-anchor="middle" class="ls-node-label">${esc(n.label.length>15?n.label.slice(0,14)+'…':n.label)}</text>
     <text x="0" y="21" text-anchor="middle" class="ls-node-os">${esc((n.os||'').length>16?n.os.slice(0,15)+'…':n.os)}</text>
     ${t.win&&!isLinux?`<g class="ls-node-badge" transform="translate(40,-30)"><circle r="11" class="ls-badge-c"/><text y="3.5" text-anchor="middle" class="ls-badge-t">${count}</text></g>`:''}
-    ${!t.win||isLinux?`<g class="ls-node-badge alt" transform="translate(40,-30)"><circle r="11" class="ls-badge-c"/><text y="3.5" text-anchor="middle" class="ls-badge-t">⇄</text></g>`:''}
     ${obsN?`<g class="ls-node-obs inc-${status}" transform="translate(-40,-30)"><circle r="11"/><text y="3.5" text-anchor="middle">${obsN}</text></g>`:''}
     ${chainIdx?`<g class="ls-chain-num" transform="translate(-40,30)"><circle r="10"/><text y="3.5" text-anchor="middle">${chainIdx}</text></g>`:''}
     ${heatBadge}

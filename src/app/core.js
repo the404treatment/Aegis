@@ -191,7 +191,9 @@ function updateBadges(){
  if(bd){const rec=(LIVE.events||[]).filter(e=>e.severity==='malicious'&&(e.ts||0)>Date.now()-3600e3).length;
   bd.textContent=rec||'—';bd.className='rbadge'+(rec?' hot':'');}
  const be=document.getElementById('b-events');if(be)be.textContent=WIN.length+AWS.length;
- const bl=document.getElementById('b-logsrc');if(bl)bl.textContent=LOGSRC.length;
+ // The map badge counts hosts you've placed, not the 48 log-source types in
+ // the reference data - that number meant nothing next to "Network Map".
+ const bl=document.getElementById('b-logsrc');if(bl)bl.textContent=(typeof lsNodes!=='undefined'&&lsNodes.length)?lsNodes.length:'—';
  document.getElementById('b-studio').textContent=studio.size;
  const bt=document.getElementById('b-tickets');if(bt)bt.textContent=LIVE.tickets.filter(x=>x.status!=='closed').length;
  const bs=document.getElementById('b-siem');if(bs)bs.textContent=LIVE.events.length;

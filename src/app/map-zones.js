@@ -289,11 +289,17 @@ function lsPresetZones(){
  });
  lsSaveZones();persistAll();renderLogSrc();toast('Standard zones added');
 }
-function lsAddZoneAt(){
- const id=lsAddZone();
+async function lsAddZoneAt(){
+ // lsAddZone() is async (it prompts for a name); the old code used the returned
+ // Promise as an object key, so a zone added from the toolbar never got its
+ // rectangle and could not be placed. Await it.
+ const id=await lsAddZone();
  if(!id)return;
+ // Drop the new zone somewhere visible in the current viewport rather than a
+ // fixed corner it might be scrolled away from.
  ZONES[id].x=60;ZONES[id].y=60;ZONES[id].w=420;ZONES[id].h=200;
- lsSaveZones();renderLogSrc();toast('Zone added \u2014 drag its header to place it');
+ if(!lsShowZones)lsShowZones=true;   // make sure zones are visible, or the new one is invisible
+ lsSaveZones();renderLogSrc();toast('Zone added \u2014 drag its header to place it, drag hosts into it');
 }
 /* auto-arrange: lay zones out as bands and spread hosts inside their own zone */
 function lsArrange(){
