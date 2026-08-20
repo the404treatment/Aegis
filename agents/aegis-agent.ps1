@@ -10,7 +10,7 @@
 
   Ships only the Event IDs in $EventFilter. That is a detection-relevant subset,
   not a full log pipeline. For volume collection use a Splunk Universal
-  Forwarder alongside this — see README.
+  Forwarder alongside this - see README.
 
 .PARAMETER Server
   Base URL of the AEGIS server, e.g. https://aegis.internal:8787
@@ -160,6 +160,20 @@ function Save-State($obj) {
   try { icacls $StateFile /inheritance:r /grant:r 'SYSTEM:F' 'Administrators:F' | Out-Null } catch { }
 }
 
+# A random id generated once and kept alongside the enrollment state,
+# independent of hostname. The server uses this to tell "this machine
+# reinstalled the agent" apart from "a different machine claims the same
+# hostname" - default and cloned hostnames collide across unrelated fleets
+# constantly, and hostname alone used to be the only signal it had. Survives
+# a normal reinstall (the state directory is untouched); does not survive a
+# full OS reimage, which is the point - that really is a different machine as
+# far as this identity is concerned.
+function Get-MachineId {
+  $existing = Get-State
+  if ($existing -and $existing.machineId) { return $existing.machineId }
+  return [guid]::NewGuid().ToString()
+}
+
 # ---------------------------------------------------------------- host facts
 function Get-HostFacts {
   $os = Get-CimInstance Win32_OperatingSystem
@@ -201,13 +215,15 @@ function Invoke-Aegis {
 function Register-Agent {
   if (-not $EnrollmentToken) { throw 'No saved credentials and no -EnrollmentToken supplied.' }
   $facts = Get-HostFacts
+  $machineId = Get-MachineId
   $body = @{
     enrollmentToken = $EnrollmentToken
     hostname = $facts.hostname; os = $facts.os; ip = $facts.ip
     roles = $facts.roles; version = $facts.version
+    machineId = $machineId
   }
   $r = Invoke-Aegis -Path '/api/enroll' -Body $body
-  $state = [pscustomobject]@{ agentId = $r.agentId; agentKey = $r.agentKey; server = $Server; lastEventTime = (Get-Date).AddMinutes(-$LookbackMinutes).ToString('o') }
+  $state = [pscustomobject]@{ agentId = $r.agentId; agentKey = $r.agentKey; server = $Server; lastEventTime = (Get-Date).AddMinutes(-$LookbackMinutes).ToString('o'); machineId = $machineId }
   Save-State $state
   Write-Log "enrolled as $($r.agentId)"
   return $state
@@ -291,7 +307,7 @@ function Get-NewEvents {
       $filter = @{ LogName = $channel; StartTime = $Since; ID = $ids }
       $records = Get-WinEvent -FilterHashtable $filter -MaxEvents 400 -ErrorAction Stop
     } catch {
-      # channel absent (no Sysmon, etc.) or nothing matched — both are normal
+      # channel absent (no Sysmon, etc.) or nothing matched - both are normal
       continue
     }
     foreach ($r in $records) {

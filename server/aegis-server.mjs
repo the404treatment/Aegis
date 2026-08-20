@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * AEGIS Server — agent ingest, live state, ticketing, Splunk HEC forwarding.
+ * AEGIS Server - agent ingest, live state, ticketing, Splunk HEC forwarding.
  *
  * Zero dependencies. Node 18+.
  *   node aegis-server.mjs --config ./config.json
@@ -44,7 +44,7 @@ function loadConfig() {
   if (fs.existsSync(p)) {
     // Strip a leading BOM. Notepad and several Windows editors add one when
     // saving UTF-8, and a BOM makes JSON.parse throw "Unexpected token" on the
-    // very first character — a genuinely baffling error for someone who just
+    // very first character - a genuinely baffling error for someone who just
     // wanted to change a port. Tolerating it here saves a support call.
     cfg = JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
   } else console.warn(`[aegis] no config at ${p}, using defaults + generated secrets`);
@@ -69,7 +69,7 @@ function loadConfig() {
     splunk: { enabled: false, url: '', token: '', index: 'aegis', sourcetype: 'aegis:agent', verifyTls: true },
     webhook: { enabled: false, url: '', format: 'slack', minIntervalSec: 300 },
     // All AI in AEGIS is local. The server talks to an inference process on
-    // this machine and there is no path out to a hosted API — telemetry,
+    // this machine and there is no path out to a hosted API - telemetry,
     // hostnames and case detail never leave the host.
     llm: { ...LLM_DEFAULTS },
     maxEventFileMB: 256,
@@ -89,10 +89,10 @@ fs.mkdirSync(CFG.dataDir, { recursive: true });
  *
  * This is worth being precise about, because it is easy to oversell. It stops
  * the process reading `node .../aegis-server.mjs` in `ps`/`top`/Task Manager and
- * makes it read whatever dull name you chose — so an attacker eyeballing a
+ * makes it read whatever dull name you chose - so an attacker eyeballing a
  * process list, or grepping it for "aegis", walks past it. That is the whole of
  * what it buys, and it is a delaying tactic layered on the real controls
- * (least privilege, auto-restart, off-box logs, alert-on-silence — see
+ * (least privilege, auto-restart, off-box logs, alert-on-silence - see
  * docs/DEFENDING-AEGIS.md), not a substitute for them. Anyone with root/admin
  * who looks at the open port, the working directory or the service definition
  * still finds it.
@@ -147,9 +147,9 @@ const saveTickets = () => writeJson(F.tickets, TICKETS);
 const saveCases = () => writeJson(F.cases, CASES);
 const evStream = fs.createWriteStream(F.events, { flags: 'a' });
 
-// hash-chained, tamper-evident audit log — one global chain, filtered by
+// hash-chained, tamper-evident audit log - one global chain, filtered by
 // targetId per view. actorId is whatever the client asserts (createdBy/
-// author/'analyst') until per-user auth exists — not identity-verified.
+// author/'analyst') until per-user auth exists - not identity-verified.
 const AUDIT = new AuditLog();
 try {
   const raw = fs.existsSync(F.audit) ? fs.readFileSync(F.audit, 'utf8').trim().split('\n') : [];
@@ -164,7 +164,7 @@ function auditRecord(actorId, action, targetId, data) {
 
 /* --------------------------------------------------------------- chat */
 /* Append-only, same pattern as events.ndjson, with a bounded in-memory tail
-   for the UI. Delivery rides the SSE hub the server already runs — Skyhawk
+   for the UI. Delivery rides the SSE hub the server already runs - Skyhawk
    polls twice a second for this, which we simply don't need to do. */
 const CHAT_KEEP = 300;
 let CHAT = [];
@@ -189,7 +189,7 @@ const clientIp = req => String(req.headers['x-forwarded-for'] || req.socket.remo
  *
  * This is a security boundary, not tidiness. Hostnames, channels, event IDs and
  * technique tags are rendered by the console into HTML attributes and inline
- * event handlers. A hostname is not free text — one containing a quote or a
+ * event handlers. A hostname is not free text - one containing a quote or a
  * parenthesis is not a hostname, it is an attempt to break out of the context
  * it will be rendered in, and an attacker who can enrol an agent (or who owns
  * one endpoint) would otherwise be able to run script in an analyst's browser.
@@ -201,7 +201,7 @@ const clientIp = req => String(req.headers['x-forwarded-for'] || req.socket.remo
 /* Note the absence of a backslash: it is the escape character in a JavaScript
    string, so allowing it would let a value neutralise the very escaping that
    protects the render site. No legitimate hostname, channel or technique tag
-   needs one — Windows channel names use forward slashes. */
+   needs one - Windows channel names use forward slashes. */
 const IDENT_OK = /[^A-Za-z0-9 ._\-:/@+]/g;
 const ident = (v, max) => String(v ?? '').replace(IDENT_OK, '').slice(0, max).trim();
 
@@ -214,7 +214,7 @@ const safeEq = (a, b) => {
 
 /* --------------------------------------------------------------- SSE hub */
 /* Each entry is {res, actor, since}. It carries the identity as well as the
-   socket so the console can show who else is working the incident right now —
+   socket so the console can show who else is working the incident right now -
    an incident room where you cannot see who else is in it does not feel like
    one. */
 const clients = new Set();
@@ -236,7 +236,7 @@ function presence() {
   return [...byId.values()].sort((a, b) => a.since - b.since);
 }
 let _presenceTimer = null;
-/** Coalesced — a page refresh is a disconnect and a connect back to back. */
+/** Coalesced - a page refresh is a disconnect and a connect back to back. */
 function presenceChanged() {
   clearTimeout(_presenceTimer);
   _presenceTimer = setTimeout(() => broadcast('presence', presence()), 120);
@@ -251,7 +251,7 @@ let LLM_PROVIDER = null;
 /* The proactive half of the companion, and the reason it exists.
  *
  * An assistant you have to prompt is an assistant you use when you already
- * know what to ask — which during an incident is exactly when you don't. This
+ * know what to ask - which during an incident is exactly when you don't. This
  * watches telemetry as it lands and offers an assessment unasked.
  *
  * Three things keep it from becoming noise:
@@ -404,7 +404,7 @@ function notify(events, agent) {
 /* --------------------------------------------------- link inference */
 let LINKS = [];
 /** Turn each agent's observed peers into edges between known hosts.
- *  Only links where BOTH ends are enrolled agents are drawn — an unknown IP
+ *  Only links where BOTH ends are enrolled agents are drawn - an unknown IP
  *  is noise, not topology. */
 function rebuildLinks() {
   const byIp = {};
@@ -429,10 +429,10 @@ rebuildLinks();
 function loggingGaps(a) {
   const l = a.logging || {};
   const gaps = [];
-  if (l.sysmon === false) gaps.push({ id: 'sysmon', label: 'Sysmon not installed', impact: 'No EID 1/3/7/11 — image loads, network connections, and file writes are invisible.' });
-  if (l.psScriptBlock === false) gaps.push({ id: 'ps4104', label: 'PowerShell script block logging off', impact: 'No 4104 — encoded and obfuscated PowerShell cannot be reconstructed.' });
+  if (l.sysmon === false) gaps.push({ id: 'sysmon', label: 'Sysmon not installed', impact: 'No EID 1/3/7/11 - image loads, network connections, and file writes are invisible.' });
+  if (l.psScriptBlock === false) gaps.push({ id: 'ps4104', label: 'PowerShell script block logging off', impact: 'No 4104 - encoded and obfuscated PowerShell cannot be reconstructed.' });
   if (l.cmdLineAudit === false) gaps.push({ id: 'cmdline', label: 'Process command line auditing off', impact: '4688 without CommandLine is nearly useless for detection.' });
-  if (l.shareAudit === false) gaps.push({ id: 'share5145', label: 'Detailed file share auditing off', impact: 'No 5145 — lateral movement over SMB and share enumeration are unseen.' });
+  if (l.shareAudit === false) gaps.push({ id: 'share5145', label: 'Detailed file share auditing off', impact: 'No 5145 - lateral movement over SMB and share enumeration are unseen.' });
   return gaps;
 }
 
@@ -486,7 +486,7 @@ const credOf = (req, u) => bearer(req) || (u && u.searchParams.get('token')) || 
  * Resolve the caller to an actor, or null when unauthenticated.
  *
  * Two credentials are accepted, always:
- *  - the shared analyst token — kept working unconditionally so existing
+ *  - the shared analyst token - kept working unconditionally so existing
  *    deployments, scripts and integrations never break. It carries the top
  *    role, i.e. it is the break-glass/automation credential.
  *  - a session token from POST /api/login, when accounts are enabled.
@@ -504,7 +504,7 @@ function actorOf(req, u) {
   return user ? { id: user.id, name: user.name, role: user.role, shared: false } : null;
 }
 const isAnalyst = (req, u) => !!actorOf(req, u);
-/** 403 helper — returns true (and responds) when the actor lacks the capability. */
+/** 403 helper - returns true (and responds) when the actor lacks the capability. */
 function denied(res, actor, cap) {
   if (actor && can(actor.role, cap)) return false;
   json(res, 403, { error: `permission denied: ${(actor && actor.role) || 'anonymous'} lacks ${cap}` });
@@ -543,9 +543,23 @@ const server = http.createServer(async (req, res) => {
       // including into inline handlers. Constrain it before it is stored.
       const hostname = ident(b.hostname, 128);
       if (!hostname) return json(res, 400, { error: 'hostname required (letters, digits, dot, dash)' });
+      // Optional: a random id the agent generates once and persists locally,
+      // independent of hostname. Older agents will not send one - that is
+      // fine, see the collision check below.
+      const machineId = ident(b.machineId, 64);
 
-      // re-enrolling the same hostname reuses the record (agent reinstall)
+      // re-enrolling the same hostname normally reuses the record (agent
+      // reinstall) - but hostname alone proves nothing. Default/cloned
+      // hostnames (DESKTOP-XXXXX, unsysprepped VM templates) collide across
+      // unrelated machines constantly, and anyone holding the enrollment
+      // token could otherwise claim an existing hostname and silently take
+      // over that agent's identity, invalidating its real key. If this
+      // record already carries a persisted machine identity and the incoming
+      // one disagrees, treat it as a different machine, not a reinstall.
       let a = Object.values(AGENTS).find(x => x.hostname.toLowerCase() === hostname.toLowerCase());
+      const collision = !!(a && a.machineId && machineId && a.machineId !== machineId);
+      if (collision) a = null;
+      const isNew = !a;
       if (!a) {
         a = { id: uid('ag_'), enrolledAt: now(), eventCount: 0, counters: {} };
         AGENTS[a.id] = a;
@@ -554,11 +568,18 @@ const server = http.createServer(async (req, res) => {
       a.hostname = hostname; a.os = ident(b.os, 32) || 'unknown'; a.ip = ident(b.ip, 45);
       a.roles = (Array.isArray(b.roles) ? b.roles : []).slice(0, 20).map(r => ident(r, 32)).filter(Boolean);
       a.version = ident(b.version, 32);
+      if (machineId) a.machineId = machineId;
       a.nodeType = inferNodeType(a); a.zone = inferZone(a);
       a.lastSeen = now();
       saveAgents();
       broadcast('agent', publicAgent(a));
-      console.log(`[aegis] enrolled ${a.hostname} (${a.id})`);
+      if (collision) {
+        console.warn(`[aegis] WARNING: hostname "${a.hostname}" re-enrolled under a different machine identity - `
+          + `created a separate agent record (${a.id}) instead of merging into the existing one. If this is one `
+          + `physical host, remove the stale duplicate from Admin; if it is two hosts sharing a hostname, rename one.`);
+        try { AUDIT.record('system', 'agent.identity-collision', a.id, { hostname: a.hostname }); } catch { }
+      }
+      console.log(`[aegis] ${isNew ? 'enrolled' : 're-enrolled'} ${a.hostname} (${a.id})`);
       return json(res, 200, { agentId: a.id, agentKey: a.key, heartbeat: 60 });
     }
 
@@ -567,7 +588,7 @@ const server = http.createServer(async (req, res) => {
       const a = agentFrom(req); if (!a) return json(res, 401, { error: 'unauthorized' });
       const b = await readBody(req);
       a.lastSeen = now();
-      // peers this host actually talks to — real adjacency, not guesswork
+      // peers this host actually talks to - real adjacency, not guesswork
       if (Array.isArray(b.peers)) {
         a.peers = b.peers.slice(0, 200).map(x => ({
           ip: String(x.ip || '').slice(0, 45),
@@ -576,7 +597,7 @@ const server = http.createServer(async (req, res) => {
           proto: String(x.proto || '').slice(0, 8),
         }));
       }
-      // what this host is actually logging — drives the gap report
+      // what this host is actually logging - drives the gap report
       if (b.logging && typeof b.logging === 'object') a.logging = b.logging;
       if (Array.isArray(b.listening)) a.listening = b.listening.slice(0, 100);
       saveAgents();
@@ -613,7 +634,7 @@ const server = http.createServer(async (req, res) => {
           host: a.hostname,
           // These four are rendered into HTML attributes and inline handlers by
           // the console, so they are constrained to identifier characters here.
-          // `message` is free text and is escaped at render instead — it is
+          // `message` is free text and is escaped at render instead - it is
           // never placed in an attribute.
           channel: ident(raw.channel, 64) || 'unknown',
           eventId: ident(raw.eventId, 32),
@@ -670,7 +691,7 @@ const server = http.createServer(async (req, res) => {
 
     /* First-run bootstrap. A server that demands a login but has no accounts is
        a locked door with no key cut yet, so the very first account can be
-       created without one — and ONLY that one. The moment a user exists this
+       created without one - and ONLY that one. The moment a user exists this
        returns 409 and account creation goes back through /api/users, which
        requires the user.manage capability. */
     if (p === '/api/auth/bootstrap' && req.method === 'POST') {
@@ -679,7 +700,7 @@ const server = http.createServer(async (req, res) => {
       // unauthenticated account-creation endpoint would sit open forever and
       // hand a full session to whoever found it first.
       if (!CFG.requireLogin) return json(res, 404, { error: 'this server does not use accounts' });
-      if (USERS.length) return json(res, 409, { error: 'this server already has accounts — sign in, or ask a lead to create one for you' });
+      if (USERS.length) return json(res, 409, { error: 'this server already has accounts - sign in, or ask a lead to create one for you' });
       const b = await readBody(req);
       let user;
       try { user = makeUser(b.name, b.password, 'lead'); }   // the first account leads, or nobody can create the second
@@ -695,7 +716,7 @@ const server = http.createServer(async (req, res) => {
       const b = await readBody(req);
       const key = LoginLimiter.key(clientIp(req), b.name);
       const wait = LOGINS.blockedFor(key);
-      if (wait) return json(res, 429, { error: `too many attempts — wait ${wait}s` });
+      if (wait) return json(res, 429, { error: `too many attempts - wait ${wait}s` });
       const user = findUser(USERS, b.name);
       // Same response and same work either way: never reveal which half was wrong.
       if (!user || !verifyPw(b.password || '', user)) {
@@ -724,7 +745,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     /* User administration. Requires user.manage, so the analyst token (or a
-       lead) can create the first account — otherwise enabling requireLogin
+       lead) can create the first account - otherwise enabling requireLogin
        would lock everyone out with no way back in. */
     if (p === '/api/users' && req.method === 'GET') {
       const a = actorOf(req, u); if (denied(res, a, 'user.manage')) return;
@@ -805,7 +826,7 @@ const server = http.createServer(async (req, res) => {
       const titles = {};
       for (const c of CASES) titles[c.id] = `#${c.num} ${c.title}`;
       for (const t of TICKETS) titles[t.id] = t.title || '';
-      // The chain records actor IDs, not names — nobody recognises `u_Kw80BJ9a`.
+      // The chain records actor IDs, not names - nobody recognises `u_Kw80BJ9a`.
       const names = { 'analyst-token': 'analyst token' };
       for (const usr of USERS) names[usr.id] = usr.name;
       const limit = Math.min(200, Math.max(1, Number(u.searchParams.get('limit')) || 60));
@@ -837,7 +858,7 @@ const server = http.createServer(async (req, res) => {
     if (mAgent && req.method === 'PATCH') {
       const a = AGENTS[mAgent[1]]; if (!a) return json(res, 404, { error: 'no such agent' });
       const b = await readBody(req);
-      // Same constraint as enrollment — an analyst correcting a hostname is
+      // Same constraint as enrollment - an analyst correcting a hostname is
       // still writing a value that gets rendered into the console.
       if (b.nodeType) a.nodeType = ident(b.nodeType, 32);
       if (b.zone) a.zone = ident(b.zone, 48);
@@ -903,7 +924,7 @@ const server = http.createServer(async (req, res) => {
         includeInFormal: false,
         formalSummary: '',
         // Attribution comes from the authenticated actor, never the request
-        // body — with accounts on, "who did this" is now actually verified.
+        // body - with accounts on, "who did this" is now actually verified.
         // The shared analyst token still reports as 'analyst', as before.
         createdBy: actor.shared ? (b.createdBy || 'analyst') : actor.name,
         createdById: actor.id,
@@ -930,7 +951,7 @@ const server = http.createServer(async (req, res) => {
         if (b[k] !== undefined) t[k] = b[k];
       }
       // Curating what reaches a client-facing report is a lead's call, not
-      // the raising analyst's — so these two need report.finalize, whether
+      // the raising analyst's - so these two need report.finalize, whether
       // or not the ticket is your own.
       if (b.includeInFormal !== undefined || b.formalSummary !== undefined) {
         if (denied(res, actor, 'report.finalize')) return;
@@ -1076,7 +1097,7 @@ const server = http.createServer(async (req, res) => {
       if (!text) return json(res, 400, { error: 'empty message' });
       const m = {
         id: uid('m_'),
-        // Attribution from the session, never the body — same rule as
+        // Attribution from the session, never the body - same rule as
         // tickets and cases.
         from: actor.shared ? 'analyst token' : actor.name,
         fromId: actor.id,
@@ -1124,17 +1145,32 @@ setInterval(() => {
 }, 30000);
 
 /* rotate the event log so it cannot grow without bound */
-setInterval(() => {
+setInterval(async () => {
   try {
-    const st = fs.statSync(F.events);
+    const st = await fs.promises.stat(F.events);
     if (st.size > (CFG.maxEventFileMB || 256) * 1024 * 1024) {
       const keep = EVENTS.slice(-2000).map(e => JSON.stringify(e)).join('\n') + '\n';
-      fs.writeFileSync(F.events + '.1', fs.readFileSync(F.events));
-      fs.writeFileSync(F.events, keep);
-      console.log('[aegis] rotated events.ndjson');
+      // Two generations, not one: always clobbering the same .1 file means a
+      // second rotation before anyone looks destroys the only backup along
+      // with the live file it was meant to protect against.
+      try { await fs.promises.rename(F.events + '.1', F.events + '.2'); } catch { }
+      await fs.promises.copyFile(F.events, F.events + '.1');
+      await fs.promises.writeFile(F.events, keep);
+      console.log(`[aegis] rotated events.ndjson (kept the last ${Math.min(2000, EVENTS.length)} events in memory)`);
     }
-  } catch { }
+  } catch (e) {
+    // This was a bare `catch {}` before - a rotation that fails (disk full,
+    // permissions) failed silently forever, defeating the one thing this
+    // timer exists to guarantee. Loud is correct here.
+    console.error('[aegis] event log rotation failed:', e.message);
+  }
 }, 300000);
+
+/* sweep expired login-lockout entries so a scanner trying random usernames
+   cannot grow this map forever - each entry only self-clears if the same key
+   is tried again after its window lapses, which an attacker moving on from a
+   guessed name will never do. */
+setInterval(() => LOGINS.sweep(), 600000);
 
 process.on('SIGINT', () => { console.log('\n[aegis] shutting down'); saveAgents(); saveTickets(); evStream.end(); process.exit(0); });
 
@@ -1156,7 +1192,7 @@ function reachableUrls() {
 server.on('error', err => {
   if (err.code === 'EADDRINUSE') {
     console.error(`\n  Port ${CFG.port} is already in use.`);
-    console.error('  AEGIS is probably already running — check http://127.0.0.1:' + CFG.port);
+    console.error('  AEGIS is probably already running - check http://127.0.0.1:' + CFG.port);
     console.error(`  If not, stop whatever is using the port, or set a different`);
     console.error('  "port" in server/config.json.\n');
     process.exit(1);
@@ -1185,7 +1221,7 @@ server.listen(CFG.port, CFG.host, () => {
   resolveProvider(CFG.llm).then(prov => {
     LLM_PROVIDER = prov;
     if (prov) console.log(`  local AI      ${prov.name} · ${prov.model || '(no model pulled yet)'}${CFG.llm.watch ? ' · watching' : ''}`);
-    else console.log('  local AI      none detected  (see LOCAL-AI.md — optional)');
+    else console.log('  local AI      none detected  (see LOCAL-AI.md - optional)');
   }).catch(() => {});
   console.log(`\n  enrollment token : ${CFG.enrollmentToken}`);
   console.log(`  analyst token    : ${CFG.analystToken}`);

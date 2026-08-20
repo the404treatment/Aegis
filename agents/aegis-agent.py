@@ -5,12 +5,17 @@ AEGIS Linux/macOS agent.
 Read-only by design: reads journald/auth logs and reports host facts. It does
 not accept commands from the server and has no exec path.
 
-  ./aegis-agent.py --server https://aegis.internal:8787 --token <enrollment>
-  ./aegis-agent.py --server ... --token ... --once      # for cron/systemd timer
+  sudo python3 aegis-agent.py --server https://aegis.internal:8787 --token <enrollment>
+  sudo python3 aegis-agent.py --server ... --token ... --once   # for cron/systemd timer
+
+Invoke it through python3 rather than ./aegis-agent.py unless you know the
+executable bit survived: a ZIP download of the repository does not preserve
+it, and ./aegis-agent.py then fails with "command not found", which reads as
+though the file is missing rather than merely not executable.
 
 State (agent id + key) lives in /etc/aegis/agent.json, chmod 600.
 """
-import argparse, json, os, platform, re, socket, subprocess, sys, time
+import argparse, json, os, platform, re, socket, subprocess, sys, time, uuid
 import urllib.request, urllib.error
 
 VERSION = "1.0.0"
@@ -155,11 +160,28 @@ def call(server, path, body=None, headers=None, method="POST", timeout=30):
         return json.loads(r.read() or b"{}")
 
 
+def machine_id():
+    """A random id generated once and kept alongside the enrollment state,
+    independent of hostname. The server uses this to tell "this machine
+    reinstalled the agent" apart from "a different machine claims the same
+    hostname" - default and cloned hostnames collide across unrelated fleets
+    constantly, and hostname alone used to be the only signal it had.
+    Survives a normal reinstall (STATE_DIR is untouched); does not survive a
+    full OS reimage, which is the point - that really is a different machine
+    as far as this identity is concerned."""
+    st = load_state()
+    if st and st.get("machineId"):
+        return st["machineId"]
+    return str(uuid.uuid4())
+
+
 def enroll(server, token):
     f = host_facts()
     f["enrollmentToken"] = token
+    mid = machine_id()
+    f["machineId"] = mid
     r = call(server, "/api/enroll", f)
-    st = {"agentId": r["agentId"], "agentKey": r["agentKey"], "server": server, "cursor": ""}
+    st = {"agentId": r["agentId"], "agentKey": r["agentKey"], "server": server, "cursor": "", "machineId": mid}
     save_state(st)
     log(f"enrolled as {r['agentId']}")
     return st

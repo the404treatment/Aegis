@@ -4,7 +4,7 @@
  *
  *  1. Sessions are BEARER TOKENS, not cookies. Skyhawk is a server-rendered
  *     app; AEGIS is a static SPA that already talks to the server with
- *     `Authorization: Bearer` and — because EventSource cannot set headers —
+ *     `Authorization: Bearer` and - because EventSource cannot set headers -
  *     a `?token=` query param on the SSE stream. Cookies would break that
  *     path and drag in CORS credential handling for no gain, so a session is
  *     just a revocable, per-user token used exactly where the shared analyst
@@ -49,7 +49,7 @@ export function verifyPw(pw, u) {
   } catch { return false; }
 }
 
-/** The shape safe to hand back to a browser — never salt/hash. */
+/** The shape safe to hand back to a browser - never salt/hash. */
 export const publicUser = u => ({ id: u.id, name: u.name, role: u.role, caps: capsFor(u.role) });
 
 /* ----------------------------------------------------------------- sessions */
@@ -84,7 +84,7 @@ export class Sessions {
     return s.userId;
   }
   revoke(token) { return this.map.delete(token); }
-  /** Kill every session for one user — used when a password changes. */
+  /** Kill every session for one user - used when a password changes. */
   revokeUser(userId) {
     let n = 0;
     for (const [t, s] of this.map) if (s.userId === userId) { this.map.delete(t); n++; }
@@ -120,6 +120,15 @@ export class LoginLimiter {
     return e;
   }
   reset(key) { this.attempts.delete(key); }
+  /** Drop entries that are neither inside their counting window nor still
+      locked - a key that is only ever tried once (a scanner moving through
+      random usernames) would otherwise sit here forever, since nothing
+      revisits it to trigger the window-expiry reset in fail(). */
+  sweep(now = Date.now()) {
+    for (const [key, e] of this.attempts) {
+      if (now - e.first > this.windowMs && now > e.lockUntil) this.attempts.delete(key);
+    }
+  }
 }
 
 /* -------------------------------------------------------------------- users */
