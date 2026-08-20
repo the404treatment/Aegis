@@ -11,7 +11,13 @@ STYLE: Direct, technical, zero fluff. Production-ready SPL with exact field name
 
 Available Windows events: 4624, 4625, 4657, 4663, 4672, 4688, 4698, 4719, 4720, 4732, 4740, 4769, 5140, 5145, 5156, 7045, 1102. AWS: ConsoleLogin, AssumeRole, CreateUser, CreateAccessKey, AttachRolePolicy, StopLogging, DeleteTrail, GetSecretValue, ListBuckets (enum), GetObject (S3). Note where a detection needs Sysmon, email gateway, proxy, or S3 data events beyond these.
 
-The AEGIS app can export a risk-based alerting (RBA) package: each detection writes a scored risk event (risk_score, risk_object, mitre_tactic, mitre_technique) into index=risk via | collect, and one correlation search sums risk per entity and fires when it crosses a threshold across multiple tactics. When the analyst asks about reducing alert volume or improving fidelity, recommend and build on this RBA pattern using | collect index=risk and the aggregation correlation search.`;
+The AEGIS app can export a risk-based alerting (RBA) package: each detection writes a scored risk event (risk_score, risk_object, mitre_tactic, mitre_technique) into index=risk via | collect, and one correlation search sums risk per entity and fires when it crosses a threshold across multiple tactics. When the analyst asks about reducing alert volume or improving fidelity, recommend and build on this RBA pattern using | collect index=risk and the aggregation correlation search.
+
+ACCURACY (hard rules - a SOC acts on what you say, so a confident wrong answer is worse than no answer):
+- Only state what you actually know or can derive from the analyst's context. Do NOT invent hostnames, usernames, event IDs, field names, IPs, timestamps, or findings that were not given to you. If the context does not contain something, say it is not in the data rather than filling it in.
+- If a question is ambiguous, underspecified, or looks like random/garbled input, ask one short clarifying question instead of guessing. Never fabricate a scenario to answer a question you did not understand.
+- If you are not confident, say so plainly ("I can't tell from the data here") and state what you'd need. Do not manufacture a plausible-sounding answer.
+- Reference real MITRE technique IDs in the form T1234 or T1234.001 so the console can link them; do not invent IDs.`;
 
 function askAboutTech(id){
  closeDrawer();go('ai');
@@ -351,8 +357,25 @@ function addMsg(role,content){
  const hello=document.getElementById('chat-hello');if(hello)hello.style.display='none';
  const c=document.getElementById('chat');const d=document.createElement('div');
  d.className='m '+(role==='user'?'u':'a');
- d.innerHTML=`<div class="m-tag">${role==='user'?'ANALYST':'AEGIS AI'}</div><div class="m-body">${role==='user'?esc(content):mdToHtml(content)}</div>`;
+ d.innerHTML=`<div class="m-tag">${role==='user'?'ANALYST':'AEGIS AI'}</div><div class="m-body">${role==='user'?esc(content):aiLinkify(mdToHtml(content))}</div>`;
  c.appendChild(d);c.scrollTop=c.scrollHeight;return d;
+}
+/* Make the technique IDs the AI mentions clickable - one tap jumps to that
+   technique's full strategy in the matrix. Only touches real tracked IDs, and
+   skips anything inside a code block so SPL is left exactly as written. */
+function aiLinkify(html){
+ return String(html).split(/(<pre[\s\S]*?<\/pre>)/).map(seg=>{
+  if(seg.slice(0,4)==='<pre')return seg;
+  return seg.replace(/\bT\d{4}(?:\.\d{3})?\b/g,m=>{
+   const known=(typeof MITRE!=='undefined')&&(MITRE[m]||MITRE[m.split('.')[0]]);
+   return known?`<a class="ai-tlink" onclick="aiJumpTech('${m}')">${m}</a>`:m;
+  });
+ }).join('');
+}
+/* Jump to a technique's strategy page; sub-techniques resolve to their parent. */
+function aiJumpTech(id){
+ const tid=(MITRE[id]?id:(MITRE[id.split('.')[0]]?id.split('.')[0]:null));
+ if(tid){go('matrix');openDrawer(tid);}else toast(id+' - not a tracked technique');
 }
 function mdToHtml(t){
  return t
