@@ -211,9 +211,9 @@ if (!wantLocal) {
   console.log('');
   console.log(c.b('  Deploy an agent'));
   line();
-  console.log('  Windows endpoint, in an ' + c.b('admin') + ' PowerShell:');
-  console.log(c.cy(`    .\\aegis-agent.ps1 -Server ${serverUrl} \``));
-  console.log(c.cy(`      -EnrollmentToken ${enrollmentToken} -Install`));
+  console.log('  Windows endpoint, in ' + c.b('any') + ' PowerShell (it self-elevates):');
+  console.log(c.cy(`    powershell -ExecutionPolicy Bypass -File agents\\aegis-agent.ps1 \``));
+  console.log(c.cy(`      -Server ${serverUrl} -EnrollmentToken ${enrollmentToken} -Install`));
   console.log('');
   console.log('  Linux/macOS endpoint, as root:');
   // Invoked through python3 rather than ./aegis-agent.py on purpose: a ZIP
@@ -227,4 +227,58 @@ if (!wantLocal) {
   console.log(c.y('  These tokens are secrets. The server has no TLS of its own, so on an'));
   console.log(c.y('  untrusted network put a TLS proxy in front - see deploy/README-deploy.md.'));
 }
+
+/* ---- Local AI, as part of initial setup ----
+   The two AI surfaces (the Analyst tab and the floating assistant) run on a
+   model on THIS host - no API key, nothing leaves the machine. We can't bundle
+   a runtime (auto-installing someone else's binary is the supply-chain risk
+   AEGIS exists to help spot, so setup-local-ai.mjs won't do it either), but we
+   CAN detect one that's already here and pull a model straight away, so "ready
+   to go on first setup" holds whenever a runtime is present. */
+async function probeLocalAI() {
+  const tryUrl = async (url, ms = 700) => {
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
+    try { const r = await fetch(url, { signal: ac.signal }); clearTimeout(t); return r.ok ? r : null; }
+    catch { clearTimeout(t); return null; }
+  };
+  // Ollama first (what ai:setup targets), then LM Studio / Jan / llama.cpp.
+  const ol = await tryUrl('http://127.0.0.1:11434/api/tags');
+  if (ol) { try { const j = await ol.json(); return { runtime: 'Ollama', models: (j.models || []).map(m => m.name) }; } catch { return { runtime: 'Ollama', models: [] }; } }
+  for (const [name, url] of [['LM Studio', 'http://127.0.0.1:1234/v1/models'], ['llama.cpp / Jan', 'http://127.0.0.1:8080/v1/models']]) {
+    const r = await tryUrl(url);
+    if (r) { try { const j = await r.json(); return { runtime: name, models: (j.data || []).map(m => m.id) }; } catch { return { runtime: name, models: [] }; } }
+  }
+  return null;
+}
+function askYesNo(q) {
+  if (!process.stdin.isTTY) return Promise.resolve(false);
+  return new Promise(resolve => {
+    process.stdout.write(q);
+    process.stdin.setEncoding('utf8'); process.stdin.resume();
+    process.stdin.once('data', d => { process.stdin.pause(); resolve(/^\s*y(es)?\s*$/i.test(String(d)) || /^\s*$/.test(String(d))); });
+  });
+}
+
+console.log('');
+console.log(c.b('  Local AI') + c.dim('  (optional - the console works fully without it)'));
+line();
+const ai = await probeLocalAI();
+if (ai && ai.models.length) {
+  console.log(`  ${c.g('Ready')} - ${ai.runtime} is running with ${ai.models.length} model${ai.models.length === 1 ? '' : 's'} (${c.dim(ai.models.slice(0, 3).join(', '))}).`);
+  console.log(c.dim('  The AI Analyst tab and the floating assistant will use it. Nothing leaves this host.'));
+} else if (ai) {
+  console.log(`  ${ai.runtime} is running but no model is pulled yet.`);
+  const go = await askYesNo('  Pull a suitable model now? (~2GB, from Hugging Face via the runtime) [Y/n] ');
+  if (go) {
+    try { execFileSync(process.execPath, ['setup-local-ai.mjs'], { stdio: 'inherit' }); }
+    catch { console.log(c.y('  The model pull did not finish - you can retry with: npm run ai:setup')); }
+  } else {
+    console.log(c.dim('  Skipped. Pull one any time with:  ') + c.cy('npm run ai:setup'));
+  }
+} else {
+  console.log(c.dim('  No local inference runtime detected. To add AI, install one (Ollama is'));
+  console.log(c.dim('  easiest) and run:  ') + c.cy('npm run ai:setup'));
+  console.log(c.dim('  It installs nothing without your say-so. See LOCAL-AI.md for the 2-minute version.'));
+}
+
 console.log('');
