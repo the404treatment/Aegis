@@ -46,6 +46,27 @@ function coToggle(){
    question asked from the floating assistant, so answers are about THIS page,
    not generic. It also tells the model to clarify unclear input rather than
    run with it. */
+/* A compact snapshot of what the telemetry ACTUALLY shows right now, so the AI
+   answers from real current state instead of guessing. Kept short - a local
+   model reasons worse the more you cram in - and only real facts go in, which
+   is the point: it can't hallucinate an incident it's told the true picture of. */
+function liveSituationSummary(){
+ if(!(typeof LIVE!=='undefined'&&LIVE&&LIVE.connected))return '';
+ const agents=LIVE.agents||[];
+ const online=agents.filter(a=>!a.stale).length;
+ const recent=(LIVE.events||[]).filter(e=>!e.self).slice(-40);
+ const mal=recent.filter(e=>e.severity==='malicious');
+ const openTk=(LIVE.tickets||[]).filter(t=>t.status!=='closed').length;
+ const lines=[`Agents: ${online}/${agents.length} reporting.`];
+ if(mal.length){
+  const byHost={};mal.forEach(e=>{(byHost[e.host||'?']=byHost[e.host||'?']||[]).push((e.eventId||'')+(e.technique?'/'+e.technique:''));});
+  lines.push(`Recent malicious telemetry (${mal.length}): `+Object.entries(byHost).slice(0,5).map(([h,ids])=>`${h} [${[...new Set(ids)].slice(0,4).join(', ')}]`).join('; ')+'.');
+ }else{
+  lines.push('No malicious telemetry in the recent buffer.');
+ }
+ if(openTk)lines.push(`${openTk} open ticket${openTk===1?'':'s'}.`);
+ return '\n\n[Live situation right now - these are the real facts; do not contradict or invent beyond them]\n'+lines.join('\n');
+}
 function coPageContext(){
  const names={dash:'the live dashboard',matrix:'the ATT&CK matrix',logsrc:'the network map',siem:'event search',cases:'a case file',tickets:'the ticket queue',studio:'the detection studio',ai:'the AI Analyst',admin:'the admin panel'};
  const where=(typeof view!=='undefined'&&names[view])||'AEGIS';
@@ -54,6 +75,7 @@ function coPageContext(){
   if(typeof view!=='undefined'&&view==='logsrc'&&typeof incidentContext==='function'){const ic=incidentContext();if(ic)extra+='\n\n[What is on the hunt map]\n'+ic;}
   if(typeof view!=='undefined'&&(view==='matrix'||view==='studio')&&typeof mappingContext==='function'){const mc=mappingContext();if(mc)extra+='\n\n[Staged detections]\n'+mc;}
  }catch{}
+ try{extra+=liveSituationSummary();}catch{}
  return `[Context: the analyst is looking at ${where} in AEGIS. Answer about that unless they ask otherwise. If their message is unclear, empty of meaning, or looks like random keystrokes, ask one short clarifying question instead of guessing.]${extra}`;
 }
 
