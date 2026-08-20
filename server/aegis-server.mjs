@@ -189,7 +189,7 @@ const saveUsers = () => writeJson(F.users, USERS);
 // account-creation form. Skipped once any account exists, so it never
 // resurrects a deleted default or overrides a real deployment's own accounts.
 if (CFG.requireLogin && CFG.seedDefaultAccounts && USERS.length === 0) {
-  if (seedDefaultAccounts(USERS)) { saveUsers(); console.log('[aegis] seeded default logins: admin/admin123 (lead), user/user123 (analyst) - change these for any networked deployment'); }
+  if (seedDefaultAccounts(USERS)) { saveUsers(); console.log('[aegis] seeded default logins: admin1/2/3 (lead) and user1/2/3 (analyst), all password Password123! - change these for any networked deployment'); }
 }
 const SESSIONS = new Sessions().load(readJson(F.sessions, []));
 const saveSessions = () => writeJson(F.sessions, SESSIONS.all());
@@ -1279,7 +1279,7 @@ server.listen(CFG.port, CFG.host, () => {
   if (CFG.requireLogin) {
     if (seeded.length) {
       console.log('      Sign in with a ready-made account:');
-      seeded.forEach(u => console.log(`        ${u.name.padEnd(6)} / ${u.name}123   (${u.role})`));
+      seeded.forEach(u => console.log(`        ${u.name.padEnd(7)} / Password123!   (${u.role})`));
       console.log('      Change these in Admin > Accounts before putting this on a network.');
     } else if (USERS.length) {
       console.log('      Sign in with your account.');

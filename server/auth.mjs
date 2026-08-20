@@ -160,9 +160,20 @@ export function makeUser(name, password, role, opts = {}) {
    two-button "who are you" prompt. Weak on purpose - a laptop's AEGIS console
    is not internet-facing, and a real deployment changes these or adds named
    accounts. Idempotent: only fills a name that does not already exist. */
+/* One standardised password across every seeded account, admins and analysts
+   alike - a deliberate choice for a local range where the point is fast,
+   frictionless multi-user access, not credential secrecy. Three of each so a
+   handful of people can each sign in under their own name at once. Meets the
+   length floor, so no seed bypass is needed. Change or remove them in Admin
+   for anything networked. */
+export const STANDARD_PASSWORD = 'Password123!';
 export const DEFAULT_ACCOUNTS = [
-  { name: 'admin', password: 'admin123', role: 'lead' },
-  { name: 'user', password: 'user123', role: 'analyst' },
+  { name: 'admin1', password: STANDARD_PASSWORD, role: 'lead' },
+  { name: 'admin2', password: STANDARD_PASSWORD, role: 'lead' },
+  { name: 'admin3', password: STANDARD_PASSWORD, role: 'lead' },
+  { name: 'user1', password: STANDARD_PASSWORD, role: 'analyst' },
+  { name: 'user2', password: STANDARD_PASSWORD, role: 'analyst' },
+  { name: 'user3', password: STANDARD_PASSWORD, role: 'analyst' },
 ];
 export function seedDefaultAccounts(users) {
   let added = 0;

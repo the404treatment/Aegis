@@ -37,16 +37,13 @@ let _authDefaults=[];
    the console open with no session, which is the reported bypass. Set true by
    the callers that open the veil as a hard gate. */
 let _authMandatory=false;
-/* The well-known seed passwords, so the picker can prefill them. These are
-   public defaults by design (see server/auth.mjs) - a laptop console, not a
-   secret. A real deployment changes them and the picker disappears. */
-const AUTH_DEFAULT_PW={admin:'admin123',user:'user123'};
-
 function openLogin(msg,opts){
  opts=opts||{};
  const first=!!_authNeedsSetup;
  const gate=!!_authMandatory && !ME;   // hard gate: no escape hatch to a session-less console
- const picker=(!first && _authDefaults && _authDefaults.length)?_authDefaults:null;
+ // The seeded account names, listed as a hint so an analyst knows what to
+ // type - but nothing is filled in for them. Both fields start blank.
+ const hint=(!first && _authDefaults && _authDefaults.length)?_authDefaults:null;
  let v=document.getElementById('auth-veil');
  if(!v){v=document.createElement('div');v.id='auth-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
  v.innerHTML=`<div class="ls-det-sheet" style="width:min(420px,100vw)">
@@ -56,21 +53,16 @@ function openLogin(msg,opts){
     ?'This server has no accounts yet. The first one you create is a <b>lead</b>, so it can add everyone else. Work is recorded against the person who did it - that is what makes the case file worth anything later.'
     :'Sign in for live agent data, shared tickets, cases and event search. Everything offline in AEGIS keeps working without an account.'}</div>
   ${msg?`<div class="lint err" style="margin-bottom:10px">${esc(msg)}</div>`:''}
-  ${picker?`<div class="auth-roles">${picker.map(d=>`
-    <button class="auth-role" onclick="authPickRole('${esc(d.name)}')">
-      <span class="auth-role-n">${esc(d.name)}</span>
-      <span class="auth-role-r">${d.role==='lead'?'Admin - can manage users &amp; close tickets':'Analyst - hunt, log, raise tickets'}</span>
-    </button>`).join('')}</div>
-   <div class="ls-det-sub" style="text-align:center;margin:4px 0 10px">Pick who you are, then confirm the password.</div>`:''}
   <label class="ls-ne-label">Server URL</label>
   <input class="ui-dlg-input" id="auth-url" value="${esc(LIVE.url||location.origin)}" placeholder="https://aegis.internal:8787">
   <label class="ls-ne-label">Name</label>
-  <input class="ui-dlg-input" id="auth-name" autocomplete="username" value="${esc(opts.name||'')}" placeholder="${first?'your name - colleagues will see it':'your account name'}">
+  <input class="ui-dlg-input" id="auth-name" autocomplete="off" value="" placeholder="${first?'your name - colleagues will see it':'e.g. admin1 or user1'}">
   <label class="ls-ne-label">Password</label>
-  <input class="ui-dlg-input" id="auth-pw" type="password" autocomplete="${first?'new-password':'current-password'}" placeholder="${first?'at least 10 characters':'password'}"
+  <input class="ui-dlg-input" id="auth-pw" type="password" autocomplete="off" value="" placeholder="${first?'at least 10 characters':'password'}"
     onkeydown="if(event.key==='Enter')${first?'doBootstrap()':'doLogin()'}">
   <button class="btn violet" style="width:100%;justify-content:center;margin-top:12px" id="auth-go"
     onclick="${first?'doBootstrap()':'doLogin()'}">${first?'Create account &amp; sign in':'Sign in'}</button>
+  ${hint?`<div class="auth-hint">Accounts on this box: <b>${hint.map(d=>esc(d.name)).join('</b>, <b>')}</b>. Shared password <code>Password123!</code> - change it in Admin.</div>`:''}
   <div class="ls-det-sub" style="margin-top:12px">${first
     ?'Already have an account on another server? <a href="#" onclick="authSwitchServer();return false">Change the server URL</a> above and try again.'
     :(gate?'':'Automating something, or locked out? <a href="#" onclick="closeLogin();openLiveSetup();return false">Use an analyst token</a>.')}</div>
@@ -79,15 +71,6 @@ function openLogin(msg,opts){
  // Only wire backdrop-dismiss when this is not a hard gate.
  v.onclick=gate?null:(e)=>{if(e.target===v)closeLogin();};
  setTimeout(()=>{const n=document.getElementById('auth-name');if(n&&n.focus)n.focus();},60);
-}
-/* One-click role: fill the name and the known default password, and either sign
-   in straight away or focus the password so the operator confirms it. We keep
-   the confirm step because the ask was an explicit "are you admin or user"
-   gate, not a passwordless door. */
-function authPickRole(name){
- const n=document.getElementById('auth-name');if(n)n.value=name;
- const pw=document.getElementById('auth-pw');
- if(pw){pw.value=AUTH_DEFAULT_PW[name]||'';pw.focus();pw.select&&pw.select();}
 }
 /* Closing is only allowed when the veil is not a hard gate. On a login-required
    server with no session, this is a no-op - there is nothing behind it to reach. */
@@ -171,7 +154,12 @@ async function doLogout(){
  if(!await uiConfirm('Sign out of this server? The console keeps working offline.',{title:'Sign out',ok:'Sign out'}))return;
  try{await liveApi('/api/auth/logout',{method:'POST'});}catch{}
  ME=null;LIVE.token='';liveSave();liveDisconnect();
- authRenderWho();toast('Signed out');
+ authRenderWho();
+ // A voluntary sign-out is not the hard auto-connect gate: reopen login as a
+ // dismissable dialog so signing back in is one click, not a hunt through a
+ // greyed-out console. Dismiss it to stay in offline/local mode.
+ _authMandatory=false;
+ openLogin('Signed out. Sign back in, or close this to keep working offline.');
 }
 
 /** Admin is lead-only, and hidden rather than shown-and-refused - a nav item
@@ -189,7 +177,12 @@ function authRenderNav(){
 function authRenderWho(){
  authRenderNav();
  const el=document.getElementById('who-ind');if(!el)return;
- if(!ME||!LIVE.connected){el.className='who-ind';el.innerHTML='';el.onclick=null;return;}
+ if(!ME||!LIVE.connected){
+  // Not signed in. If a server is known, show an obvious Sign in chip rather
+  // than a blank space, so the way back in is never hidden.
+  if(LIVE.url){el.className='who-ind signin';el.innerHTML='<span class="who-name">↪ Sign in</span>';el.title='Sign in to AEGIS';el.onclick=()=>{_authMandatory=false;openLogin();};return;}
+  el.className='who-ind';el.innerHTML='';el.onclick=null;return;
+ }
  if(ME.shared){
   el.className='who-ind shared';
   el.innerHTML=`<span class="who-name">analyst token</span><span class="who-role">shared</span>`;

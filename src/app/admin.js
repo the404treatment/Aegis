@@ -147,7 +147,10 @@ function adminUsers(){
 async function adminNewUser(){
  const name=await uiPrompt('Name - colleagues will see this on everything they do','',{title:'Add someone',ok:'Next'});
  if(!name||!name.trim())return;
- const pw=await uiPrompt(`Password for ${name.trim()} (at least 10 characters)`,'',{title:'Add someone',ok:'Create',password:true});
+ // Default to the standard local password so adding people is one field, not
+ // a password-invention exercise. It is pre-filled and editable - clear it to
+ // set a real one for a networked deployment.
+ const pw=await uiPrompt(`Password for ${name.trim()} (standardised for this box - edit if you want a different one)`,'Password123!',{title:'Add someone',ok:'Create',password:true});
  if(!pw)return;
  const lead=await uiConfirm(`Should ${name.trim()} be a lead?\n\nLeads can manage accounts and freeze formal reports. Analysts can do everything else.`,
    {title:'Role',ok:'Make them a lead',cancel:'Analyst'});
