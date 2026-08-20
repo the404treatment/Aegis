@@ -35,11 +35,26 @@ function coIngest(item){
 }
 
 function coToggle(){
+ if(!LIVE.connected){toast('Connect to a server to use the AI - it runs on the AEGIS host');if(typeof openLiveSetup==='function')openLiveSetup();return;}
  if(!CO.available){coExplain();return;}
  coOpen=!coOpen;
  if(coOpen)coUnread=0;
  renderCompanion();
  if(coOpen)setTimeout(()=>{const i=document.getElementById('co-in');if(i)i.focus();},60);
+}
+/* A short note about what the analyst is looking at, prepended to every
+   question asked from the floating assistant, so answers are about THIS page,
+   not generic. It also tells the model to clarify unclear input rather than
+   run with it. */
+function coPageContext(){
+ const names={dash:'the live dashboard',matrix:'the ATT&CK matrix',logsrc:'the network map',siem:'event search',cases:'a case file',tickets:'the ticket queue',studio:'the detection studio',ai:'the AI Analyst',admin:'the admin panel'};
+ const where=(typeof view!=='undefined'&&names[view])||'AEGIS';
+ let extra='';
+ try{
+  if(typeof view!=='undefined'&&view==='logsrc'&&typeof incidentContext==='function'){const ic=incidentContext();if(ic)extra+='\n\n[What is on the hunt map]\n'+ic;}
+  if(typeof view!=='undefined'&&(view==='matrix'||view==='studio')&&typeof mappingContext==='function'){const mc=mappingContext();if(mc)extra+='\n\n[Staged detections]\n'+mc;}
+ }catch{}
+ return `[Context: the analyst is looking at ${where} in AEGIS. Answer about that unless they ask otherwise. If their message is unclear, empty of meaning, or looks like random keystrokes, ask one short clarifying question instead of guessing.]${extra}`;
 }
 
 /** Explain how to get one, rather than a dead button. */
@@ -88,7 +103,7 @@ function coHistory(){
 function coSend(){
  const i=document.getElementById('co-in');if(!i)return;
  const v=i.value.trim();if(!v)return;
- i.value='';coAsk(v);
+ i.value='';coAsk(v,{prompt:coPageContext()+'\n\n'+v});
 }
 
 /** Hand the companion whatever the analyst is looking at right now. */
@@ -99,11 +114,23 @@ function coAskAbout(what,context){
 }
 
 function renderCompanionButton(){
+ // The floating button is the primary way in and is always visible; the
+ // top-bar chip mirrors its state for anyone who prefers it there.
+ const fab=document.getElementById('ai-fab');
+ if(fab){
+  fab.classList.toggle('open',coOpen);
+  fab.classList.toggle('dim',LIVE.connected&&!CO.available);
+  fab.title=!LIVE.connected?'Connect to a server to use the AI'
+    :CO.available?`Ask the AI · ${CO.name}${CO.watch?' · watching telemetry':''}`
+    :'No local model running - click to find out how';
+  const badge=document.getElementById('ai-fab-badge');
+  if(badge){badge.textContent=coUnread?(coUnread>9?'9+':coUnread):'';badge.style.display=coUnread?'flex':'none';}
+ }
  const b=document.getElementById('co-ind');if(!b)return;
  if(!LIVE.connected){b.className='chat-ind';b.innerHTML='';b.onclick=null;return;}
  b.className='chat-ind on'+(coUnread?' unread':'')+(CO.available?'':' dim');
  b.innerHTML=CO.available
-  ?`◈ Companion${coUnread?`<i>${coUnread>9?'9+':coUnread}</i>`:''}`
+  ?`◈ AI${coUnread?`<i>${coUnread>9?'9+':coUnread}</i>`:''}`
   :'◈ Local AI';
  b.title=CO.available
   ?`${CO.name} · ${CO.model}${CO.watch?' · watching telemetry':''}`
@@ -119,13 +146,14 @@ function renderCompanion(){
  if(!coOpen||!CO.available){p.innerHTML='';return;}
  p.innerHTML=`
   <div class="chat-head">
-    <span>Companion <span class="co-model">${esc(CO.model||CO.name)}</span></span>
+    <span>AEGIS AI <span class="co-model">${esc(CO.model||CO.name)}</span></span>
+    <button onclick="go('ai');coToggle()" class="co-expand" data-tip="Open the full AI Analyst">↗</button>
     <button onclick="coToggle()" data-tip="Close">×</button>
   </div>
   <div class="co-body" id="co-body">
     ${coItems.length?coItems.map(it=>coRow(it)).join('')
-      :`<div class="chat-empty">Running locally on ${esc(CO.name)}. Nothing leaves this machine.
-         ${CO.watch?'<br><br>It will comment on suspicious telemetry on its own. You can also just ask it something.':'<br><br>Ask it something.'}</div>`}
+      :`<div class="chat-empty">Same AI as the Analyst tab, running locally on ${esc(CO.name)} - nothing leaves this machine. It knows what you're looking at, so just ask about this page.
+         ${CO.watch?'<br><br>It also comments on suspicious telemetry on its own.':''}</div>`}
     ${coBusy?'<div class="co-row co-reply"><div class="think"><i></i><i></i><i></i></div></div>':''}
   </div>
   <div class="co-foot">
@@ -136,11 +164,14 @@ function renderCompanion(){
  const b=document.getElementById('co-body');if(b)b.scrollTop=b.scrollHeight;
 }
 
+/* Model replies get the same technique-ID linkification as the AI Analyst, so
+   a mentioned T1003 is one tap to its strategy page. Analyst text stays plain. */
+const coFmt=t=>typeof aiLinkify==='function'?aiLinkify(esc(t)):esc(t);
 function coRow(it){
  if(it.kind==='you')return`<div class="co-row co-you"><div class="co-txt">${esc(it.text)}</div></div>`;
  if(it.kind==='error')return`<div class="co-row co-err"><div class="co-txt">${esc(it.text)}</div></div>`;
  if(it.kind==='watch')return`<div class="co-row co-watch co-${esc(it.worst||'suspicious')}">
    <div class="co-tag">unprompted · ${it.events} event${it.events===1?'':'s'}${it.hosts&&it.hosts.length?' · '+esc(it.hosts.join(', ')):''}</div>
-   <div class="co-txt">${esc(it.text)}</div></div>`;
- return`<div class="co-row co-reply"><div class="co-txt">${esc(it.text)}</div></div>`;
+   <div class="co-txt">${coFmt(it.text)}</div></div>`;
+ return`<div class="co-row co-reply"><div class="co-txt">${coFmt(it.text)}</div></div>`;
 }
