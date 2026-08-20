@@ -1,0 +1,22 @@
+# Keeps the build context small and, more importantly, keeps a host's live
+# secrets and incident data from ever being baked into an image layer. If you
+# already have a native install in this same folder, its config.json holds
+# real tokens and server/data holds real tickets, cases and evidence - none
+# of that belongs in an image that might end up pushed to a registry.
+.git/
+node_modules/
+
+server/config.json
+server/data/
+server/service.json
+deploy/config.json
+deploy/data/
+
+ui/index.html
+dist/
+aegis-v3.html
+targets*.json
+*.log
+*.tmp
+__pycache__/
+.DS_Store

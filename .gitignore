@@ -3,12 +3,13 @@ server/data/
 server/config.json
 deploy/data/
 deploy/config.json
+deploy/.env
 ui/index.html
 # Pre-refactor monolith, superseded by src/ + the generated ui/index.html.
 # Kept on disk as a reference but never committed; delete it when you no
 # longer want it locally.
 aegis-v3.html
-# Network scan output. This is an inventory of your internal estate —
+# Network scan output. This is an inventory of your internal estate -
 # hostnames, addresses, which admin ports are open on each. It does not
 # belong in a repository.
 targets*.json

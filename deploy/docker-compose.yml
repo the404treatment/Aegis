@@ -1,7 +1,20 @@
+# config.json must exist in this folder BEFORE `docker compose up` - Docker
+# turns a missing bind-mount source into an empty directory instead of
+# failing loudly, which makes a skipped setup step look like a crash.
+#
+# `node ../docker-setup.mjs` (run from this folder, or `npm run docker:setup`
+# from the repo root) does the config.json setup, the LAN-exposure choice
+# below, and the first `docker compose up -d` in one step. See INSTALL.md's
+# Docker section for that, or for the fully manual walkthrough.
+#
+# AEGIS_BIND/AEGIS_PORT come from an optional .env file in this folder -
+# absent one, this binds to localhost only on the published default port,
+# which is the safe starting point. docker-setup.mjs writes .env for you if
+# you choose LAN exposure or a different port; nothing here needs hand-editing.
 services:
   aegis:
     build: { context: .., dockerfile: deploy/Dockerfile }
-    ports: ["127.0.0.1:8787:8787"]   # bind localhost only; put TLS in front
+    ports: ["${AEGIS_BIND:-127.0.0.1}:${AEGIS_PORT:-8787}:${AEGIS_PORT:-8787}"]
     volumes:
       - ./data:/app/server/data
       - ./config.json:/app/server/config.json:ro

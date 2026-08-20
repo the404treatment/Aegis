@@ -4,10 +4,14 @@
 
 **Docker (recommended)**
 ```bash
-cd deploy
-cp ../server/config.example.json config.json   # edit tokens
-docker compose up -d
+node docker-setup.mjs
 ```
+Writes `deploy/config.json` with real tokens and the container-correct
+paths, asks whether other machines should reach the server (or skip that
+with `--lan` / `--local`), and runs `docker compose up -d`. Doing the same
+by hand needs three easy-to-get-wrong edits to `config.json` - see
+`INSTALL.md`'s Docker section for that manual path, and for the
+Proxmox-specific options.
 
 **systemd**
 ```bash
@@ -22,14 +26,14 @@ Put TLS in front (see `Caddyfile`). Never expose port 8787 directly.
 
 ## Agents at scale
 
-**GPO (Windows)** — Computer Configuration → Policies → Windows Settings →
+**GPO (Windows)** - Computer Configuration → Policies → Windows Settings →
 Scripts → Startup:
 
 ```
 powershell.exe -ExecutionPolicy Bypass -File \\dc01\netlogon\install-agent.ps1 -Server https://aegis.internal:8787 -Token <token>
 ```
 
-**Intune** — package `install-agent.ps1` as a Win32 app, run as system.
+**Intune** - package `install-agent.ps1` as a Win32 app, run as system.
 Detection rule: file exists `%ProgramData%\AEGIS\agent.json`.
 
 **Ansible (Linux)**
@@ -58,7 +62,7 @@ Then set execution policy to `AllSigned` on the endpoints rather than using
 
 ## Enabling named accounts (optional)
 
-By default the analyst token is the only console credential — one shared
+By default the analyst token is the only console credential - one shared
 secret, no user identity. That is unchanged and still supported.
 
 To get per-user logins, roles and real attribution, set `requireLogin: true`
@@ -86,7 +90,7 @@ Two roles:
 
 Notes:
 
-- Sessions are bearer tokens, not cookies — the console already authenticates
+- Sessions are bearer tokens, not cookies - the console already authenticates
   that way, and `EventSource` (the live feed) cannot send custom headers.
 - Sessions last 7 days. Changing or deleting an account revokes its live
   sessions immediately.
@@ -94,7 +98,7 @@ Notes:
   minutes triggers a fifteen-minute lockout, which holds even for the correct
   password.
 - Passwords are scrypt-hashed with a per-user salt. Accounts live in
-  `data/users.json`, sessions in `data/sessions.json` — both inside `dataDir`,
+  `data/users.json`, sessions in `data/sessions.json` - both inside `dataDir`,
   so back them up (and protect them) with the rest of it.
 - There is still no TLS in the server itself. Put the reverse proxy in front
   **before** anyone types a password into it.
@@ -102,7 +106,7 @@ Notes:
 ## Rotate the enrollment token after rollout
 
 It is only needed at first contact. Once agents hold their own keys, change
-`enrollmentToken` in config and restart — existing agents keep working.
+`enrollmentToken` in config and restart - existing agents keep working.
 
 ## Upgrading agents
 
