@@ -12,6 +12,8 @@
 
 let ADMIN = {users:[], sessions:0, chain:null, service:null, deploy:null};
 let _adminBusy=false;
+let admDeployOS='win';   // which deploy-wizard tab is showing
+function admSetDeployOS(os){admDeployOS=os;renderAdmin();}
 
 const adminIsLead = () => authCan('user.manage');
 
@@ -68,29 +70,39 @@ function adminDeploy(){
  // python3 rather than ./aegis-agent.py: a ZIP download loses the executable
  // bit and the ./ form then fails as "command not found".
  const nix=`sudo python3 agents/aegis-agent.py --server ${d.serverUrl} --token ${d.enrollmentToken} --once`;
- const scan=`node discover.mjs --json targets.json && node deploy-agents.mjs --targets targets.json`;
  const q=s=>JSON.stringify(s).replace(/"/g,'&quot;');
+ const cmd=c=>`<div class="qwrap" style="margin:7px 0 0"><div class="qblock">${esc(c)}</div><button class="cpy" onclick="copyText(this,${q(c)})">COPY</button></div>`;
+ const step=(n,title,body)=>`<div class="adm-dstep"><span class="adm-dnum">${n}</span><div class="adm-dstep-b"><b>${title}</b>${body?`<div class="adm-dbody">${body}</div>`:''}</div></div>`;
+ const tab=(id,label)=>`<button class="adm-dtab ${admDeployOS===id?'on':''}" onclick="admSetDeployOS('${id}')">${label}</button>`;
+ let steps='';
+ if(admDeployOS==='win'){
+  steps=step(1,'Get the AEGIS files onto the Windows machine you want to watch','Copy the unzipped AEGIS folder there (or to a share it can read). The agent is one file: <code>agents\\aegis-agent.ps1</code>.')
+   +step(2,'Open PowerShell in that folder and run:',cmd(win))
+   +step(3,'Approve the Windows admin prompt','It needs elevation to read the Security log. No code-signing or execution-policy fiddling - the command handles both. It installs a scheduled task that reports every 5 minutes and survives reboots.')
+   +step(4,'Watch it appear','Within a minute the host shows on your Network Map and its telemetry starts lighting the ATT&CK Matrix.');
+ }else if(admDeployOS==='nix'){
+  steps=step(1,'Get the AEGIS files onto the Linux / macOS host','Run it through <code>python3</code> (a ZIP download loses the executable bit, so <code>./</code> would fail). Stdlib only - nothing to install.')
+   +step(2,'Run it as root:',cmd(nix))
+   +step(3,'Schedule it to keep reporting','The <code>--once</code> form is meant for a cron job or systemd timer every 5 minutes - see <code>deploy/aegis-agent.timer</code> for a ready unit.')
+   +step(4,'Watch it appear','The host joins your Network Map as it starts reporting.');
+ }else{
+  steps=step(1,'From any machine that can reach the targets, scan the network',cmd('node discover.mjs --json targets.json'))
+   +step(2,'Review what it found','Open <code>targets.json</code> and remove anything you should not touch.')
+   +step(3,'Push the agent to everything in the list',cmd('node deploy-agents.mjs --targets targets.json'))
+   +step(4,'Watch them appear','Each enrolled host joins the map, and links between enrolled hosts draw themselves.');
+ }
  return`<div class="adm-sec">
    <div class="adm-sec-h"><span>Deploy an agent</span></div>
    <div class="adm-note">
-     Agents are read-only and push-only - there is no channel for the server, or this
-     console, to reach out and install one on an endpoint. Run one of these from a
-     terminal on the machine you want telemetry from (or, for many machines at once, from
-     any machine with network access to them).
+     Agents are read-only and push-only - nothing here reaches out to install one for you.
+     Pick where you're deploying and follow the steps.
    </div>
-   <div class="sec-t" style="padding:0 15px;margin-top:10px">Windows - PowerShell in the unzipped folder (it will ask for admin)</div>
-   <div class="qwrap" style="margin:6px 15px 0"><div class="qblock">${esc(win)}</div>
-     <button class="cpy" onclick="copyText(this,${q(win)})">COPY</button></div>
-   <div class="sec-t" style="padding:0 15px;margin-top:10px">Linux / macOS, as root</div>
-   <div class="qwrap" style="margin:6px 15px 0"><div class="qblock">${esc(nix)}</div>
-     <button class="cpy" onclick="copyText(this,${q(nix)})">COPY</button></div>
-   <div class="sec-t" style="padding:0 15px;margin-top:10px">Scan the network first, then push to what it finds</div>
-   <div class="qwrap" style="margin:6px 15px 0"><div class="qblock">${esc(scan)}</div>
-     <button class="cpy" onclick="copyText(this,${q(scan)})">COPY</button></div>
-   <div class="adm-note" style="margin-top:8px">
-     Installing under a different name, so an intruder can't spot the agent by searching
-     for "AEGIS": add <code>-Name svc-telemetry</code> (or <code>--agent-name</code> on the
-     scanning deployer). Step-by-step: <code>docs/RUNBOOK.md</code> section 7.
+   <div class="adm-dtabs">${tab('win','One Windows host')}${tab('nix','One Linux / macOS host')}${tab('many','Many machines at once')}</div>
+   <div class="adm-dsteps">${steps}</div>
+   <div class="adm-note" style="margin-top:10px">
+     Hiding the agent so an intruder can't find it by searching for "AEGIS": add
+     <code>-Name svc-telemetry</code> (or <code>--agent-name</code> on the scanning deployer).
+     Full walkthrough: <code>docs/RUNBOOK.md</code> section 7.
    </div>
  </div>`;
 }
