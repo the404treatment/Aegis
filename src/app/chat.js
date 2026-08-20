@@ -49,30 +49,34 @@ function renderChat(){
   <div class="chat-body" id="chat-body">
     ${msgs.length?msgs.map(m=>{
       const mine=ME&&(m.fromId===ME.id);
+      const col=typeof userColor==='function'?userColor(m.from):'var(--violet)';
       return `<div class="chat-msg${mine?' mine':''}">
-        <div class="chat-meta"><b>${esc(m.from)}</b><span>${new Date(m.at).toLocaleTimeString()}</span></div>
+        <div class="chat-meta"><b style="color:${col}"><span class="chat-dot" style="background:${col}"></span>${esc(m.from)}</b><span>${typeof fmtTime==='function'?fmtTime(m.at):new Date(m.at).toLocaleTimeString()}</span></div>
         <div class="chat-text">${highlightIocs(m.text)}</div>
       </div>`;}).join('')
      :'<div class="chat-empty">Nothing yet. Anyone connected to this server sees what you post here.</div>'}
   </div>
   <div class="chat-compose">
-    <input id="chat-in" class="chat-in" placeholder="Message the team…" maxlength="2000"
-      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend();}">
+    <textarea id="chat-in" class="chat-in" rows="1" placeholder="Message the team…  (Enter sends, Shift+Enter for a new line)" maxlength="2000"
+      oninput="chatGrow(this)"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend();}"></textarea>
     <button class="btn violet" onclick="chatSend()">Send</button>
   </div>`;
  const body=document.getElementById('chat-body');
  if(body)body.scrollTop=body.scrollHeight;
 }
 
+/* Grow the compose box with the message, up to a few lines, then scroll. */
+function chatGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
 async function chatSend(){
  const i=document.getElementById('chat-in');if(!i)return;
  const text=i.value.trim();
  if(!text)return;
- i.value='';
+ i.value='';chatGrow(i);
  try{
   chatIngest(await liveApi('/api/chat',{method:'POST',body:JSON.stringify({text})}));
  }catch(e){
   toast('Could not send: '+e.message);
-  i.value=text;   // don't silently eat what they typed
+  i.value=text;chatGrow(i);   // don't silently eat what they typed
  }
 }
