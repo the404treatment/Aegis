@@ -1366,7 +1366,7 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 /* ===== TOUR ===== */
 .tour-veil{display:none;position:fixed;inset:0;z-index:400;}
 .tour-veil.open{display:block;}
-.tour-hole{position:absolute;border-radius:12px;box-shadow:0 0 0 9999px rgba(5,5,12,.82);border:2px solid var(--violet);transition:all .35s cubic-bezier(.25,.8,.35,1);pointer-events:none;}
+.tour-hole{position:absolute;border-radius:12px;box-shadow:0 0 0 9999px rgba(5,5,12,.82),0 0 22px 4px rgba(139,123,255,.55);border:3px solid var(--violet);transition:all .35s cubic-bezier(.25,.8,.35,1);pointer-events:none;}
 .tour-hole.pulse::after{content:'';position:absolute;inset:-2px;border-radius:12px;border:2px solid var(--violet);animation:tourPulse 1.6s ease-out infinite;}
 @keyframes tourPulse{0%{opacity:.8;transform:scale(1);}100%{opacity:0;transform:scale(1.06);}}
 .tour-card{position:absolute;width:340px;background:#16162a;border:1px solid var(--line-hi);border-radius:14px;padding:18px 20px;box-shadow:var(--sh-hi);transition:all .35s cubic-bezier(.25,.8,.35,1);}

@@ -558,7 +558,7 @@ function closeKeys(){document.getElementById('keys-veil').classList.remove('open
    at 3am should not be reading systemd instructions. */
 const TOUR=[
  {target:null,title:'Welcome to AEGIS',step:'Getting started',body:'AEGIS is where your team works an incident together: live telemetry from your endpoints, a map of your estate, shared cases, and a signed record of who did what. This 60-second tour shows you round.'},
- {target:'#dash-grid',title:'1 · What is happening',step:'Dashboard',body:'Your first screen, and all of it is live. Threat level for the last hour, malicious events as they land, the noisiest hosts, ATT&CK techniques actually <b>observed</b> in your telemetry, and any agent that has gone quiet. <b>⚙ Customise</b> picks your own cards - it is remembered in this browser, so triage and engineering shifts can differ.',pre:()=>go('dash')},
+ {target:'.dash-head',title:'1 · What is happening',step:'Dashboard',body:'Your first screen, and all of it is live. Threat level for the last hour, malicious events as they land, the noisiest hosts, ATT&CK techniques actually <b>observed</b> in your telemetry, and any agent that has gone quiet. <b>⚙ Customise</b> picks your own cards - it is remembered in this browser, so triage and engineering shifts can differ.',pre:()=>go('dash')},
  {target:'#r-logsrc',title:'2 · Your estate',step:'Network Map',body:'Enrolled hosts appear here automatically. <b>Click a node</b> to log what you are seeing on it during a hunt, raise a ticket for it, or open a response playbook. You can draw your own links, trace an attack path by hand, and scrub the incident timeline.',pre:()=>go('logsrc')},
  {target:'#r-siem',title:'3 · Find the evidence',step:'Event Search',body:'Field-aware search across everything your agents have reported. Try <code>severity:malicious</code>, <code>host:DC01</code>, or <code>technique:T1003</code> - the facets under the box are clickable. <b>Live</b> keeps it re-running as new telemetry arrives.',pre:()=>go('siem')},
  {target:'#r-cases',title:'4 · Build the case',step:'Cases',body:'Group tickets and evidence under one incident. Uploaded evidence is stored by its <b>SHA-256</b>, so a file that changes is a file you can prove changed, and the formal report is frozen against a snapshot hash when you finalize it.',pre:()=>go('cases')},
@@ -584,10 +584,23 @@ function placeTour(){
     <button class="tour-btn" onclick="endTour()">Skip</button>
     <button class="tour-btn go" onclick="tourNext()">${tourStep===TOUR.length-1?'Finish':'Next →'}</button>
   </div>`;
- requestAnimationFrame(()=>{
-  const el=s.target?document.querySelector(s.target):null;
+ // Measure AFTER the step's pre() has navigated and the view has laid out.
+ // A single rAF fired too early - the target view often had not reflowed yet,
+ // so the spotlight landed on a zero-size or stale rect and looked like it was
+ // highlighting nothing. Double-rAF lets layout settle; if the element still
+ // has no size (view mid-render) we retry a couple of times, and we scroll it
+ // into view first so an off-screen target is actually visible under the hole.
+ let tries=0;
+ const measure=()=>{
+  if(tourStep<0)return;                    // tour was closed while we waited
+  let el=s.target?document.querySelector(s.target):null;
   if(el){
-   const r=el.getBoundingClientRect();
+   try{el.scrollIntoView({block:'nearest',inline:'nearest'});}catch{}
+   let r=el.getBoundingClientRect();
+   if(r.width<2&&r.height<2&&tries++<8){setTimeout(measure,70);return;}
+   // Still zero-size (e.g. an empty dashboard grid with no live data)? Fall
+   // back to the active view so the spotlight always frames something real.
+   if(r.width<2&&r.height<2){const fb=document.querySelector('.view.on');if(fb){el=fb;r=fb.getBoundingClientRect();}}
    hole.style.display='block';hole.classList.add('pulse');
    hole.style.left=(r.left-8)+'px';hole.style.top=(r.top-8)+'px';hole.style.width=(r.width+16)+'px';hole.style.height=(r.height+16)+'px';
    card.classList.remove('center');
@@ -598,7 +611,8 @@ function placeTour(){
    if(cy+ch>window.innerHeight-12)cy=Math.max(12,window.innerHeight-ch-12);
    card.style.left=cx+'px';card.style.top=Math.max(12,cy)+'px';card.style.transform='none';
   }else{hole.style.display='none';card.classList.add('center');}
- });
+ };
+ requestAnimationFrame(()=>requestAnimationFrame(measure));
 }
 function tourNext(){if(tourStep>=TOUR.length-1){endTour();return;}tourStep++;placeTour();}
 function tourPrev(){if(tourStep<=0)return;tourStep--;placeTour();}
