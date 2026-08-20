@@ -58,7 +58,13 @@ function adminDeploy(){
  const d=ADMIN.deploy;
  if(!d)return`<div class="adm-sec"><div class="adm-sec-h"><span>Deploy an agent</span></div>
    <div class="adm-note">Could not read the enrollment token from the server. It is still printed at server startup, and in server/config.json.</div></div>`;
- const win=`.\\aegis-agent.ps1 -Server ${d.serverUrl} -EnrollmentToken ${d.enrollmentToken} -Install`;
+ // Run from the unzipped repo root, with the path to the agent spelled out
+ // (agents\...), so it does not matter which folder the operator is standing
+ // in - the single most common install failure was cd'ing into deploy\ and
+ // running .\aegis-agent.ps1, which is not there. -ExecutionPolicy Bypass
+ // pre-empts the "not digitally signed" wall; the agent self-elevates for the
+ // admin rights it needs, so an ordinary PowerShell is a fine place to start.
+ const win=`powershell -ExecutionPolicy Bypass -File agents\\aegis-agent.ps1 -Server ${d.serverUrl} -EnrollmentToken ${d.enrollmentToken} -Install`;
  // python3 rather than ./aegis-agent.py: a ZIP download loses the executable
  // bit and the ./ form then fails as "command not found".
  const nix=`sudo python3 agents/aegis-agent.py --server ${d.serverUrl} --token ${d.enrollmentToken} --once`;
@@ -72,7 +78,7 @@ function adminDeploy(){
      terminal on the machine you want telemetry from (or, for many machines at once, from
      any machine with network access to them).
    </div>
-   <div class="sec-t" style="padding:0 15px;margin-top:10px">Windows, in an admin PowerShell</div>
+   <div class="sec-t" style="padding:0 15px;margin-top:10px">Windows - PowerShell in the unzipped folder (it will ask for admin)</div>
    <div class="qwrap" style="margin:6px 15px 0"><div class="qblock">${esc(win)}</div>
      <button class="cpy" onclick="copyText(this,${q(win)})">COPY</button></div>
    <div class="sec-t" style="padding:0 15px;margin-top:10px">Linux / macOS, as root</div>

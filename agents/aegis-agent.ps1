@@ -76,17 +76,43 @@ function Test-Elevated {
   } catch { return $false }
 }
 if (-not (Test-Elevated)) {
+  # Rather than telling the operator to go and re-launch an elevated shell by
+  # hand - the step everyone gets wrong - relaunch ourselves elevated. The
+  # child runs with -ExecutionPolicy Bypass so an unsigned script on a default
+  # workstation (RemoteSigned) does not stop the install dead, which is the
+  # other wall people hit. The only prompt left is the UAC consent, which
+  # Windows will not let any script suppress - and should not.
+  $scriptPath = $MyInvocation.MyCommand.Path
+  if (-not $scriptPath) {
+    Write-Host '  AEGIS agent must run as Administrator, and could not find its own path to' -ForegroundColor Yellow
+    Write-Host '  relaunch. Right-click PowerShell -> "Run as administrator" and try again.' -ForegroundColor Yellow
+    exit 1
+  }
+  # Rebuild the exact invocation from the bound parameters so nothing is lost
+  # across the elevation boundary. Switches pass as bare -Name; everything
+  # else as -Name Value, quoted.
+  $fwd = @()
+  foreach ($kv in $PSBoundParameters.GetEnumerator()) {
+    if ($kv.Value -is [switch]) { if ($kv.Value.IsPresent) { $fwd += "-$($kv.Key)" } }
+    else { $fwd += "-$($kv.Key)"; $fwd += "`"$($kv.Value)`"" }
+  }
+  $argLine = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" " + ($fwd -join ' ')
   Write-Host ''
-  Write-Host '  AEGIS agent must run as Administrator.' -ForegroundColor Yellow
-  Write-Host ''
-  Write-Host '  It needs elevation to read the Security event log and to store its'
-  Write-Host '  agent key under ProgramData with restricted permissions.'
-  Write-Host ''
-  Write-Host '  Right-click PowerShell -> "Run as administrator", then re-run:'
-  Write-Host ("    .\aegis-agent.ps1 -Server {0} -EnrollmentToken <token>" -f
-    $(if ($Server) { $Server } else { '<server-url>' })) -ForegroundColor Cyan
-  Write-Host ''
-  exit 1
+  Write-Host '  AEGIS agent needs Administrator rights (to read the Security log and to' -ForegroundColor Yellow
+  Write-Host '  store its key under a locked-down ProgramData folder).' -ForegroundColor Yellow
+  Write-Host '  Approve the Windows prompt to continue...' -ForegroundColor Cyan
+  try {
+    $p = Start-Process -FilePath 'powershell.exe' -ArgumentList $argLine -Verb RunAs -PassThru -Wait
+    exit $p.ExitCode
+  } catch {
+    Write-Host ''
+    Write-Host '  Elevation was declined or failed. To run it yourself: open PowerShell as' -ForegroundColor Yellow
+    Write-Host '  administrator, then:' -ForegroundColor Yellow
+    Write-Host ("    powershell -ExecutionPolicy Bypass -File `"{0}`" -Server {1} -EnrollmentToken <token>" -f
+      $scriptPath, $(if ($Server) { $Server } else { '<server-url>' })) -ForegroundColor Cyan
+    Write-Host ''
+    exit 1
+  }
 }
 $LogFile = Join-Path $StateDir 'agent.log'
 
