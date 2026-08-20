@@ -1,4 +1,20 @@
 /* ================= MATRIX ================= */
+/* The matrix is a wide row of tactic columns. On a smaller screen (VMs
+   especially) the right-hand tactics sit off-screen and a horizontal scrollbar
+   is easy to miss or hard to reach. This lets the normal mouse wheel pan the
+   matrix sideways whenever there is horizontal overflow and nothing to scroll
+   vertically - so the wheel reaches those right-hand columns without shift or
+   hunting for the scrollbar. When a column IS tall enough to scroll vertically,
+   the wheel behaves normally. Shift+wheel always pans horizontally too. */
+function mxWheel(e){
+ const sc=e.currentTarget; if(!sc) return;
+ const hasHoriz=sc.scrollWidth>sc.clientWidth+2;
+ if(!hasHoriz) return;
+ const noVert=sc.scrollHeight<=sc.clientHeight+2;
+ if(e.shiftKey || noVert){
+  if(e.deltaY!==0){sc.scrollLeft+=e.deltaY;e.preventDefault();}
+ }
+}
 /* Live hits per technique, built from real telemetry. The matrix's static
    colour already says "can I detect this" (how many catalog events map here);
    this is the orthogonal signal "is this happening right now". Two deliberate

@@ -67,7 +67,7 @@ const NODE_TYPES={
    src:"Perimeter / threat intel",inputs:["This is the untrusted zone - the origin of inbound attacks and the destination of C2/exfil","Enrich edge logs with threat-intel feeds to flag known-bad IPs and domains","Watch for beaconing patterns and data volumes leaving toward it"],
    note:"The untrusted outside world. Attacks originate here and data leaves toward here - the start and end of most external intrusions."},
  router:{label:"Router",glyph:"📡",zone:"edge",role:null,win:false,
-   os:["Cisco IOS","MikroTik","Juniper","Ubiquiti"],
+   os:["Cisco IOS","VyOS / Vyatta","MikroTik RouterOS","Juniper","Ubiquiti"],
    src:"Syslog / NetFlow",inputs:["Export NetFlow/IPFIX for north-south and east-west flow visibility","Send syslog for interface, routing, and ACL events","Baseline normal traffic volumes to spot exfiltration spikes"],
    note:"Layer-3 routing between segments. Its flow data is where you see lateral movement crossing subnets and large outbound transfers."},
  switch:{label:"Switch",glyph:"🔀",zone:"internal",role:null,win:false,

@@ -72,8 +72,11 @@ function lsScrubReset(){lsScrubT=null;renderLogSrc();}
 function lsEventsForNode(node){
  const t=NODE_TYPES[node.type];
  if(!t.win)return []; // non-windows: handled via data-source mapping instead
- // linux servers/workstations don't emit Windows Event IDs
- if(/linux|macos/i.test(node.os))return [];
+ // Any OS that is not Windows emits no Windows Event IDs - including a custom
+ // "Other" value the analyst typed (VyOS, PAN-OS, ESXi...). Previously only
+ // "linux"/"macos" were caught, so a typed non-Windows OS wrongly kept the
+ // Windows event list, which is what "Other doesn't change the query" meant.
+ if(node.os && !/windows/i.test(node.os))return [];
  return LOGSRC.filter(ev=>{
   if(!ev.roles.includes(t.role))return false;
   if(ev.sysmon && lsAnswers.sysmon!=='yes')return false;
