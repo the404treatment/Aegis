@@ -49,6 +49,70 @@ function toast(msg){
 function store(k,v){try{localStorage.setItem(k,v)}catch{}}
 function read(k,d){try{return localStorage.getItem(k)??d}catch{return d}}
 
+/* ================= SETTINGS ================= */
+/* Global, per-browser preferences - mostly the timing knobs an analyst wants
+   to set once (how far back "now" looks, the clock format, the cadence the
+   report recommends). Kept in one place so there is a single settings menu to
+   change any of them, rather than a constant buried in each view. */
+const SETTINGS_DEFAULTS={activityWindowMin:60,clock24:false,reportCadenceMin:15};
+let SETTINGS={...SETTINGS_DEFAULTS};
+function loadSettings(){try{SETTINGS={...SETTINGS_DEFAULTS,...JSON.parse(read('aegis-settings','{}'))};}catch{SETTINGS={...SETTINGS_DEFAULTS};}}
+function saveSettings(){store('aegis-settings',JSON.stringify(SETTINGS));}
+function getSetting(k){return SETTINGS[k];}
+function setSetting(k,v){SETTINGS[k]=v;saveSettings();}
+/* The activity window as a human label, e.g. "the last hour" / "the last 4 hours". */
+function activityWindowLabel(){
+ const m=getSetting('activityWindowMin');
+ if(m<60)return `the last ${m} minutes`;
+ const h=m/60;return `the last ${h===1?'hour':h+' hours'}`;
+}
+/* Locale time/date respecting the 24-hour-clock setting. Use these instead of
+   raw toLocaleString so the clock format is consistent across the app. */
+function fmtTime(t){try{return new Date(t).toLocaleTimeString([],{hour12:!getSetting('clock24')});}catch{return '';}}
+function fmtDateTime(t){try{return new Date(t).toLocaleString([],{hour12:!getSetting('clock24')});}catch{return '';}}
+
+/* ---- settings panel ---- */
+function openSettings(){
+ let v=document.getElementById('settings-veil');
+ if(!v){v=document.createElement('div');v.id='settings-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
+ const winOpts=[15,30,60,240,720,1440];
+ const cadOpts=[5,15,30,60];
+ v.innerHTML=`<div class="ls-det-sheet" style="width:min(440px,100vw)">
+   <div class="ls-ne-grip" onclick="closeSettings()"></div>
+   <div class="ls-det-head">Settings</div>
+   <div class="ls-det-sub">Per-browser preferences. Timing knobs live here so there's one place to set them.</div>
+
+   <div class="ls-mm-sec">Timing</div>
+   <label class="ls-ne-label">"What's happening" window - how far back the dashboard and threat level look</label>
+   <select class="ui-dlg-input" onchange="setSetting('activityWindowMin',parseInt(this.value));settingsApply()">
+     ${winOpts.map(m=>`<option value="${m}" ${getSetting('activityWindowMin')===m?'selected':''}>${m<60?m+' minutes':(m/60)+' hour'+(m===60?'':'s')}</option>`).join('')}
+   </select>
+   <label class="ls-ne-label">Report alert cadence - the schedule the generated report recommends</label>
+   <select class="ui-dlg-input" onchange="setSetting('reportCadenceMin',parseInt(this.value))">
+     ${cadOpts.map(m=>`<option value="${m}" ${getSetting('reportCadenceMin')===m?'selected':''}>every ${m} minutes</option>`).join('')}
+   </select>
+
+   <div class="ls-mm-sec">Display</div>
+   <label class="ls-ne-label">Clock</label>
+   <div class="ls-toolgrp">
+     <button class="${!getSetting('clock24')?'on':''}" onclick="setSetting('clock24',false);settingsApply();openSettings()">12-hour</button>
+     <button class="${getSetting('clock24')?'on':''}" onclick="setSetting('clock24',true);settingsApply();openSettings()">24-hour</button>
+   </div>
+
+   <div class="ls-det-sub" style="margin-top:14px">Timing on the server (how long before an agent is "stale", event-log rotation) is set in <code>server/config.json</code> - see the admin runbook.</div>
+   <button class="btn" style="width:100%;justify-content:center;margin-top:10px" onclick="settingsReset()">Reset to defaults</button>
+ </div>`;
+ v.classList.add('open');v.onclick=(e)=>{if(e.target===v)closeSettings();};
+}
+function closeSettings(){const v=document.getElementById('settings-veil');if(v)v.classList.remove('open');}
+/* Re-render whatever is affected by a settings change, right now. */
+function settingsApply(){
+ if(typeof renderDash==='function'&&view==='dash')renderDash();
+ if(typeof updateBadges==='function')updateBadges();
+ if(typeof renderTickets==='function'&&view==='tickets')renderTickets();
+}
+function settingsReset(){SETTINGS={...SETTINGS_DEFAULTS};saveSettings();settingsApply();openSettings();toast('Settings reset to defaults');}
+
 /* ================= PERSISTENCE ================= */
 /* One place that saves everything that counts as the analyst's work. */
 function persistAll(){
@@ -151,6 +215,7 @@ async function newCase(){
 
 /* ================= INIT ================= */
 document.addEventListener('DOMContentLoaded',()=>{
+ loadSettings();
  restoreAll();
  // touch devices: disable hover tooltips (they stick after a tap on mobile)
  if(('ontouchstart' in window)||navigator.maxTouchPoints>0)document.body.classList.add('touch');
@@ -188,7 +253,7 @@ function updateBadges(){
  document.getElementById('b-matrix').textContent=uniqTechs().length;
  // The dashboard badge counts what needs attention now, not a library size.
  const bd=document.getElementById('b-dash');
- if(bd){const rec=(LIVE.events||[]).filter(e=>e.severity==='malicious'&&(e.ts||0)>Date.now()-3600e3).length;
+ if(bd){const rec=(LIVE.events||[]).filter(e=>e.severity==='malicious'&&(e.ts||0)>Date.now()-getSetting('activityWindowMin')*60000).length;
   bd.textContent=rec||'—';bd.className='rbadge'+(rec?' hot':'');}
  const be=document.getElementById('b-events');if(be)be.textContent=WIN.length+AWS.length;
  // The map badge counts hosts you've placed, not the 48 log-source types in

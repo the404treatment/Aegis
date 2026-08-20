@@ -356,7 +356,7 @@ function reportHTML(){
     <div class="rp-ps"><div class="t">1 · Enable</div><div class="d">Turn on the audit policy or data event named in the entry</div></div>
     <div class="rp-ps"><div class="t">2 · Forward</div><div class="d">Universal Forwarder to Splunk, or the AWS Add-on via SQS</div></div>
     <div class="rp-ps"><div class="t">3 · Search</div><div class="d">Validate the SPL over -24h to confirm fields are present</div></div>
-    <div class="rp-ps"><div class="t">4 · Alert</div><div class="d">Schedule every 15 minutes, window -20m@m to now</div></div>
+    <div class="rp-ps"><div class="t">4 · Alert</div><div class="d">Schedule every ${getSetting('reportCadenceMin')} minutes, window -${getSetting('reportCadenceMin')+5}m@m to now</div></div>
     <div class="rp-ps"><div class="t">5 · Suppress</div><div class="d">Subtract a known-good baseline via inputlookup</div></div>
     <div class="rp-ps"><div class="t">6 · Triage</div><div class="d">Throttle per entity, route to notable index or SOAR</div></div>
   </div>

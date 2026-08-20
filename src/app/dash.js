@@ -42,25 +42,26 @@ function dashSave(){try{store('aegis-dash',JSON.stringify(dashCards));}catch{}}
     dashboard: they are expected, so they are noise on a "what is happening"
     screen. */
 function dashRecent(mins){
- const cut=Date.now()-(mins||60)*60000;
+ const cut=Date.now()-(mins||getSetting('activityWindowMin'))*60000;
  return (LIVE.events||[]).filter(e=>(e.ts||0)>=cut&&!e.self);
 }
 
 /** One honest sentence about the current state. */
 function dashThreat(){
- const rec=dashRecent(60);
+ const rec=dashRecent();
+ const win=activityWindowLabel();
  const mal=rec.filter(e=>e.severity==='malicious');
  const sus=rec.filter(e=>e.severity==='suspicious');
  const hosts=new Set(mal.map(e=>e.host).filter(Boolean));
  if(!LIVE.connected)return {level:'offline',line:'Not connected to a server.',sub:'The console is running local-only. Connect to see live telemetry.'};
  if(!(LIVE.agents||[]).length)return {level:'quiet',line:'No agents are reporting.',sub:'Deploy an agent and telemetry appears here. See INSTALL.md.'};
  if(mal.length)return {level:'malicious',
-  line:`${mal.length} malicious event${mal.length===1?'':'s'} in the last hour`,
+  line:`${mal.length} malicious event${mal.length===1?'':'s'} in ${win}`,
   sub:hosts.size?`Across ${hosts.size} host${hosts.size===1?'':'s'}: ${[...hosts].slice(0,4).join(', ')}${hosts.size>4?'…':''}`:''};
  if(sus.length)return {level:'suspicious',
-  line:`${sus.length} suspicious event${sus.length===1?'':'s'} in the last hour`,
+  line:`${sus.length} suspicious event${sus.length===1?'':'s'} in ${win}`,
   sub:'Nothing confirmed malicious. Worth a look.'};
- return {level:'clear',line:'Nothing flagged in the last hour.',
+ return {level:'clear',line:`Nothing flagged in ${win}.`,
   sub:`${(LIVE.agents||[]).length} agent${(LIVE.agents||[]).length===1?'':'s'} reporting normally.`};
 }
 
@@ -110,8 +111,8 @@ function dashCardMalicious(){
 }
 
 function dashCardHosts(){
- const rec=dashRecent(60);
- if(!rec.length)return dashEmpty('No telemetry in the last hour.');
+ const rec=dashRecent();
+ if(!rec.length)return dashEmpty(`No telemetry in ${activityWindowLabel()}.`);
  const by={};
  for(const e of rec){const h=e.host||'unknown';
   by[h]=by[h]||{n:0,bad:0};by[h].n++;

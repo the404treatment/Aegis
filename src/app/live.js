@@ -282,7 +282,7 @@ function renderTickets(){
         ${t.technique?`<span>${esc(t.technique)}</span>`:''}
         ${t.assignee?userChip(t.assignee):''}
         ${t.comments&&t.comments.length?`<span>\u25cb ${t.comments.length}</span>`:''}
-        <span class="tk-when">${new Date(t.updatedAt).toLocaleString()}</span>
+        <span class="tk-when">${fmtDateTime(t.updatedAt)}</span>
       </div>
     </div>
   </div>`).join(''):'<div class="ls-det-sub" style="padding:30px;text-align:center">No tickets in this view.</div>'}`;
@@ -445,7 +445,7 @@ async function tkOpen(id){
   ${csTicketSelectHTML(t)}
   ${t.body?`<div class="tk-d-body">${highlightIocs(t.body).replace(/\n/g,'<br>')}</div>`:''}
   <div class="ls-mm-sec">Activity</div>
-  ${(t.comments||[]).map(c=>`<div class="tk-c"><span class="tk-c-a" style="color:${userColor(c.author)}"><span class="tk-who-dot" style="background:${userColor(c.author)}"></span>${esc(c.author)}</span><span class="tk-c-t">${new Date(c.at).toLocaleString()}</span><div>${esc(c.text).replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="ls-det-sub">No comments yet.</div>'}
+  ${(t.comments||[]).map(c=>`<div class="tk-c"><span class="tk-c-a" style="color:${userColor(c.author)}"><span class="tk-who-dot" style="background:${userColor(c.author)}"></span>${esc(c.author)}</span><span class="tk-c-t">${fmtDateTime(c.at)}</span><div>${esc(c.text).replace(/\n/g,'<br>')}</div></div>`).join('')||'<div class="ls-det-sub">No comments yet.</div>'}
   <textarea id="tk-c-in" class="art-ta" style="min-height:70px;margin-top:8px" placeholder="Add an update\u2026"></textarea>
   <button class="btn violet" style="width:100%;justify-content:center;margin-top:8px" onclick="tkComment('${t.id}')">Post update</button>
  </div>`;
