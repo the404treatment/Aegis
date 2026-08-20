@@ -35,20 +35,43 @@ Write-Host "  SOC detection console + incident platform" -ForegroundColor DarkGr
 Write-Host "  ------------------------------------------------------------" -ForegroundColor DarkGray
 
 # --- Node -------------------------------------------------------------------
+$nodeSearchPaths = @("$env:ProgramFiles\nodejs\node.exe", "${env:ProgramFiles(x86)}\nodejs\node.exe", "$env:LOCALAPPDATA\Programs\nodejs\node.exe")
 $node = (Get-Command node -ErrorAction SilentlyContinue)
 if (-not $node) {
   # A fresh install puts node on the PATH of *new* shells only, so look in the
   # standard locations before giving up on someone who just installed it.
-  foreach ($p in @("$env:ProgramFiles\nodejs\node.exe", "${env:ProgramFiles(x86)}\nodejs\node.exe", "$env:LOCALAPPDATA\Programs\nodejs\node.exe")) {
+  foreach ($p in $nodeSearchPaths) {
     if (Test-Path $p) { $env:PATH = (Split-Path $p) + ';' + $env:PATH; $node = Get-Command node; break }
   }
 }
 if (-not $node) {
-  Die @"
-Node.js 18+ is required but was not found.
-  Install it from https://nodejs.org (LTS), then run this again.
+  # Same posture as install.sh: install through the OS's own signed package
+  # source, with explicit consent, or not at all - never a piped installer
+  # from a third-party vendor. winget is Microsoft's own repository and ships
+  # with Windows 10 1709+ / 11, so it is the direct equivalent of apt/brew/etc.
+  $winget = Get-Command winget -ErrorAction SilentlyContinue
+  if (-not $winget) {
+    Die @"
+Node.js 18+ is required but was not found, and winget is not available to install it.
+  Install Node from https://nodejs.org (LTS), then run this again.
   AEGIS itself has no dependencies - Node is the only thing it needs.
 "@
+  }
+  Warn "Node.js is not installed."
+  Write-Host "  It can be installed from Microsoft's own package repository with:" -ForegroundColor DarkGray
+  Write-Host ""
+  Write-Host "      winget install --id OpenJS.NodeJS.LTS -e" -ForegroundColor Cyan
+  Write-Host ""
+  $reply = ''
+  try { $reply = Read-Host "  Run that now? [y/N]" } catch { }
+  if ($reply -notmatch '^[Yy]') { Die "nothing installed. Run the command above, then re-run this installer." }
+  Write-Host ""
+  & winget install --id OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements
+  if ($LASTEXITCODE -ne 0) { Die "that failed - run it by hand, then re-run this installer." }
+  foreach ($p in $nodeSearchPaths) {
+    if (Test-Path $p) { $env:PATH = (Split-Path $p) + ';' + $env:PATH; $node = Get-Command node; break }
+  }
+  if (-not $node) { Die "Node installed but is not on PATH yet. Open a new PowerShell window and re-run this." }
 }
 $major = [int](& node -p 'process.versions.node.split(".")[0]')
 if ($major -lt 18) { Die "Node.js 18 or newer is required (found $(& node -v)). Upgrade and run this again." }

@@ -12,9 +12,11 @@
 #   - No sudo, anywhere. It installs to your home directory and registers a
 #     *user* service. An installer that asks for root to run a log collector
 #     has already made your security posture worse.
-#   - Node is checked, not silently installed. Piping a script that downloads
-#     and runs another vendor's installer is how supply-chain incidents start;
-#     if Node is missing it tells you and stops.
+#   - Node is installed through the system package manager, with consent, or
+#     not at all. Piping another vendor's install script into a shell is how
+#     supply-chain incidents start, so that is never done; the distro's own
+#     signed repositories are used instead, and a non-interactive run just
+#     prints the command and stops.
 #   - Idempotent. Re-running upgrades in place and keeps your tokens, so
 #     enrolled agents keep working.
 set -eu
@@ -36,14 +38,49 @@ say "  ${B}AEGIS${Z}  SOC detection console + incident platform"
 say "  ${D}------------------------------------------------------------${Z}"
 
 # --- Node -------------------------------------------------------------------
-command -v node >/dev/null 2>&1 || die "Node.js 18+ is required but not installed.
-  Install it from https://nodejs.org (or your package manager: apt install nodejs,
-  brew install node, dnf install nodejs) and run this again.
+PKG_CMD=""
+if   command -v apt-get >/dev/null 2>&1; then PKG_CMD="sudo apt-get update && sudo apt-get install -y nodejs npm"
+elif command -v dnf     >/dev/null 2>&1; then PKG_CMD="sudo dnf install -y nodejs"
+elif command -v pacman  >/dev/null 2>&1; then PKG_CMD="sudo pacman -S --noconfirm nodejs npm"
+elif command -v zypper  >/dev/null 2>&1; then PKG_CMD="sudo zypper install -y nodejs"
+elif command -v apk     >/dev/null 2>&1; then PKG_CMD="sudo apk add nodejs npm"
+elif command -v brew    >/dev/null 2>&1; then PKG_CMD="brew install node"
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  [ -n "$PKG_CMD" ] || die "Node.js 18+ is required but not installed, and no supported
+  package manager was found. Install Node from https://nodejs.org and run this again.
   AEGIS itself has no dependencies - Node is the only thing it needs."
+
+  warn "Node.js is not installed."
+  say  "  ${D}It can be installed from your distribution's own repositories with:${Z}"
+  say  ""
+  say  "      $PKG_CMD"
+  say  ""
+  # `curl … | sh` leaves stdin as the pipe, so there is nothing to read an
+  # answer from. Read from the terminal directly when there is one, and
+  # otherwise print the command and stop rather than installing unasked.
+  if [ -r /dev/tty ]; then
+    printf '  Run that now? [y/N] '
+    read -r reply </dev/tty || reply=""
+    case "$reply" in
+      [Yy]*) say ""; sh -c "$PKG_CMD" || die "that failed - run it by hand, then re-run this installer." ;;
+      *) die "nothing installed. Run the command above, then re-run this installer." ;;
+    esac
+  else
+    die "no terminal to confirm on. Run the command above, then re-run this installer."
+  fi
+  command -v node >/dev/null 2>&1 || die "Node still is not on PATH. Open a new shell and re-run this."
+fi
 
 NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
 [ "$NODE_MAJOR" -ge 18 ] 2>/dev/null || die "Node.js 18 or newer is required (found $(node -v)).
-  Upgrade it and run this again."
+  Several long-term-support distributions still package Node 12 or 16, so installing
+  'nodejs' can succeed and still land below what AEGIS needs. Install a current one
+  into your home directory with nvm (no root required):
+      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+      exec \$SHELL -l && nvm install 22
+  then re-run this installer."
 step "node            $(node -v)"
 
 # --- fetch ------------------------------------------------------------------
@@ -77,6 +114,9 @@ fi
 # so an upgrade never orphans the agents already reporting in.
 step "configuring     tokens + build"
 ( cd "$DIR" && node setup.mjs --port "$PORT" >/dev/null ) || die "setup failed - run 'node setup.mjs' in $DIR to see why"
+# The tarball fallback above does not carry file modes, so the Python agent can
+# arrive without its executable bit and fail as "command not found".
+chmod +x "$DIR/agents/aegis-agent.py" 2>/dev/null || true
 
 # --- service ----------------------------------------------------------------
 SERVICE=none
@@ -168,7 +208,7 @@ say "  ${D}The console will ask you to create the first account. It becomes the$
 say "  ${D}lead, and can add everyone else from there.${Z}"
 say ""
 say "  Add an endpoint:"
-say "    ${D}Linux/macOS${Z}   sudo $DIR/agents/aegis-agent.py --server http://$LAN:$PORT --token $ENROLL --once"
+say "    ${D}Linux/macOS${Z}   sudo python3 $DIR/agents/aegis-agent.py --server http://$LAN:$PORT --token $ENROLL --once"
 say "    ${D}Windows${Z}       see INSTALL.md"
 say ""
 if [ "$SERVICE" = systemd ]; then

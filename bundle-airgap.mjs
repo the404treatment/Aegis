@@ -222,11 +222,17 @@ no remote-exec channel, by design.
 
 Firewall
 --------
-The OS will block the port until you allow it:
+Some systems block the port until you allow it; many Linux images run no host
+firewall at all, in which case there is nothing to do. Check first with
+  command -v ufw firewall-cmd nft iptables
 
-  Windows  New-NetFirewallRule -DisplayName "AEGIS 8787" -Direction Inbound \`
-             -Protocol TCP -LocalPort 8787 -Action Allow -Profile Domain,Private
-  Linux    sudo ufw allow 8787/tcp
+  Windows     New-NetFirewallRule -DisplayName "AEGIS 8787" -Direction Inbound \`
+                -Protocol TCP -LocalPort 8787 -Action Allow -Profile Domain,Private
+  ufw         sudo ufw allow 8787/tcp
+  firewalld   sudo firewall-cmd --add-port=8787/tcp --permanent && sudo firewall-cmd --reload
+  nftables    sudo nft add rule inet filter input tcp dport 8787 accept
+  iptables    sudo iptables -I INPUT -p tcp --dport 8787 -j ACCEPT
+  none found  nothing to open - test with curl before changing anything
 
 Full documentation is in aegis/INSTALL.md.
 `);
