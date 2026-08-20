@@ -28,19 +28,40 @@ async function authFetchMe(){
 /* Whether this server has no accounts yet, so the form offers to create the
    first one instead of asking for a password that cannot exist. */
 let _authNeedsSetup=false;
+/* Seeded default accounts the server told us about, e.g.
+   [{name:'admin',role:'lead'},{name:'user',role:'analyst'}]. Drives the
+   one-click role picker on the login screen. */
+let _authDefaults=[];
+/* When a server requires a login and nobody is signed in, the veil must not be
+   dismissable - clicking the backdrop or the grip used to close it and leave
+   the console open with no session, which is the reported bypass. Set true by
+   the callers that open the veil as a hard gate. */
+let _authMandatory=false;
+/* The well-known seed passwords, so the picker can prefill them. These are
+   public defaults by design (see server/auth.mjs) - a laptop console, not a
+   secret. A real deployment changes them and the picker disappears. */
+const AUTH_DEFAULT_PW={admin:'admin123',user:'user123'};
 
 function openLogin(msg,opts){
  opts=opts||{};
  const first=!!_authNeedsSetup;
+ const gate=!!_authMandatory && !ME;   // hard gate: no escape hatch to a session-less console
+ const picker=(!first && _authDefaults && _authDefaults.length)?_authDefaults:null;
  let v=document.getElementById('auth-veil');
  if(!v){v=document.createElement('div');v.id='auth-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
  v.innerHTML=`<div class="ls-det-sheet" style="width:min(420px,100vw)">
-  <div class="ls-ne-grip" onclick="closeLogin()"></div>
+  ${gate?'':'<div class="ls-ne-grip" onclick="closeLogin()"></div>'}
   <div class="ls-det-head">${first?'Create the first account':'Sign in to AEGIS'}</div>
   <div class="ls-det-sub">${first
     ?'This server has no accounts yet. The first one you create is a <b>lead</b>, so it can add everyone else. Work is recorded against the person who did it - that is what makes the case file worth anything later.'
     :'Sign in for live agent data, shared tickets, cases and event search. Everything offline in AEGIS keeps working without an account.'}</div>
   ${msg?`<div class="lint err" style="margin-bottom:10px">${esc(msg)}</div>`:''}
+  ${picker?`<div class="auth-roles">${picker.map(d=>`
+    <button class="auth-role" onclick="authPickRole('${esc(d.name)}')">
+      <span class="auth-role-n">${esc(d.name)}</span>
+      <span class="auth-role-r">${d.role==='lead'?'Admin - can manage users &amp; close tickets':'Analyst - hunt, log, raise tickets'}</span>
+    </button>`).join('')}</div>
+   <div class="ls-det-sub" style="text-align:center;margin:4px 0 10px">Pick who you are, then confirm the password.</div>`:''}
   <label class="ls-ne-label">Server URL</label>
   <input class="ui-dlg-input" id="auth-url" value="${esc(LIVE.url||location.origin)}" placeholder="https://aegis.internal:8787">
   <label class="ls-ne-label">Name</label>
@@ -52,12 +73,28 @@ function openLogin(msg,opts){
     onclick="${first?'doBootstrap()':'doLogin()'}">${first?'Create account &amp; sign in':'Sign in'}</button>
   <div class="ls-det-sub" style="margin-top:12px">${first
     ?'Already have an account on another server? <a href="#" onclick="authSwitchServer();return false">Change the server URL</a> above and try again.'
-    :'Automating something, or locked out? <a href="#" onclick="closeLogin();openLiveSetup();return false">Use an analyst token</a>.'}</div>
+    :(gate?'':'Automating something, or locked out? <a href="#" onclick="closeLogin();openLiveSetup();return false">Use an analyst token</a>.')}</div>
  </div>`;
- v.classList.add('open');v.onclick=(e)=>{if(e.target===v)closeLogin();};
+ v.classList.add('open');
+ // Only wire backdrop-dismiss when this is not a hard gate.
+ v.onclick=gate?null:(e)=>{if(e.target===v)closeLogin();};
  setTimeout(()=>{const n=document.getElementById('auth-name');if(n&&n.focus)n.focus();},60);
 }
-function closeLogin(){const v=document.getElementById('auth-veil');if(v)v.classList.remove('open');}
+/* One-click role: fill the name and the known default password, and either sign
+   in straight away or focus the password so the operator confirms it. We keep
+   the confirm step because the ask was an explicit "are you admin or user"
+   gate, not a passwordless door. */
+function authPickRole(name){
+ const n=document.getElementById('auth-name');if(n)n.value=name;
+ const pw=document.getElementById('auth-pw');
+ if(pw){pw.value=AUTH_DEFAULT_PW[name]||'';pw.focus();pw.select&&pw.select();}
+}
+/* Closing is only allowed when the veil is not a hard gate. On a login-required
+   server with no session, this is a no-op - there is nothing behind it to reach. */
+function closeLogin(){
+ if(_authMandatory && !ME)return;
+ const v=document.getElementById('auth-veil');if(v)v.classList.remove('open');
+}
 
 /** Re-check the URL in the box: it may be a server that already has accounts. */
 async function authSwitchServer(){

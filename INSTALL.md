@@ -315,35 +315,56 @@ container-registry workflow.
 
 ---
 
-## Part 3 - Create the first account
+## Part 3 - Sign in
 
 Open the console in a browser (Part 2 tells you the exact address for
-whichever install option you used). On first run, it asks you to create one
-account.
+whichever install option you used). Accounts are on by default, so it asks
+you to sign in, and it comes with two ready-made logins so you are not stuck
+at a blank form:
 
-*Why:* that account becomes the **lead**, who can add everyone else
-directly from the console - there is nothing to configure by hand, and no
-way to lock yourself out, because this offer only appears while the server
-has zero accounts and disappears the instant it has one.
+| Role      | Sign in as | Password   | Can do                                   |
+|-----------|------------|------------|------------------------------------------|
+| **Admin** | `admin`    | `admin123` | Everything, incl. manage users, close tickets |
+| **User**  | `user`     | `user123`  | Hunt, log observations, raise tickets    |
 
-Accounts are on by default because every ticket, case, and evidence upload
-is recorded against the person who did it. If you are the only analyst and
-do not need per-person attribution, you can turn this off - set
-`"requireLogin": false` in `server/config.json` (or `deploy/config.json` for
-a Docker install) and restart the server.
+Pick a role on the login screen and confirm the password. That is the whole
+sign-in.
+
+> **Change these before this touches a network.** The defaults are for a
+> local box. In **Admin -> Accounts** you can reset their passwords (which
+> retires the default) and add named accounts per person - every ticket,
+> case, and evidence upload is recorded against whoever did it, which is the
+> point of accounts.
+
+*Prefer named accounts from the start?* Set `"seedDefaultAccounts": false` in
+`server/config.json` (or `deploy/config.json` for Docker) before first run,
+and the console will instead ask you to create the first account, which
+becomes the lead. Set `"requireLogin": false` to turn accounts off entirely
+for a single-analyst lab.
 
 ---
 
 ## Part 4 - Save your tokens
 
-When the server first starts, it prints something like this:
+When the server first starts, it prints a numbered walkthrough - open the
+console, deploy an agent, watch it appear - ending with the two tokens:
 
 ```
-  Open the console   http://127.0.0.1:8787
-  Agents report to   http://192.168.1.17:8787
+   NEXT STEPS
 
-  Analyst token   Q9Nae8I5X3mIDFB0gu2qMFhuGX2moNlY
-  Enrollment      IX1fj-IZBmOJDOCBfvOEV558VJG0Xyvz
+   1. Open the console:  http://127.0.0.1:8787
+      Sign in with a ready-made account:
+        admin  / admin123   (lead)
+        user   / user123    (analyst)
+
+   2. Deploy an agent on a machine you want telemetry from:
+        Windows :  powershell -ExecutionPolicy Bypass -File agents\aegis-agent.ps1 -Server http://192.168.1.17:8787 -EnrollmentToken IX1fj-... -Install
+        Linux   :  sudo python3 agents/aegis-agent.py --server http://192.168.1.17:8787 --token IX1fj-... --once
+
+   3. Watch hosts appear on the Network Map and the ATT&CK Matrix
+      light up as their telemetry lands.
+
+   analyst token (automation / break-glass) : Q9Nae8I5X3mIDFB0gu2qMFhuGX2moNlY
 ```
 
 Copy both tokens somewhere safe.

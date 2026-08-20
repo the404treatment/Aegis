@@ -27,7 +27,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { AuditLog } from './audit.mjs';
 import { query as lakeQuery } from './lake.mjs';
-import { Sessions, LoginLimiter, makeUser, findUser, verifyPw, publicUser, can, canonRole, capsFor } from './auth.mjs';
+import { Sessions, LoginLimiter, makeUser, findUser, verifyPw, publicUser, can, canonRole, capsFor, seedDefaultAccounts } from './auth.mjs';
 import { makeCase, patchCase, decodeEvidence, evidenceRecord, safeEvidenceName, EVIDENCE_MAX_BYTES } from './cases.mjs';
 import { buildReport, finalizeFormal } from './report.mjs';
 import { feed as activityFeed } from './activity.mjs';
@@ -63,6 +63,13 @@ function loadConfig() {
     // and the analyst token keeps working as the break-glass and automation
     // credential. Set false for a single-analyst lab.
     requireLogin: true,
+    // Lay down ready-made admin/user logins on a fresh accounts server, so a
+    // local install opens to a "who are you" prompt instead of a create-first-
+    // account form. Passwords are the obvious defaults (admin123 / user123):
+    // fine for a laptop console, NOT for anything networked. A real deployment
+    // sets this false and bootstraps a named lead instead, or changes the
+    // seeded passwords (which clears their default status). See auth.mjs.
+    seedDefaultAccounts: cfg.seedDefaultAccounts !== undefined ? !!cfg.seedDefaultAccounts : true,
     // agents older than this are shown as stale (seconds)
     staleAfter: 180,
     retentionEvents: 200000,
@@ -177,6 +184,13 @@ const chatStream = fs.createWriteStream(F.chat, { flags: 'a' });
 /* ------------------------------------------------------------ accounts */
 let USERS = readJson(F.users, []);
 const saveUsers = () => writeJson(F.users, USERS);
+// On an accounts server with an empty roster, lay down the default admin/user
+// logins so the console opens to a "who are you" prompt instead of a blank
+// account-creation form. Skipped once any account exists, so it never
+// resurrects a deleted default or overrides a real deployment's own accounts.
+if (CFG.requireLogin && CFG.seedDefaultAccounts && USERS.length === 0) {
+  if (seedDefaultAccounts(USERS)) { saveUsers(); console.log('[aegis] seeded default logins: admin/admin123 (lead), user/user123 (analyst) - change these for any networked deployment'); }
+}
 const SESSIONS = new Sessions().load(readJson(F.sessions, []));
 const saveSessions = () => writeJson(F.sessions, SESSIONS.all());
 const LOGINS = new LoginLimiter();
@@ -687,7 +701,15 @@ const server = http.createServer(async (req, res) => {
     // this server has any accounts yet. Public by design: it leaks nothing but
     // the two booleans the login page needs in order to render the right form.
     if (p === '/api/auth/mode')
-      return json(res, 200, { requireLogin: !!CFG.requireLogin, accounts: USERS.length, needsSetup: !!CFG.requireLogin && USERS.length === 0 });
+      return json(res, 200, {
+        requireLogin: !!CFG.requireLogin,
+        accounts: USERS.length,
+        needsSetup: !!CFG.requireLogin && USERS.length === 0,
+        // Names of accounts still on their seeded default password, so the login
+        // screen can offer them as one-click roles. Just the names - never the
+        // passwords; the client already knows the well-known defaults to prefill.
+        defaults: USERS.filter(x => x.seed).map(x => ({ name: x.name, role: x.role })),
+      });
 
     /* First-run bootstrap. A server that demands a login but has no accounts is
        a locked door with no key cut yet, so the very first account can be
@@ -781,6 +803,7 @@ const server = http.createServer(async (req, res) => {
       if (b.password) {
         const { salt, hash } = makeUser(user.name, b.password, user.role);
         user.salt = salt; user.hash = hash;
+        delete user.seed;   // a chosen password is no longer a default - drop it from the quick-login picker
         SESSIONS.revokeUser(user.id); saveSessions(); // a password change must invalidate live sessions
       }
       saveUsers();
@@ -947,6 +970,15 @@ const server = http.createServer(async (req, res) => {
       const own = !actor.shared && t.createdById && t.createdById === actor.id;
       if (denied(res, actor, own ? 'ticket.editOwn' : 'ticket.editAny')) return;
       const b = await readBody(req);
+      // Closing a ticket is a lead's decision - it is the sign-off that says
+      // the incident is handled, and an analyst reopening their own work to
+      // close it should not be that sign-off. An analyst can still move a
+      // ticket to 'contained' to signal it is dealt with; a lead closes it.
+      // Enforced here, not just hidden in the UI, so a hand-rolled PATCH cannot
+      // walk around it.
+      if (b.status === 'closed' && t.status !== 'closed' && !can(actor.role, 'ticket.editAny')) {
+        return json(res, 403, { error: 'only a lead can close a ticket - set it to Contained and a lead will sign it off' });
+      }
       for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'host', 'technique', 'caseId']) {
         if (b[k] !== undefined) t[k] = b[k];
       }
@@ -1223,17 +1255,51 @@ server.listen(CFG.port, CFG.host, () => {
     if (prov) console.log(`  local AI      ${prov.name} · ${prov.model || '(no model pulled yet)'}${CFG.llm.watch ? ' · watching' : ''}`);
     else console.log('  local AI      none detected  (see LOCAL-AI.md - optional)');
   }).catch(() => {});
-  console.log(`\n  enrollment token : ${CFG.enrollmentToken}`);
-  console.log(`  analyst token    : ${CFG.analystToken}`);
+  // ---- the three things a human does next, spelled out in order ----
+  // The console URL is the loopback one (what you open on this box); the agent
+  // URL must be reachable from OTHER machines, so prefer a non-loopback address
+  // when the server is bound to all interfaces.
+  const consoleUrl = urls[0];
+  // reachableUrls() annotates virtual adapters (docker, wsl, VPNs...) with a
+  // trailing label. For the agent command we want a clean, real LAN address a
+  // remote machine can actually route to: prefer a non-loopback, non-virtual
+  // interface, fall back to any non-loopback, then loopback; strip the label.
+  const isLoopback = u => /\/\/(127\.|localhost|\[::1\])/.test(u);
+  const cleanUrl = u => u.replace(/\s+\(virtual adapter\)\s*$/, '');
+  const agentUrl = cleanUrl(
+    urls.find(u => !isLoopback(u) && !/virtual adapter/.test(u)) ||
+    urls.find(u => !isLoopback(u)) || urls[0]);
+  const seeded = USERS.filter(x => x.seed);
+
+  console.log('\n  ─────────────────────────────────────────────');
+  console.log('   NEXT STEPS');
+  console.log('  ─────────────────────────────────────────────');
+
+  console.log(`\n   1. Open the console:  ${consoleUrl}`);
   if (CFG.requireLogin) {
-    console.log(`\n  accounts         : ON  (${USERS.length} account${USERS.length === 1 ? '' : 's'})`);
-    if (!USERS.length) {
-      console.log('  No accounts exist yet. Create the first one with the analyst token:');
-      console.log(`    curl -X POST http://${CFG.host}:${CFG.port}/api/users \\`);
-      console.log(`      -H "Authorization: Bearer ${CFG.analystToken}" \\`);
-      console.log('      -H "Content-Type: application/json" \\');
-      console.log('      -d \'{"name":"you","password":"a-real-password","role":"lead"}\'');
+    if (seeded.length) {
+      console.log('      Sign in with a ready-made account:');
+      seeded.forEach(u => console.log(`        ${u.name.padEnd(6)} / ${u.name}123   (${u.role})`));
+      console.log('      Change these in Admin > Accounts before putting this on a network.');
+    } else if (USERS.length) {
+      console.log('      Sign in with your account.');
+    } else {
+      console.log('      No accounts yet - create the first (a lead) with the analyst token below:');
+      console.log(`        curl -X POST ${consoleUrl}/api/users -H "Authorization: Bearer ${CFG.analystToken}" \\`);
+      console.log('             -H "Content-Type: application/json" -d \'{"name":"you","password":"a-real-password","role":"lead"}\'');
     }
+  } else {
+    console.log('      No login required (accounts are off for this deployment).');
   }
-  console.log(`\n  Bound to ${CFG.host}. Put TLS in front before exposing it.\n`);
+
+  console.log('\n   2. Deploy an agent on a machine you want telemetry from:');
+  console.log(`        Windows :  powershell -ExecutionPolicy Bypass -File agents\\aegis-agent.ps1 -Server ${agentUrl} -EnrollmentToken ${CFG.enrollmentToken} -Install`);
+  console.log(`        Linux   :  sudo python3 agents/aegis-agent.py --server ${agentUrl} --token ${CFG.enrollmentToken} --once`);
+  console.log('        (the agent asks for admin rights itself and needs no code signing)');
+
+  console.log('\n   3. Watch hosts appear on the Network Map and the ATT&CK Matrix');
+  console.log('      light up as their telemetry lands.');
+
+  console.log(`\n   analyst token (automation / break-glass) : ${CFG.analystToken}`);
+  console.log(`   Bound to ${CFG.host}. Put TLS in front before exposing it.\n`);
 });

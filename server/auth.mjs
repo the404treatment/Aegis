@@ -138,16 +138,40 @@ export class LoginLimiter {
    UI, where a direct API call would walk straight past it. */
 export const MIN_PASSWORD = 10;
 
-export function makeUser(name, password, role) {
+export function makeUser(name, password, role, opts = {}) {
   const n = String(name || '').trim();
   if (!n) throw new Error('name required');
   const r = canonRole(role);
   if (!r) throw new Error('role must be one of: ' + ROLES.join(', '));
   if (!password) throw new Error('password required');
-  if (String(password).length < MIN_PASSWORD)
+  // The length floor is skipped only for the seeded local defaults below,
+  // whose whole point is a short, known password on a single-box install.
+  if (!opts.seed && String(password).length < MIN_PASSWORD)
     throw new Error(`password must be at least ${MIN_PASSWORD} characters`);
   const { salt, hash } = hashPw(password);
-  return { id: 'u_' + crypto.randomBytes(6).toString('base64url'), name: n, role: r, salt, hash, createdAt: Date.now() };
+  const u = { id: 'u_' + crypto.randomBytes(6).toString('base64url'), name: n, role: r, salt, hash, createdAt: Date.now() };
+  if (opts.seed) u.seed = true;   // marks a default account, so the UI can say "change me"
+  return u;
+}
+
+/* The two ready-made local accounts. On a single-box install the create-first-
+   account dance is friction nobody asked for: this seeds an admin (lead) and a
+   user (analyst) with obvious default passwords, so the login screen becomes a
+   two-button "who are you" prompt. Weak on purpose - a laptop's AEGIS console
+   is not internet-facing, and a real deployment changes these or adds named
+   accounts. Idempotent: only fills a name that does not already exist. */
+export const DEFAULT_ACCOUNTS = [
+  { name: 'admin', password: 'admin123', role: 'lead' },
+  { name: 'user', password: 'user123', role: 'analyst' },
+];
+export function seedDefaultAccounts(users) {
+  let added = 0;
+  for (const a of DEFAULT_ACCOUNTS) {
+    if (findUser(users, a.name)) continue;
+    users.push(makeUser(a.name, a.password, a.role, { seed: true }));
+    added++;
+  }
+  return added;
 }
 export const findUser = (users, name) =>
   users.find(u => u.name.toLowerCase() === String(name || '').trim().toLowerCase()) || null;

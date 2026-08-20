@@ -33,7 +33,13 @@ async function boot(extraCfg = {}) {
   const port = 18000 + Math.floor(Math.random() * 2000);
   const cfg = {
     host: '127.0.0.1', port, dataDir: path.join(dir, 'data'), uiDir: path.join(ROOT, 'ui'),
-    enrollmentToken: 'test-enroll-token', analystToken: 'test-analyst-token', ...extraCfg,
+    enrollmentToken: 'test-enroll-token', analystToken: 'test-analyst-token',
+    // Existing sections assume a clean account slate (empty user list, the
+    // bootstrap door open). Seeding admin/user by default is the product
+    // behaviour, but it is exercised in its own section below - here it is off
+    // so these fixtures stay meaningful. A test can override it via extraCfg.
+    seedDefaultAccounts: false,
+    ...extraCfg,
   };
   const cfgPath = path.join(dir, 'config.json');
   fs.writeFileSync(cfgPath, JSON.stringify(cfg));
@@ -106,7 +112,7 @@ section('backwards compatibility (requireLogin explicitly off)');
    slam shut the instant it has been used, or it is a permanent way in. */
 section('first-run bootstrap (the default state of a new server)');
 {
-  const S = await boot();   // no config overrides: this IS the default now
+  const S = await boot();   // seeding off (see boot helper): an empty server, the bootstrap path
   try {
     let r = await api(S.base, '/api/auth/mode');
     let mode = await r.json();
@@ -154,6 +160,58 @@ section('first-run bootstrap (the default state of a new server)');
       method: 'POST', body: JSON.stringify({ name: 'second', password: 'pw-second-12345', role: 'analyst' }),
     }));
     eq('the bootstrapped lead can create the next account', r.status, 200);
+  } finally { S.stop(); }
+}
+
+/* ============ 1c. seeded default accounts ============ */
+/* The product default on a fresh accounts server: two ready-made logins so the
+   console opens to a role prompt, not a create-account form. Weak on purpose
+   and only for a local box - the point of the test is that they exist, that
+   the defaults are advertised (names only), and that changing a password
+   retires the default without leaving a second way in. */
+section('seeded default accounts (the product default)');
+{
+  const S = await boot({ requireLogin: true, seedDefaultAccounts: true });
+  try {
+    const mode = await (await api(S.base, '/api/auth/mode')).json();
+    eq('a seeded server is not in first-run setup', mode.needsSetup, false);
+    eq('it reports the two seeded accounts', mode.accounts, 2);
+    const names = (mode.defaults || []).map(d => d.name).sort();
+    eq('the defaults are advertised by name', names.join(','), 'admin,user');
+    // The public probe must still not leak anything but name+role per default.
+    const leak = (mode.defaults || []).some(d => Object.keys(d).some(k => !['name', 'role'].includes(k)));
+    ok('the defaults advertisement carries no password/hash/id', !leak, JSON.stringify(mode.defaults));
+
+    // The whole point: you can actually sign in with the documented defaults.
+    let r = await api(S.base, '/api/auth/login', {
+      method: 'POST', body: JSON.stringify({ name: 'admin', password: 'admin123' }),
+    });
+    eq('admin signs in with the default password', r.status, 200);
+    const admin = await r.json();
+    eq('admin is a lead', admin.user.role, 'lead');
+
+    r = await api(S.base, '/api/auth/login', {
+      method: 'POST', body: JSON.stringify({ name: 'user', password: 'user123' }),
+    });
+    eq('user signs in with the default password', r.status, 200);
+    eq('user is an analyst', (await r.json()).user.role, 'analyst');
+
+    // Changing the password retires the default: it drops out of the picker.
+    const users = await (await api(S.base, '/api/users', withTok(admin.token))).json();
+    const userId = users.find(x => x.name === 'user').id;
+    r = await api(S.base, `/api/users/${userId}`, withTok(admin.token, {
+      method: 'PATCH', body: JSON.stringify({ password: 'a-real-password-123' }),
+    }));
+    eq('a lead can change the seeded password', r.status, 200);
+    const after = await (await api(S.base, '/api/auth/mode')).json();
+    eq('the changed account is no longer advertised as a default', (after.defaults || []).length, 1);
+    eq('...and only admin remains a default', after.defaults[0].name, 'admin');
+
+    // The old default password must no longer work.
+    r = await api(S.base, '/api/auth/login', {
+      method: 'POST', body: JSON.stringify({ name: 'user', password: 'user123' }),
+    });
+    eq('the retired default password is rejected', r.status, 401);
   } finally { S.stop(); }
 }
 
@@ -238,6 +296,19 @@ section('accounts enabled (requireLogin on)');
       method: 'PATCH', body: JSON.stringify({ status: 'contained' }),
     }));
     eq('an analyst can edit their OWN ticket', r.status, 200);
+
+    /* --- closing is a lead's sign-off, even on your own ticket --- */
+    r = await api(S.base, `/api/tickets/${anaTicket.id}`, withTok(ana.token, {
+      method: 'PATCH', body: JSON.stringify({ status: 'closed' }),
+    }));
+    eq('an analyst CANNOT close even their own ticket', r.status, 403);
+    // ...and the rejected close left the status untouched, not half-applied.
+    const list = await (await api(S.base, '/api/tickets', withTok(ana.token))).json();
+    eq('the ticket is still contained after the refused close', list.find(x => x.id === anaTicket.id).status, 'contained');
+    r = await api(S.base, `/api/tickets/${anaTicket.id}`, withTok(lead.token, {
+      method: 'PATCH', body: JSON.stringify({ status: 'closed' }),
+    }));
+    eq('a lead CAN close it', r.status, 200);
 
     r = await api(S.base, '/api/tickets', withTok(lead.token, {
       method: 'POST', body: JSON.stringify({ title: 'lead ticket' }),
