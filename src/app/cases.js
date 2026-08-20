@@ -95,6 +95,18 @@ function csDetailHTML(c){
   </div>
   <div class="ls-det-sub">Opened by ${esc(c.createdBy)} · ${new Date(c.createdAt).toLocaleString()}</div>
 
+  <div class="ls-mm-sec">Affected hosts · ${(c.hosts||[]).length}</div>
+  <div class="cs-hosts">
+    ${(c.hosts||[]).map(h=>`<span class="cs-host-chip">▣ ${esc(h)}<button onclick="csRemoveHost('${c.id}','${jsq(h)}')" data-tip="Remove">×</button></span>`).join('')||'<span class="ls-det-sub" style="padding:0">None listed yet.</span>'}
+  </div>
+  <div class="cs-host-add">
+    <select onchange="if(this.value){csAddHost('${c.id}',this.value);this.value='';}">
+      <option value="">${csHostOptions(c).length?'Add a host from the network…':'No enrolled/mapped hosts to pick'}</option>
+      ${csHostOptions(c).map(h=>`<option value="${esc(h)}">${esc(h)}</option>`).join('')}
+    </select>
+    <button class="tk-assign-btn" onclick="csAddHostPrompt('${c.id}')">+ type one</button>
+  </div>
+
   <div class="ls-mm-sec">Write-up</div>
   ${field('execSummary','Executive summary','What happened, in plain language a manager can act on.')}
   ${field('scope','Scope','Which hosts, accounts and data were involved - and what you ruled out.')}
@@ -105,7 +117,14 @@ function csDetailHTML(c){
     <span class="ls-det-tid">#${t.num}</span>
     <span style="flex:1;min-width:0">${esc(t.title)}</span>
     <span class="ls-ne-obs-sev inc-${t.severity==='critical'||t.severity==='high'?'malicious':t.severity==='medium'?'suspicious':'info'}">${esc(t.status)}</span>
-  </div>`).join(''):'<div class="ls-det-sub">No tickets attached yet. Open a ticket and pick this case from its Case dropdown.</div>'}
+  </div>`).join(''):'<div class="ls-det-sub">No tickets attached yet.</div>'}
+  ${(() => {
+    const un=LIVE.tickets.filter(t=>t.caseId!==c.id);
+    return un.length?`<select class="cs-attach" onchange="if(this.value){csAttachTicket('${c.id}',this.value);this.value='';}">
+      <option value="">Attach an existing ticket…</option>
+      ${un.map(t=>`<option value="${esc(t.id)}">#${t.num} ${esc(t.title)}</option>`).join('')}
+    </select>`:'';
+  })()}
 
   <div class="ls-mm-sec">Evidence · ${ev.length}</div>
   <div class="ls-det-sub">Every file is SHA-256 hashed on upload and the hash is written into the tamper-evident audit chain, so you can prove later that what you hold is what you collected.</div>
@@ -249,8 +268,42 @@ h2{margin:0 0 4px}h3{margin:22px 0 6px;font-size:13px;text-transform:uppercase;l
 async function csPatch(id,patch){
  try{
   csUpsert(await liveApi('/api/cases/'+id,{method:'PATCH',body:JSON.stringify(patch)}));
-  renderCases();
+  csRefresh();   // keep the open detail sheet in step, not just the list
  }catch(e){toast('Could not save: '+e.message);}
+}
+/* ---- affected hosts: pick from the network, or type one ---- */
+/* Hosts already known to AEGIS - enrolled agents and anything on the map -
+   minus the ones already on this case, so the dropdown only offers new names. */
+function csHostOptions(c){
+ const have=new Set((c.hosts||[]).map(h=>h.toLowerCase()));
+ const names=new Set();
+ (LIVE.agents||[]).forEach(a=>{if(a.hostname)names.add(a.hostname);});
+ (typeof lsNodes!=='undefined'?lsNodes:[]).forEach(n=>{if(n&&n.label)names.add(n.label);});
+ return [...names].filter(n=>!have.has(n.toLowerCase())).sort();
+}
+function csAddHost(id,name){
+ name=(name||'').trim();if(!name)return;
+ const c=csById(id);if(!c)return;
+ const hosts=(c.hosts||[]).slice();
+ if(hosts.some(h=>h.toLowerCase()===name.toLowerCase()))return;
+ hosts.push(name);csPatch(id,{hosts});
+}
+function csRemoveHost(id,name){
+ const c=csById(id);if(!c)return;
+ csPatch(id,{hosts:(c.hosts||[]).filter(h=>h!==name)});
+}
+async function csAddHostPrompt(id){
+ const name=await uiPrompt('Hostname affected by this case:','',{title:'Add affected host',ok:'Add',placeholder:'e.g. WKS-014 or a server not on the map'});
+ if(name&&name.trim())csAddHost(id,name.trim());
+}
+/* Link an existing ticket to this case from the case side (the reverse of the
+   ticket's own Case dropdown). Reuses the ticket PATCH, then refreshes. */
+async function csAttachTicket(id,ticketId){
+ if(!ticketId)return;
+ try{await liveApi('/api/tickets/'+ticketId,{method:'PATCH',body:JSON.stringify({caseId:id})});
+  const i=LIVE.tickets.findIndex(t=>t.id===ticketId);if(i>=0)LIVE.tickets[i].caseId=id;
+  csRefresh();toast('Ticket linked to this case');
+ }catch(e){toast('Could not link: '+e.message);}
 }
 
 function csUpload(id,input){

@@ -647,6 +647,15 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .auth-hint{margin-top:10px;font-size:10.5px;color:var(--t2);line-height:1.5;padding:8px 11px;border-radius:9px;background:var(--violet-soft);border:1px solid var(--line-hi);}
 .auth-hint code{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:4px;background:var(--ink2);}
 .ls-det-sub{font-size:11px;color:var(--t3);line-height:1.5;margin-bottom:12px;}
+/* case: affected hosts + attach controls */
+.cs-hosts{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px;}
+.cs-host-chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;padding:3px 5px 3px 9px;border-radius:99px;background:var(--ink2);border:1px solid var(--line2);}
+.cs-host-chip button{border:none;background:transparent;color:var(--t3);cursor:pointer;font-size:13px;line-height:1;padding:0 2px;}
+.cs-host-chip button:hover{color:var(--magenta);}
+.cs-host-add{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
+.cs-host-add select,.cs-attach{background:var(--ink2);border:1px solid var(--line2);color:var(--t1);border-radius:8px;padding:6px 9px;font-size:11px;}
+.cs-host-add select{flex:1;}
+.cs-attach{width:100%;margin-top:6px;}
 .ls-det-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--ink2);margin-bottom:5px;}
 .ls-det-row.gap{background:var(--magenta-bg);}
 .ls-det-tid{font-family:var(--mono);font-size:10px;color:var(--violet);min-width:72px;}

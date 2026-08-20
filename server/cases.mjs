@@ -28,6 +28,17 @@ export const CASE_NARRATIVE = ['execSummary', 'scope', 'remediation'];
 export const CASE_PATCHABLE = ['title', 'status', 'severity', 'assignee', ...CASE_NARRATIVE];
 
 const clamp = (v, n) => String(v == null ? '' : v).slice(0, n);
+/** A clean, de-duplicated host list: at most 200 names, each <=120 chars. */
+function sanitizeHosts(v) {
+  if (!Array.isArray(v)) return [];
+  const seen = new Set(), out = [];
+  for (const h of v) {
+    const s = clamp(h, 120).trim();
+    if (s && !seen.has(s.toLowerCase())) { seen.add(s.toLowerCase()); out.push(s); }
+    if (out.length >= 200) break;
+  }
+  return out;
+}
 
 export function makeCase(body, actor, num) {
   const title = clamp(body.title, 300).trim();
@@ -39,6 +50,10 @@ export function makeCase(body, actor, num) {
     status: CASE_STATUSES.includes(body.status) ? body.status : 'open',
     severity: CASE_SEVERITIES.includes(body.severity) ? body.severity : 'medium',
     assignee: clamp(body.assignee, 120),
+    // Affected hosts as a simple, de-duplicated list of names. Structured so the
+    // UI can offer a host dropdown and so the report can enumerate scope, rather
+    // than everyone re-typing hostnames into the free-text scope field.
+    hosts: sanitizeHosts(body.hosts),
     execSummary: clamp(body.execSummary, 20000),
     scope: clamp(body.scope, 20000),
     remediation: clamp(body.remediation, 20000),
@@ -63,6 +78,9 @@ export function patchCase(c, body) {
     c[k] = CASE_NARRATIVE.includes(k) ? clamp(body[k], 20000) : clamp(body[k], 300);
     applied[k] = c[k];
   }
+  // The affected-hosts list is an array, not free text, so it is handled apart
+  // from the string-clamp loop above.
+  if (body.hosts !== undefined) { c.hosts = sanitizeHosts(body.hosts); applied.hosts = c.hosts; }
   c.updatedAt = Date.now();
   return applied;
 }

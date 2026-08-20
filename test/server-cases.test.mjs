@@ -68,6 +68,13 @@ section('case patching');
   patchCase(c, { severity: 'nonsense' });
   eq('an invalid severity is ignored', c.severity, 'high');
 
+  // affected-hosts list: array, de-duplicated (case-insensitively), trimmed
+  patchCase(c, { hosts: ['WKS-01', ' wks-01 ', 'DC01', '', 'DC01'] });
+  eq('hosts de-duplicated case-insensitively and trimmed', c.hosts.join(','), 'WKS-01,DC01');
+  ok('hosts is a real array', Array.isArray(c.hosts));
+  patchCase(c, { hosts: 'not-an-array' });
+  eq('a non-array hosts value clears to empty', c.hosts.length, 0);
+
   // the important one: a patch must not be able to rewrite provenance
   patchCase(c, { createdBy: 'someone else', createdById: 'u_evil', id: 'cs_evil', num: 999, evidence: [{ fake: 1 }], formalFrozen: { forged: true } });
   eq('createdBy is not patchable', c.createdBy, 'mike');
