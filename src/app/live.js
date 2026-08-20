@@ -1,6 +1,6 @@
 /* ================= LIVE MODE =================
    Connects to an AEGIS server: agents populate the map, events land as
-   observations, and tickets sync in real time over SSE. Fully optional —
+   observations, and tickets sync in real time over SSE. Fully optional -
    with no server configured the app stays exactly as it was, local-only. */
 let LIVE={url:'',token:'',connected:false,es:null,agents:[],tickets:[],cases:[],chat:[],events:[],lastError:''};
 function liveLoad(){
@@ -15,12 +15,32 @@ async function liveApi(path,opts){
 }
 /* Reconnect on load when we already hold credentials. Without this a refresh
    silently drops the analyst into offline mode with a stored token sitting
-   right there — the data looks gone rather than disconnected. Quiet by
+   right there - the data looks gone rather than disconnected. Quiet by
    design: failure just leaves the console offline, which is a supported
    state, not an error worth interrupting anyone over. */
 async function liveAutoConnect(){
- if(!LIVE.url||!LIVE.token)return;
- try{await liveConnect({quiet:true});}catch{}
+ if(LIVE.url&&LIVE.token){try{await liveConnect({quiet:true});}catch{}return;}
+ if(LIVE.url)return; // a server is saved but not yet connected - the offline badge is the way back in, don't guess further
+ // Nothing configured at all. A stock npm start / start.sh / Docker install
+ // serves this console from the same origin as its own API, so if that origin
+ // answers /api/health, it is almost certainly the server this analyst wants -
+ // not a stranger's. Detecting it removes a step most first-time analysts have
+ // no reason to expect exists: pasting the address of the page they are
+ // already looking at into a dialog to "connect" it to itself. Never fires
+ // against the static offline build or a file:// open, since neither serves
+ // that endpoint.
+ if(location.protocol==='file:')return;
+ let health=null;
+ try{const r=await fetch(location.origin+'/api/health');if(r.ok)health=await r.json();}catch{}
+ if(!health||!health.ok)return;
+ LIVE.url=location.origin;liveSave();liveBadge();
+ const mode=await authMode(LIVE.url);
+ if(mode.requireLogin){_authNeedsSetup=!!mode.needsSetup;openLogin();return;}
+ // Accounts are off for this deployment - there is no login to trigger, but
+ // there is now a real server to point the analyst token at. Open the same
+ // dialog the offline badge does, pre-filled, instead of leaving the console
+ // silent about a server it just found.
+ openLiveSetup();
 }
 async function liveConnect(opts){
  if(!LIVE.url){toast('Set the server URL first');return;}
@@ -175,7 +195,7 @@ function openLiveSetup(){
   <div class="ls-mm-sec">Deploying agents</div>
   <div class="ls-det-sub">On each Windows host, as admin:<br>
    <code>.\\aegis-agent.ps1 -Server &lt;url&gt; -EnrollmentToken &lt;token&gt; -Install</code><br>
-   Linux/macOS: <code>./aegis-agent.py --server &lt;url&gt; --token &lt;token&gt; --once</code> from a systemd timer or cron.
+   Linux/macOS: <code>sudo python3 agents/aegis-agent.py --server &lt;url&gt; --token &lt;token&gt; --once</code> from a systemd timer or cron.
    The enrollment token is separate from the analyst token above and is printed alongside it.</div>
  </div>`;
  v.classList.add('open');v.onclick=(e)=>{if(e.target===v)closeLiveSetup();};

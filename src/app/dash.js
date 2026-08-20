@@ -1,7 +1,7 @@
 /* ================= DASHBOARD ================= */
 /* The first thing you see, and the answer to "what is happening right now".
  *
- * Everything on it is live. Nothing on it is a static reference — the ATT&CK
+ * Everything on it is live. Nothing on it is a static reference - the ATT&CK
  * matrix, the log-source catalogue and the technique library are all reference
  * material and belong behind a click, not in front of someone walking up to a
  * screen mid-incident.
@@ -22,7 +22,7 @@ const DASH_CARDS = {
  companion: {label:'Companion notes',    hint:'What the local model has flagged unasked'},
  activity:  {label:'Team activity',      hint:'What your colleagues have been doing'},
 };
-const DASH_DEFAULT = ['threat','malicious','techniques','hosts','agents','tickets'];
+const DASH_DEFAULT = ['threat','malicious','techniques','companion','hosts','agents','tickets'];
 
 let dashCards = DASH_DEFAULT.slice();
 let _dashTimer = null;
@@ -169,7 +169,7 @@ function dashCardAgents(){
  if(!ags.length)return dashEmpty('No agents enrolled. See INSTALL.md to deploy one.');
  const stale=ags.filter(a=>a.stale);
  const head=stale.length
-  ? `<div class="dash-warn">${stale.length} agent${stale.length===1?'':'s'} gone quiet — silence is a signal, not calm.</div>`
+  ? `<div class="dash-warn">${stale.length} agent${stale.length===1?'':'s'} gone quiet - silence is a signal, not calm.</div>`
   : '';
  return head+ags.slice(0,7).map(a=>`<div class="drow" onclick="go('logsrc')">
    <span class="drow-k ${a.stale?'sev-suspicious':'sev-ok'}">${a.stale?'quiet':'live'}</span>
@@ -179,7 +179,7 @@ function dashCardAgents(){
 }
 
 function dashCardCompanion(){
- if(!CO.available)return dashEmpty('No local model running. See LOCAL-AI.md — it is optional.');
+ if(!CO.available)return dashEmpty('No local model running. See LOCAL-AI.md - it is optional.');
  const rows=coItems.filter(i=>i.kind==='watch').slice(-4).reverse();
  if(!rows.length)return dashEmpty('Nothing flagged yet. It speaks when telemetry warrants it.');
  return rows.map(i=>`<div class="dnote dnote-${esc(i.worst||'suspicious')}" onclick="coToggle()">
@@ -202,7 +202,7 @@ function dashCardActivity(){
 function dashOpenEvent(host){go('siem');const q=document.getElementById('siem-q');
  if(q&&host){q.value='host:'+host;if(typeof siemRun==='function')siemRun();}}
 function dashOpenTech(t){const id=MITRE[t]?t:t.split('.')[0];
- if(MITRE[id]){go('matrix');openDrawer(id);}else toast(t+' — no strategy page for this one');}
+ if(MITRE[id]){go('matrix');openDrawer(id);}else toast(t+' - no strategy page for this one');}
 
 /** Pick which cards you want. Per browser, because it is a personal choice. */
 async function dashCustomise(){

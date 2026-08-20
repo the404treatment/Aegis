@@ -7,10 +7,10 @@
  * chain still intact, who has a live session, and is this deployment still
  * sitting on the published defaults that anyone who read the repo knows.
  *
- * Lead-only, and hidden entirely from analysts rather than shown-and-refused —
+ * Lead-only, and hidden entirely from analysts rather than shown-and-refused -
  * a nav item you cannot use is just a reminder that you are not trusted. */
 
-let ADMIN = {users:[], sessions:0, chain:null, service:null};
+let ADMIN = {users:[], sessions:0, chain:null, service:null, deploy:null};
 let _adminBusy=false;
 
 const adminIsLead = () => authCan('user.manage');
@@ -33,6 +33,7 @@ async function renderAdmin(){
       <button class="btn violet" onclick="adminNewUser()">+ Add someone</button></div>
     ${adminUsers()}
   </div>
+  ${adminDeploy()}
   ${adminService()}`;
 }
 
@@ -40,7 +41,52 @@ async function adminLoad(){
  if(_adminBusy)return;_adminBusy=true;
  try{ADMIN.users=await liveApi('/api/users');}catch{ADMIN.users=[];}
  try{const a=await liveApi('/api/activity?limit=1');ADMIN.chain=a.intact!==false;}catch{ADMIN.chain=null;}
+ try{ADMIN.deploy=await liveApi('/api/enrollment-info');}catch{ADMIN.deploy=null;}
  _adminBusy=false;
+}
+
+/* --------------------------------------------------------- deploy ---- */
+/* This was previously only discoverable by reading INSTALL.md and copying a
+ * command out of a terminal that printed it once at server startup - the
+ * exact information a lead needs to enrol an agent, sitting in a file most
+ * analysts never open. The values here come from the server itself
+ * (GET /api/enrollment-info, already gated to any signed-in analyst), so this
+ * is display only: nothing here lets the browser reach out and install
+ * anything on an endpoint. Agents stay push-only and opt-in by design - see
+ * the header comment in server/aegis-server.mjs. */
+function adminDeploy(){
+ const d=ADMIN.deploy;
+ if(!d)return`<div class="adm-sec"><div class="adm-sec-h"><span>Deploy an agent</span></div>
+   <div class="adm-note">Could not read the enrollment token from the server. It is still printed at server startup, and in server/config.json.</div></div>`;
+ const win=`.\\aegis-agent.ps1 -Server ${d.serverUrl} -EnrollmentToken ${d.enrollmentToken} -Install`;
+ // python3 rather than ./aegis-agent.py: a ZIP download loses the executable
+ // bit and the ./ form then fails as "command not found".
+ const nix=`sudo python3 agents/aegis-agent.py --server ${d.serverUrl} --token ${d.enrollmentToken} --once`;
+ const scan=`node discover.mjs --json targets.json && node deploy-agents.mjs --targets targets.json`;
+ const q=s=>JSON.stringify(s).replace(/"/g,'&quot;');
+ return`<div class="adm-sec">
+   <div class="adm-sec-h"><span>Deploy an agent</span></div>
+   <div class="adm-note">
+     Agents are read-only and push-only - there is no channel for the server, or this
+     console, to reach out and install one on an endpoint. Run one of these from a
+     terminal on the machine you want telemetry from (or, for many machines at once, from
+     any machine with network access to them).
+   </div>
+   <div class="sec-t" style="padding:0 15px;margin-top:10px">Windows, in an admin PowerShell</div>
+   <div class="qwrap" style="margin:6px 15px 0"><div class="qblock">${esc(win)}</div>
+     <button class="cpy" onclick="copyText(this,${q(win)})">COPY</button></div>
+   <div class="sec-t" style="padding:0 15px;margin-top:10px">Linux / macOS, as root</div>
+   <div class="qwrap" style="margin:6px 15px 0"><div class="qblock">${esc(nix)}</div>
+     <button class="cpy" onclick="copyText(this,${q(nix)})">COPY</button></div>
+   <div class="sec-t" style="padding:0 15px;margin-top:10px">Scan the network first, then push to what it finds</div>
+   <div class="qwrap" style="margin:6px 15px 0"><div class="qblock">${esc(scan)}</div>
+     <button class="cpy" onclick="copyText(this,${q(scan)})">COPY</button></div>
+   <div class="adm-note" style="margin-top:8px">
+     Installing under a different name, so an intruder can't spot the agent by searching
+     for "AEGIS": add <code>-Name svc-telemetry</code> (or <code>--agent-name</code> on the
+     scanning deployer). Step-by-step: <code>docs/RUNBOOK.md</code> section 7.
+   </div>
+ </div>`;
 }
 
 /* ---------------------------------------------------------- health ---- */
@@ -59,7 +105,7 @@ function adminHealth(){
   {k:'agents', label:'Agents reporting',
    v:`${(LIVE.agents||[]).length-stale}/${(LIVE.agents||[]).length}`,
    tone: stale?'warn':'ok',
-   note: stale?`${stale} gone quiet. Silence is a signal, not calm — see docs/DEFENDING-AEGIS.md.`:'All enrolled agents are reporting.'},
+   note: stale?`${stale} gone quiet. Silence is a signal, not calm - see docs/DEFENDING-AEGIS.md.`:'All enrolled agents are reporting.'},
   {k:'here', label:'Online now', v:String(PRESENCE.length||0), tone:'',
    note: PRESENCE.length?PRESENCE.map(p=>p.name).join(', '):'Nobody else is connected.'},
  ];
@@ -80,7 +126,7 @@ function adminUsers(){
   return`<div class="adm-user">
     <span class="who-dot sm" style="--who:${whoColor(u.name)}">${esc(initialsOf(u.name))}</span>
     <span class="adm-u-name">${esc(u.name)}${self?' <i>(you)</i>':''}</span>
-    <select class="adm-u-role" ${self?'disabled title="You cannot change your own role — that is how people lock themselves out"':''}
+    <select class="adm-u-role" ${self?'disabled title="You cannot change your own role - that is how people lock themselves out"':''}
       onchange="adminSetRole('${jsq(u.id)}',this.value)">
       ${['analyst','lead'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}
     </select>
@@ -88,12 +134,12 @@ function adminUsers(){
     <button class="adm-u-x danger" ${self?'disabled':''}
       onclick="adminDeleteUser('${jsq(u.id)}','${jsq(u.name)}')" data-tip="Remove, and kill their sessions">remove</button>
   </div>`;}).join('')}</div>
-  <div class="adm-note">Deleting an account revokes its live sessions immediately — that is the offboarding control.
+  <div class="adm-note">Deleting an account revokes its live sessions immediately - that is the offboarding control.
    Changing a password does the same.</div>`;
 }
 
 async function adminNewUser(){
- const name=await uiPrompt('Name — colleagues will see this on everything they do','',{title:'Add someone',ok:'Next'});
+ const name=await uiPrompt('Name - colleagues will see this on everything they do','',{title:'Add someone',ok:'Next'});
  if(!name||!name.trim())return;
  const pw=await uiPrompt(`Password for ${name.trim()} (at least 10 characters)`,'',{title:'Add someone',ok:'Create',password:true});
  if(!pw)return;
@@ -115,12 +161,12 @@ async function adminResetPw(id,name){
  const pw=await uiPrompt(`New password for ${name} (at least 10 characters)`,'',{title:'Reset password',ok:'Set',password:true});
  if(!pw)return;
  try{await liveApi('/api/users/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({password:pw})});
-  toast(`Password set — ${name} has been signed out everywhere`);
+  toast(`Password set - ${name} has been signed out everywhere`);
  }catch(e){toast('Could not set it: '+e.message);}
 }
 
 async function adminDeleteUser(id,name){
- if(!await uiConfirm(`Remove ${name}?\n\nTheir sessions die immediately. Everything they did stays in the audit chain and in the case files — this removes the account, not the record.`,
+ if(!await uiConfirm(`Remove ${name}?\n\nTheir sessions die immediately. Everything they did stays in the audit chain and in the case files - this removes the account, not the record.`,
    {title:'Remove account',ok:'Remove',danger:true}))return;
  try{await liveApi('/api/users/'+encodeURIComponent(id),{method:'DELETE'});
   toast(`${name} removed`);renderAdmin();
@@ -138,7 +184,7 @@ function adminService(){
    </div>
    <div class="adm-note">
      AEGIS holds your incident record, which makes it a target. Everything about a stock
-     install — service name, port, paths — is public. Change it on the server with
+     install - service name, port, paths - is public. Change it on the server with
      <code>node harden.mjs --name &lt;something-dull&gt; --port &lt;not-8787&gt; --rotate</code>,
      then read <code>docs/DEFENDING-AEGIS.md</code> for what to alert on. Rotating tokens
      signs out consoles using the shared token; named accounts are unaffected.

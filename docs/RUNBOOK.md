@@ -1,7 +1,7 @@
 # AEGIS runbook
 
 For whoever runs the server. Analysts have the guided tour in the app (`?`);
-this is the other half — every failure this thing can have, what it looks like,
+this is the other half - every failure this thing can have, what it looks like,
 and how to fix it.
 
 Each entry is the same shape: **Symptom → What it means → Check → Fix**. Run the
@@ -52,7 +52,7 @@ checks in order; they are cheapest-first.
 
 ### 1.1 The server will not start
 
-**Check** — run it in the foreground so you can see the error:
+**Check** - run it in the foreground so you can see the error:
 
 ```bash
 node server/aegis-server.mjs --config ./server/config.json
@@ -65,7 +65,7 @@ node server/aegis-server.mjs --config ./server/config.json
 | Nothing, exits silently | Node is too old. `node -v` must be ≥ 18. |
 | `EACCES` | You asked for a port under 1024. Use one above it. |
 
-**Fix a broken config** — it is only JSON, and losing it costs you your tokens
+**Fix a broken config** - it is only JSON, and losing it costs you your tokens
 (every agent re-enrols), so try repairing before regenerating:
 
 ```bash
@@ -88,13 +88,13 @@ Get-NetTCPConnection -LocalPort 8787 | Select-Object OwningProcess
 Get-Process -Id (Get-NetTCPConnection -LocalPort 8787).OwningProcess
 ```
 
-If it is AEGIS, you are done — open the console. If it is something else, move
+If it is AEGIS, you are done - open the console. If it is something else, move
 AEGIS: `node harden.mjs --port 9443` (and see [3.1](#31-an-agent-will-not-enrol),
 because agents hold the old address).
 
 ### 1.3 It does not come back after a reboot
 
-**Linux** — the usual cause is lingering. Without it a *user* service stops when
+**Linux** - the usual cause is lingering. Without it a *user* service stops when
 you log out, which for a telemetry collector is exactly wrong:
 
 ```bash
@@ -111,7 +111,7 @@ launchctl list | grep aegis
 launchctl load ~/Library/LaunchAgents/com.aegis.server.plist
 ```
 
-**Windows** — the task is per-user and only fires at *logon*, so a rebooted
+**Windows** - the task is per-user and only fires at *logon*, so a rebooted
 server sitting at the login screen has not started it:
 
 ```powershell
@@ -121,7 +121,7 @@ Start-ScheduledTask -TaskName 'AEGIS Server'
 
 For a machine that must run headless, change the trigger to *At startup* and set
 the task to run whether the user is logged on or not. That needs a stored
-credential — a decision to make deliberately, not by default.
+credential - a decision to make deliberately, not by default.
 
 ### 1.4 Windows blocks the scripts
 
@@ -133,7 +133,7 @@ Get-ExecutionPolicy -List
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-For a fleet, code-sign the agent instead of loosening policy — see
+For a fleet, code-sign the agent instead of loosening policy - see
 `deploy/README-deploy.md`.
 
 ---
@@ -149,7 +149,7 @@ Work outwards from the server.
 curl -fsS http://127.0.0.1:8787/api/health && echo OK
 
 # 2. Is it listening on the network, not just loopback?
-#    "127.0.0.1:8787" here is the bug — agents and other machines cannot reach it.
+#    "127.0.0.1:8787" here is the bug - agents and other machines cannot reach it.
 ss -ltn | grep 8787
 ```
 
@@ -168,9 +168,27 @@ common cause:
 New-NetFirewallRule -DisplayName "AEGIS 8787" -Direction Inbound `
   -Protocol TCP -LocalPort 8787 -Action Allow -Profile Domain,Private
 ```
+
+On Linux, find out what you are actually running before opening anything -
+`sudo ufw allow` is useless advice on a host with no ufw, and installing one
+to open a port in it leaves the machine more restricted than it started:
+
 ```bash
-sudo ufw allow 8787/tcp
+command -v ufw firewall-cmd nft iptables
 ```
+
+| Reported | Run |
+|---|---|
+| `ufw` | `sudo ufw allow 8787/tcp` |
+| `firewall-cmd` | `sudo firewall-cmd --add-port=8787/tcp --permanent && sudo firewall-cmd --reload` |
+| `nft` | `sudo nft add rule inet filter input tcp dport 8787 accept` |
+| `iptables` | `sudo iptables -I INPUT -p tcp --dport 8787 -j ACCEPT` |
+| nothing | no host firewall is installed - the block is elsewhere (see below) |
+
+If nothing is reported, stop looking at the host firewall: check that the
+server is bound to `0.0.0.0` rather than `127.0.0.1` (`grep host server/config.json`),
+and then look at anything between the two machines - hypervisor networking,
+VLAN segmentation, or a cloud security group.
 
 ### 2.2 Nobody can sign in
 
@@ -182,7 +200,7 @@ curl -s http://127.0.0.1:8787/api/auth/mode
 |---|---|
 | `"needsSetup":true` | No accounts exist. The login screen offers to **create the first one**. Use it. |
 | `"requireLogin":false` | Accounts are off; the console wants the **analyst token**, not a password. |
-| `"accounts":N` with N ≥ 1 | Accounts exist — this is a wrong password, or a lockout. |
+| `"accounts":N` with N ≥ 1 | Accounts exist - this is a wrong password, or a lockout. |
 
 Five failed attempts locks that name briefly. Wait it out; the audit log records
 every attempt:
@@ -211,7 +229,7 @@ Rotating means **every agent must re-enrol**. Named accounts are unaffected.
 
 ### 2.4 Connected but nothing is live
 
-The badge says connected, but events, presence and chat never move — the SSE
+The badge says connected, but events, presence and chat never move - the SSE
 stream is broken rather than the API.
 
 ```bash
@@ -225,7 +243,7 @@ Almost always a **reverse proxy buffering the event stream**. AEGIS sends
 
 - nginx: `proxy_buffering off;` and `proxy_read_timeout 3600s;`
 - Apache: `SetEnv proxy-sendchunked 1`, disable `mod_deflate` on this path
-- Caddy: works out of the box — see `deploy/Caddyfile`
+- Caddy: works out of the box - see `deploy/Caddyfile`
 
 Also check the browser console for a mixed-content block: an `https://` console
 cannot open an `http://` stream.
@@ -244,18 +262,18 @@ cannot open an `http://` stream.
 | Error | Cause |
 |---|---|
 | connection timed out | Firewall, or wrong address. Re-check [2.1](#21-the-console-will-not-connect). |
-| `401 bad enrollment token` | Token mismatch — copy it again from the server banner. Rotated recently? |
+| `401 bad enrollment token` | Token mismatch - copy it again from the server banner. Rotated recently? |
 | `must run as Administrator` | Elevation. The Security log is not readable without it. |
 | `hostname required` | See [3.2](#32-hostname-required-when-the-agent-has-one). |
 
 The address matters: use the **"Agents report to"** line the server printed, not
 `127.0.0.1`. If the server has VPN or VM adapters, setup labels the virtual ones
-— pick the one on the same network as your endpoints.
+- pick the one on the same network as your endpoints.
 
 ### 3.2 `hostname required` when the agent has one
 
 The server constrains hostnames to letters, digits, dot, dash, underscore,
-colon, slash, at and plus — deliberately, because hostnames get rendered into
+colon, slash, at and plus - deliberately, because hostnames get rendered into
 the console and a quote or bracket in one is an injection attempt, not a name
 (see `docs/DEFENDING-AEGIS.md`).
 
@@ -287,7 +305,7 @@ error. Otherwise the usual cause is **the logs are empty because auditing is
 off**. The console tells you which: Network Map → map menu → **Logging posture**
 lists hosts missing Sysmon, 4104 and 5145.
 
-Turn on what is missing (command-line auditing in particular — 4688 without
+Turn on what is missing (command-line auditing in particular - 4688 without
 `CommandLine` is nearly useless), then wait one collection cycle.
 
 ### 3.4 An agent has gone quiet
@@ -297,8 +315,8 @@ seconds (default 180).
 
 **Treat this as a finding, not a fault.** An endpoint that stops reporting is
 either broken or being silenced, and the second is what you bought this for.
-`docs/DEFENDING-AEGIS.md` §5 covers it. Rule out the boring causes first —
-machine off, agent task disabled, network — then investigate.
+`docs/DEFENDING-AEGIS.md` §5 covers it. Rule out the boring causes first -
+machine off, agent task disabled, network - then investigate.
 
 The agent is built to make the boring causes rare: it runs from a scheduled
 task that repeats on the interval and also refires at boot and at logon, so a
@@ -347,13 +365,13 @@ and the event body, so any of those changing breaks it.
 
 There are only three explanations, in order of likelihood:
 
-1. **Disk or process damage** — an unclean shutdown mid-write, or a full disk.
+1. **Disk or process damage** - an unclean shutdown mid-write, or a full disk.
    Check `dmesg` / Event Viewer around the time it broke.
 2. **Someone edited it by hand.** Restoring a backup *over* a live chain does
    this too.
 3. **Someone is covering their tracks.** This is the case the feature exists for.
 
-Do not "fix" it by deleting the file — that destroys the evidence and the record
+Do not "fix" it by deleting the file - that destroys the evidence and the record
 in one move. Instead:
 
 ```bash
@@ -367,13 +385,13 @@ npm run verify:audit
 ```
 
 That walks the chain row by row and reports the **first** bad row, which property
-stopped matching, and the row's contents — so you can say *"someone changed this
+stopped matching, and the row's contents - so you can say *"someone changed this
 account's role to lead at 00:42"* rather than *"the chain is broken"*:
 
 ```
   BROKEN at row 1 (seq 1, 2026-08-19T00:42:10.063Z)
 
-    · its stored body no longer hashes to the recorded dataHash — the body was edited
+    · its stored body no longer hashes to the recorded dataHash - the body was edited
 
     actorId    u_8YkXIu-F
     action     user.create
@@ -393,10 +411,10 @@ node verify-audit.mjs --file /backups/audit-2026-08-19.ndjson
 ```
 
 Exit codes suit cron: `0` intact, `1` broken, `2` unreadable. Run it on a
-schedule and alert on anything non-zero — see
+schedule and alert on anything non-zero - see
 `docs/DEFENDING-AEGIS.md` for the rest of that monitoring.
 
-**Prevention:** ship `audit.ndjson` off the box as it is written — Splunk HEC,
+**Prevention:** ship `audit.ndjson` off the box as it is written - Splunk HEC,
 or `rsyslog`. Someone who owns the server can edit the local copy; they cannot
 edit the one that already left.
 
@@ -411,7 +429,7 @@ for f in *; do
 done
 ```
 
-Any mismatch means the file was swapped underneath the case — handle it as
+Any mismatch means the file was swapped underneath the case - handle it as
 [4.1](#41-the-audit-chain-does-not-verify). A file listed on a case but absent
 from disk is a restore that missed the evidence directory: it is not in
 `cases.json`, it is a separate tree.
@@ -425,7 +443,7 @@ append past `maxEventFileMB` (default 256) rather than filling the disk.
 du -sh server/data/*
 ```
 
-Rotate it — the file is the archive, the in-memory ring is what the console
+Rotate it - the file is the archive, the in-memory ring is what the console
 reads, so rotating loses nothing the UI is using:
 
 ```bash
@@ -449,7 +467,7 @@ animation on will do it.
 - On the dashboard, drop cards you do not read
 
 If it is genuinely the event volume, narrow with Event Search rather than
-scrolling — that query runs server-side.
+scrolling - that query runs server-side.
 
 ---
 
@@ -466,7 +484,7 @@ npm run ai:check        # what AEGIS can find
 Nothing found → no inference server is running on the **AEGIS host** (not your
 laptop). Start Ollama/LM Studio/llama.cpp and re-run `npm run ai:setup`.
 
-Started it *after* AEGIS? Nothing needs restarting — reconnect the console, or:
+Started it *after* AEGIS? Nothing needs restarting - reconnect the console, or:
 
 ```bash
 curl -s http://127.0.0.1:8787/api/llm/detect -H "Authorization: Bearer <analyst-token>"
@@ -474,7 +492,7 @@ curl -s http://127.0.0.1:8787/api/llm/detect -H "Authorization: Bearer <analyst-
 
 ### 5.2 The model is too slow or times out
 
-> `the local model took too long — a first request loads the weights`
+> `the local model took too long - a first request loads the weights`
 
 The **first** request after a cold start loads several GB and can take a minute.
 That is normal once.
@@ -490,7 +508,7 @@ and it will technically work while being useless.
 
 ### 5.3 The Companion never speaks
 
-It only wakes for **suspicious or malicious** events — a quiet estate means a
+It only wakes for **suspicious or malicious** events - a quiet estate means a
 quiet companion, which is correct.
 
 ```bash
@@ -518,14 +536,14 @@ npm run build
 systemctl --user restart aegis
 ```
 
-`server/data/` and `server/config.json` are untouched by this — they are
+`server/data/` and `server/config.json` are untouched by this - they are
 gitignored, which is exactly why.
 
 Back on your feet? `git checkout main` and report what broke.
 
 ### 6.2 You think AEGIS itself has been attacked
 
-`docs/DEFENDING-AEGIS.md` is the full playbook — five attack stages with
+`docs/DEFENDING-AEGIS.md` is the full playbook - five attack stages with
 detections. Immediately:
 
 1. **Preserve the record.** Copy `server/data/` somewhere the suspect does not
@@ -535,7 +553,7 @@ detections. Immediately:
 3. **Rotate and evict.** `node harden.mjs --rotate` kills the shared token;
    deleting an account kills its sessions immediately.
 4. **Move.** `node harden.mjs --name <dull-name> --port <not-8787>`. Anything
-   still probing the old name afterwards is not you — which is a detection you
+   still probing the old name afterwards is not you - which is a detection you
    could not write before.
 
 ### 6.3 Offboarding someone
@@ -545,7 +563,7 @@ action; there is no separate step and no window where the account is deleted but
 the session still works.
 
 Everything they did stays in the audit chain and the case files. You are
-removing the account, not the record — and you should not be able to remove the
+removing the account, not the record - and you should not be able to remove the
 record.
 
 ---
@@ -553,11 +571,11 @@ record.
 ## 7. Making the server harder to find and kill
 
 An attacker who has moved onto the AEGIS host and understands what it is will
-try to **stop it** — silence looks like calm, and a dead collector reports
+try to **stop it** - silence looks like calm, and a dead collector reports
 nothing about what they do next.
 
 Read this whole section before you act on it, because the framing matters. None
-of the steps below stop someone with root/admin who is *looking* — the server
+of the steps below stop someone with root/admin who is *looking* - the server
 listens on a port, has a working directory, and has a service definition, and any
 of those gives it away. What they do is:
 
@@ -568,10 +586,10 @@ of those gives it away. What they do is:
 
 That last pair is the actual protection. Hiding buys minutes; restart-plus-alarm
 is what turns "they killed it" from a gap in your telemetry into a page. Do them
-in that order of priority — the hiding is the least important part, even though
+in that order of priority - the hiding is the least important part, even though
 it is the part that was asked for.
 
-### 7a. Stop it announcing itself — name
+### 7a. Stop it announcing itself - name
 
 Everything about a stock install is public because the project is. One command
 changes the **service name, the port, and the tokens** together:
@@ -587,7 +605,7 @@ next restart the process reports itself as `svc-telemetry` in `ps` / `top` /
 Task Manager instead of `node .../aegis-server.mjs`, so someone grepping the
 process list for `aegis` or `node` finds nothing useful.
 
-Pick a name that belongs on that machine — `svc-telemetry`, `health-agent`,
+Pick a name that belongs on that machine - `svc-telemetry`, `health-agent`,
 `node-metrics`. A name that is obviously hiding (`totally-not-aegis`) is worse
 than none.
 
@@ -601,9 +619,9 @@ To set only the process name without touching the service, put it in
 Confirm it took, on the box:
 
 ```bash
-# Linux — the renamed process, no mention of aegis
+# Linux - the renamed process, no mention of aegis
 ps -eo pid,comm,args | grep -i telemetry
-# Windows PowerShell — the window/title, plus the owning command line
+# Windows PowerShell - the window/title, plus the owning command line
 Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
   Select-Object ProcessId, CommandLine
 ```
@@ -611,10 +629,10 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
 > **The command line still shows the path.** `process.title` changes the process
 > *name*, not the full argument list, and on Windows the `CommandLine` in WMI
 > still shows `...aegis-server.mjs`. To hide that too, install AEGIS into a
-> directory that does not say "aegis" either — `~/.local/svc-telemetry` rather
+> directory that does not say "aegis" either - `~/.local/svc-telemetry` rather
 > than `~/.aegis`. `AEGIS_DIR=~/.local/svc-telemetry` on the installer does this
 > from the start; moving an existing install means re-running the installer
-> there and re-pointing the service. This is the point of diminishing returns —
+> there and re-pointing the service. This is the point of diminishing returns -
 > spend the effort on 7b and 7c instead.
 
 ### 7a-agents. Rename the agents too
@@ -623,7 +641,7 @@ The server is one host; the agents are on every endpoint, and an intruder who
 lands on a workstation can find and kill an agent called **AEGIS Agent** just as
 easily as one on the server. The agent installs under a name you choose.
 
-**One endpoint, by hand** — on the machine, in an Administrator PowerShell:
+**One endpoint, by hand** - on the machine, in an Administrator PowerShell:
 
 ```powershell
 # Install under a dull name. The scheduled task AND the C:\ProgramData folder
@@ -639,7 +657,7 @@ Get-ChildItem C:\ProgramData\svc-telemetry       # state folder, likewise
 ```
 
 > **The name is how the agent finds itself again.** Whatever you install with,
-> you must **uninstall and re-point with the same `-Name`** — it is how the
+> you must **uninstall and re-point with the same `-Name`** - it is how the
 > agent locates its own task and folder. Write down what you used.
 > ```powershell
 > .\aegis-agent.ps1 -Server http://<server>:<port> -Name svc-telemetry -Uninstall
@@ -651,7 +669,7 @@ Get-ChildItem C:\ProgramData\svc-telemetry       # state folder, likewise
 >   Select-Object TaskName
 > ```
 
-**A whole fleet at once** — the assisted deployer takes the name and passes it
+**A whole fleet at once** - the assisted deployer takes the name and passes it
 through to every host it touches (Windows/WinRM only):
 
 ```bash
@@ -662,7 +680,7 @@ node deploy-agents.mjs --targets targets.json --agent-name svc-telemetry --confi
 Use the **same** `--agent-name` every time you touch that fleet, for the same
 reason as above.
 
-**Linux/macOS endpoints** — the Python agent does not install its own service;
+**Linux/macOS endpoints** - the Python agent does not install its own service;
 it runs from a systemd unit and timer (`deploy/`). Renaming it is renaming those
 unit files:
 
@@ -673,14 +691,14 @@ sudo systemctl enable --now svc-telemetry.timer
 sudo systemctl disable --now aegis.timer        # remove the old one
 ```
 
-The agent binary itself can be copied to any path and filename — it holds no
+The agent binary itself can be copied to any path and filename - it holds no
 name of its own; only the unit that runs it does.
 
 > ‼️ **Pick the name once, write it down, use it everywhere.** A fleet where
 > every box has a different agent name is one you cannot uninstall or upgrade in
 > bulk. Dull-but-consistent beats clever-but-forgotten.
 
-### 7b. Make killing it pointless — restart
+### 7b. Make killing it pointless - restart
 
 **The agents.** The Windows agent installs with three triggers, not one: it
 repeats on the collection interval, and it also fires **at startup** and **at
@@ -713,7 +731,7 @@ launchctl print gui/$(id -u)/com.svc-telemetry.server | grep -i keepalive
 (Get-ScheduledTask -TaskName 'svc-telemetry').Settings.RestartCount   # want: >= 1
 ```
 
-To *stop* it, an attacker now has to disable the service, not kill the process —
+To *stop* it, an attacker now has to disable the service, not kill the process -
 and disabling a service is a louder, logged action you can alert on (7c, and
 `docs/DEFENDING-AEGIS.md` §5).
 
@@ -726,11 +744,11 @@ Two things make this stronger:
   a running install. They document exactly what the service is. `chmod 700` the
   install directory.
 
-### 7c. Make killing it loud — the part that actually protects you
+### 7c. Make killing it loud - the part that actually protects you
 
 Hiding and restarting buy time. This is the control.
 
-1. **Ship the audit chain off the box as it is written** — Splunk HEC
+1. **Ship the audit chain off the box as it is written** - Splunk HEC
    (`splunk.enabled`) or `rsyslog` on `server/data/audit.ndjson`. Someone who
    owns the host can stop the service and edit the local record; they cannot edit
    the copy that already left. Without this, killing the server and wiping
@@ -740,13 +758,13 @@ Hiding and restarting buy time. This is the control.
    is the signal. From another machine:
 
    ```bash
-   # cron, every 5 min, on a DIFFERENT host — if AEGIS is the only thing
+   # cron, every 5 min, on a DIFFERENT host - if AEGIS is the only thing
    # watching AEGIS, it cannot tell you it is gone.
    curl -fsS --max-time 10 http://<aegis-host>:9443/api/health >/dev/null \
      || notify-your-oncall "AEGIS health check failed"
    ```
 
-   And alert on the agents going quiet in bulk — `docs/DEFENDING-AEGIS.md` §5 has
+   And alert on the agents going quiet in bulk - `docs/DEFENDING-AEGIS.md` §5 has
    the query. An attacker who silences the whole fleet at once is the loudest
    possible event, if you are listening for absence.
 
@@ -757,7 +775,7 @@ Hiding and restarting buy time. This is the control.
    node verify-audit.mjs --quiet || notify-your-oncall "AEGIS audit chain broken"
    ```
 
-If you do only one thing in this section, do 7c.1 — get the audit log off the
+If you do only one thing in this section, do 7c.1 - get the audit log off the
 box. Renaming the process is the part that was asked for; shipping the record
 somewhere they do not control is the part that matters when they succeed.
 
@@ -771,7 +789,7 @@ node harden.mjs --show                    # what am I running as?
 node harden.mjs --rotate                  # new tokens (agents must re-enrol)
 node setup.mjs                            # regenerate config + rebuild, keep tokens
 npm run ai:check                          # what local models can AEGIS see?
-npm test                                  # full suite — run after any local change
+npm test                                  # full suite - run after any local change
 curl -s localhost:8787/api/health         # is it alive?
 curl -s localhost:8787/api/auth/mode      # accounts on? any created?
 ```
@@ -779,6 +797,6 @@ curl -s localhost:8787/api/auth/mode      # accounts on? any created?
 | File | What it is | Back up? |
 |---|---|---|
 | `server/config.json` | Tokens, port, AI settings | **Yes** |
-| `server/data/` | Tickets, cases, evidence, audit chain | **Yes — this is the irreplaceable one** |
+| `server/data/` | Tickets, cases, evidence, audit chain | **Yes - this is the irreplaceable one** |
 | `server/service.json` | Local service name/port | Nice to have |
-| `ui/index.html` | Build artifact | No — rebuilt by `npm run build` |
+| `ui/index.html` | Build artifact | No - rebuilt by `npm run build` |

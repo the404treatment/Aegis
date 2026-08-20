@@ -2,10 +2,10 @@
 
 [![test](https://github.com/the404treatment/Aegis/actions/workflows/test.yml/badge.svg)](https://github.com/the404treatment/Aegis/actions/workflows/test.yml)
 
-A SOC console your team works an incident in together — detection engineering,
+A SOC console your team works an incident in together - detection engineering,
 live agent telemetry, shared cases, and a signed record of who did what.
 
-**[Try it in the browser →](https://the404treatment.github.io/Aegis/)** — no install,
+**[Try it in the browser →](https://the404treatment.github.io/Aegis/)** - no install,
 no signup, nothing to configure. The console is fully functional offline, so the
 hosted build is the real app rather than a demo.
 
@@ -19,8 +19,8 @@ hosted build is the real app rather than a demo.
     <td><img src="assets/studio.png" alt="Detection studio with staged techniques on the kill chain"></td>
   </tr>
   <tr>
-    <td align="center"><sub>Hunt map — the intrusion traced across your estate</sub></td>
-    <td align="center"><sub>Detection studio — staged techniques, mapped to the kill chain</sub></td>
+    <td align="center"><sub>Hunt map - the intrusion traced across your estate</sub></td>
+    <td align="center"><sub>Detection studio - staged techniques, mapped to the kill chain</sub></td>
   </tr>
 </table>
 
@@ -47,7 +47,11 @@ someone else's install script. Re-running upgrades in place and keeps your token
 so enrolled agents keep working.
 
 Prefer to look before you run it? Clone the repo and double-click **`start.cmd`**
-(Windows) or run **`./start.sh`** (Linux/macOS) — same result.
+(Windows) or run **`./start.sh`** (Linux/macOS) - same result.
+
+Prefer Docker, or installing on a NAS or a Proxmox host? A full step-by-step
+walkthrough for all of these, including Docker's Proxmox-specific options, is
+in **[INSTALL.md](INSTALL.md)**.
 
 Then open the console. It asks you to create the first account, which becomes the
 lead and can add everyone else.
@@ -63,7 +67,7 @@ node deploy-agents.mjs --targets targets.json --confirm  # deploy
 ```
 
 Deployment is dry-run by default, only touches hosts you list, and never handles
-your password — Windows and ssh prompt for that themselves.
+your password - Windows and ssh prompt for that themselves.
 **[Full step-by-step guide →](INSTALL.md)**
 
 ## What you see first
@@ -72,7 +76,7 @@ A **live dashboard**, not a reference chart. Threat level for the last hour,
 malicious events as they land, which hosts are noisiest, which ATT&CK techniques
 have actually been *observed*, and which agents have gone quiet.
 
-You choose the cards — a triage shift and a detection-engineering afternoon want
+You choose the cards - a triage shift and a detection-engineering afternoon want
 different first screens, so the layout is yours and is remembered per browser.
 
 Reference material (the full ATT&CK matrix, the log-source catalogue, the
@@ -87,8 +91,8 @@ Optional, entirely local, no API key:
 npm run ai:setup
 ```
 
-It finds an inference server already on the host — **Ollama**, LM Studio,
-llama.cpp, Jan, vLLM or TGI — pulls a model from **Hugging Face** if you have
+It finds an inference server already on the host - **Ollama**, LM Studio,
+llama.cpp, Jan, vLLM or TGI - pulls a model from **Hugging Face** if you have
 none, and wires it in. Models are GGUF; the default is Llama 3.2 3B at Q4, which
 runs on a laptop with no GPU.
 
@@ -96,7 +100,7 @@ The point is that **it doesn't wait to be asked.** It reads telemetry as it
 lands and posts an assessment unprompted:
 
 > **UNPROMPTED · 41 EVENTS · DC01**
-> Password-spray burst against DC01 — 40 failed logons (4625) inside a minute
+> Password-spray burst against DC01 - 40 failed logons (4625) inside a minute
 > from one source, then a success. Treat as likely compromise. Next: pull 4624
 > for that account and check the source IP against your VPN pool.
 
@@ -108,13 +112,13 @@ You can ask it things directly too. Nothing leaves the machine.
 Accounts are on by default, because a case file nobody can be attributed to is
 worth very little afterwards.
 
-- **Presence** — the top bar shows who else is connected, live.
-- **Activity feed** — what everyone has been doing, newest first, read straight
+- **Presence** - the top bar shows who else is connected, live.
+- **Activity feed** - what everyone has been doing, newest first, read straight
   out of the audit chain.
-- **Team chat** — delivered over the SSE stream the console already holds open.
-- **Cases** — evidence stored content-addressed by SHA-256, formal reports frozen
+- **Team chat** - delivered over the SSE stream the console already holds open.
+- **Cases** - evidence stored content-addressed by SHA-256, formal reports frozen
   and signed against a snapshot hash.
-- **Audit** — every action hash-chained. Edit the record on disk and the console
+- **Audit** - every action hash-chained. Edit the record on disk and the console
   refuses to trust it and says so.
 
 The shared analyst token still works as a break-glass and automation credential.
@@ -123,7 +127,7 @@ Set `"requireLogin": false` in `server/config.json` for a single-analyst lab.
 ## Air-gapped networks
 
 Nothing in AEGIS downloads at run time, phones home, checks a licence, or contacts
-a CDN — so an enclave with no route out behaves identically. For a machine with no
+a CDN - so an enclave with no route out behaves identically. For a machine with no
 Node either, build a bundle that carries its own runtime:
 
 ```bash
@@ -151,28 +155,28 @@ ingest of Chainsaw / Suricata / Zeek / PCAP exports.
 hashed evidence, signed formal reports, the audit chain, presence, activity and chat.
 
 **AI** (optional): `npm run ai:setup` on the server. Every AI feature runs on
-that machine — there is no hosted API and no key anywhere. Nothing leaves the
+that machine - there is no hosted API and no key anywhere. Nothing leaves the
 host.
 
-- `INSTALL.md` — step-by-step: server, agents, firewall, verification
-- `docs/RUNBOOK.md` — **when something breaks**: every failure, with the fix
-- `LOCAL-AI.md` — the local companion: setup, model choice, air-gapped use
-- `docs/DEFENDING-AEGIS.md` — attacks on AEGIS itself, with the detections
-- `CLAUDE.md` — architecture, conventions, hard rules (read this first)
-- `deploy/README-deploy.md` — server + agent deployment
-- `splunk/aegis_hec_setup.md` — HEC config and starting searches
-- `NEXT_STEPS.md` — priority-ordered roadmap
+- `INSTALL.md` - step-by-step: server, agents, firewall, verification
+- `docs/RUNBOOK.md` - **when something breaks**: every failure, with the fix
+- `LOCAL-AI.md` - the local companion: setup, model choice, air-gapped use
+- `docs/DEFENDING-AEGIS.md` - attacks on AEGIS itself, with the detections
+- `CLAUDE.md` - architecture, conventions, hard rules (read this first)
+- `deploy/README-deploy.md` - server + agent deployment
+- `splunk/aegis_hec_setup.md` - HEC config and starting searches
+- `NEXT_STEPS.md` - priority-ordered roadmap
 
 ## Security posture
 
 The agent is read-only by design: it reads event logs and reports host facts. No
-command channel, no download path, no exec — there is **no remote-exec channel, by
+command channel, no download path, no exec - there is **no remote-exec channel, by
 design**. Read `agents/aegis-agent.ps1` before deploying it anywhere.
 
 The server speaks plain HTTP: terminate TLS in front of it (there is a ready-made
 `deploy/Caddyfile`) before it crosses a network you do not trust.
 
-**AEGIS is itself a target** — it holds the incident record. Everything about a
+**AEGIS is itself a target** - it holds the incident record. Everything about a
 stock install is public because this repo is public, so stop matching the docs:
 
 ```bash
@@ -180,7 +184,7 @@ node harden.mjs --name svc-telemetry --port 9443 --rotate
 ```
 
 That renames the service, moves the port, rotates the tokens and re-registers
-the service. It is a delaying tactic, not a control — its real value is that
+the service. It is a delaying tactic, not a control - its real value is that
 once you are not on `aegis`:8787, anything probing for `aegis` on 8787 is not
 you, which is a detection you could not write before.
 **[The full threat model, with detections →](docs/DEFENDING-AEGIS.md)**

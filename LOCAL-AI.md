@@ -22,14 +22,14 @@ Two surfaces share the one local model:
 | Good at | Long questions, drafting detections | Fast triage opinions, continuous |
 
 The Analyst waits to be asked, which is fine when you already know the question.
-During an incident at 3am you often don't — you have forty events and no idea
+During an incident at 3am you often don't - you have forty events and no idea
 whether they matter. That is the gap the Companion fills.
 
 Both are off until you set up a model. Everything else in AEGIS works without one.
 
 ---
 
-## Setup — two commands
+## Setup - two commands
 
 ### 1. Install a local inference server
 
@@ -48,13 +48,23 @@ Or download it from <https://ollama.com/download>.
 > detect, so it prints the command and lets you run it deliberately.
 
 Already have **LM Studio**, **llama.cpp**, **Jan**, **vLLM** or **TGI**? Skip
-this step — AEGIS speaks to all of them and will find whichever is running.
+this step - AEGIS speaks to all of them and will find whichever is running.
 
 ### 2. Point AEGIS at it
 
+Run this **on the machine hosting the AEGIS server**, from inside the folder
+you installed AEGIS into (the one with `package.json` and `server/` in it) -
+this writes into that install's `server/config.json`, so it has to be run
+from there, the same as `npm start` or `npm test` would be:
+
 ```bash
+cd Aegis      # wherever you cloned or extracted it
 npm run ai:setup
 ```
+
+Run it from anywhere else and npm fails immediately with `Could not read
+package.json: ... ENOENT`, before any AEGIS code even runs - that error means
+"wrong directory," not "something is broken."
 
 That finds the runtime, pulls a model if you have none, writes the config, and
 verifies the whole path by asking it a real question. Then restart AEGIS.
@@ -68,11 +78,11 @@ That's it.
 A **◈ Companion** button appears in the top bar.
 
 **It speaks first.** When suspicious or malicious telemetry lands, it reads it
-and posts an assessment without being asked — tagged `UNPROMPTED`, with the
+and posts an assessment without being asked - tagged `UNPROMPTED`, with the
 event count and the hosts involved:
 
 > **UNPROMPTED · 41 EVENTS · DC01**
-> This is a password-spray burst against DC01 — 40 failed logons (4625) inside a
+> This is a password-spray burst against DC01 - 40 failed logons (4625) inside a
 > minute from one source, followed by a success. Treat as likely compromise.
 > Next: pull 4624 for that account and check the source IP against your VPN pool.
 
@@ -123,7 +133,7 @@ Any GGUF on Hugging Face works via the `hf.co/` prefix.
 
 ## Air-gapped networks
 
-This works with no internet at all — that is much of the point.
+This works with no internet at all - that is much of the point.
 
 1. On a machine with internet: `ollama pull <model>`
 2. Copy `~/.ollama/models` (Windows: `%USERPROFILE%\.ollama\models`) across.
@@ -140,7 +150,7 @@ telemetry; nothing else does.
 | Symptom | Cause |
 |---|---|
 | Button says **Local AI**, greyed | Nothing running. `npm run ai:check` to see what AEGIS can find. |
-| First answer takes 30s+ | Normal — the first request loads the weights. Subsequent ones are fast. |
+| First answer takes 30s+ | Normal - the first request loads the weights. Subsequent ones are fast. |
 | *"took too long"* | Model too big for the RAM, or still loading. Try a smaller one. |
 | Nothing unprompted appears | `"watch"` is off, or nothing suspicious has landed. Only suspicious/malicious wake it. |
 | Answers are vague | Expected below ~7B on hard questions. Use `--bigger`, or ask the AI Analyst tab. |
@@ -151,7 +161,7 @@ Check what the server sees:
 curl http://127.0.0.1:8787/api/llm/status -H "Authorization: Bearer <analyst-token>"
 ```
 
-Started Ollama after AEGIS? Nothing needs restarting — hit `/api/llm/detect` or
+Started Ollama after AEGIS? Nothing needs restarting - hit `/api/llm/detect` or
 just reconnect the console.
 
 ---
@@ -162,6 +172,6 @@ Your telemetry goes to a process on your own machine and nowhere else. There is
 no account, no key, no usage reporting, and no network call in this path at all.
 
 The one thing worth knowing: the companion is shown a **compact summary** of
-recent events — timestamps, hosts, event IDs, severities, technique tags and
+recent events - timestamps, hosts, event IDs, severities, technique tags and
 truncated messages. Forty identical failed logons become one line with a count,
 which is both what a small model needs and what a person would want to read.
