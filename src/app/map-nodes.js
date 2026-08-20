@@ -88,6 +88,65 @@ function lsEventsForNode(node){
 function lsNodesForEvent(evId){
  return lsNodes.filter(n=>lsEventsForNode(n).some(e=>e.id===evId));
 }
+
+/* ===== the attack story: what "which logs cover this map" should actually say
+   The raw list of Event IDs told an analyst nothing about how an intrusion
+   plays out. This walks a real kill chain across the hosts you've mapped -
+   naming the concrete thing to watch (the process, the service, the account)
+   and the exact Event IDs that catch each step, then flagging the steps your
+   map currently can't see. Same idea as the detection studio: a story, not a
+   list. Stage `nodes` gate whether a step is relevant to THIS map; `evs` are
+   checked against what the map can actually produce. ===== */
+let lsSideView='story';
+function lsSetSideView(v){lsSideView=v;renderLogSrc();}
+const LS_STORY=[
+ {stage:'Initial access',nodes:['wks','srv','dmz'],evs:['4688','4104'],
+  tell:'A user on a <b>workstation</b> opens a phishing attachment and Office launches a script host.',
+  watch:'winword.exe / excel.exe spawning powershell.exe, cmd.exe or mshta'},
+ {stage:'Execution',nodes:['wks','srv'],evs:['4688','4104'],
+  tell:'The dropped script runs - usually encoded - and pulls the next-stage payload.',
+  watch:'powershell.exe -enc / -w hidden, rundll32, regsvr32 with a URL'},
+ {stage:'Persistence',nodes:['wks','srv'],evs:['4698','7045'],
+  tell:'The foothold is made to survive a reboot with a scheduled task or a new service.',
+  watch:'schtasks creating a task, or a service whose ImagePath is in a temp/user folder'},
+ {stage:'Credential access',nodes:['wks','srv','dc'],evs:['4624','4672'],
+  tell:'Credentials are harvested (LSASS, cached tickets) to move beyond the first host.',
+  watch:'a privileged logon (4672) right after execution; new logons using a service account'},
+ {stage:'Lateral movement',nodes:['srv','dc','nas'],evs:['5140','5145','4624','7045'],
+  tell:'Harvested creds open an admin share or install a remote service on a <b>server</b> or the <b>DC</b>.',
+  watch:'ADMIN$/C$ access from a workstation, PsExec-style service install on the target'},
+ {stage:'Domain privilege',nodes:['dc'],evs:['4769','4732'],
+  tell:'On the <b>domain controller</b> the attacker requests service tickets or joins a privileged group.',
+  watch:'Kerberoast-shaped 4769 bursts; an account added to Domain Admins (4732)'},
+ {stage:'Collection & exfil',nodes:['srv','nas','dmz'],evs:['5145','5156'],
+  tell:'Data is pulled together over shares and pushed out of the network.',
+  watch:'bulk file-share reads on a <b>NAS</b>/file server, then outbound connections to an unknown host'},
+];
+function lsStoryHTML(){
+ if(!lsNodes.length)return `<div class="ls-side-intro"><h3>Attack story</h3><p>Add hosts to the map and this walks the likely attack across them - stage by stage, naming the exact Event IDs that catch each step, and the ones your map is missing.</p></div>`;
+ const have=new Set(lsTopoEvents().map(e=>e.id));
+ const typesPresent=new Set(lsNodes.map(n=>n.type));
+ const labelsFor=types=>types.flatMap(t=>lsNodes.filter(n=>n.type===t).map(n=>n.label));
+ const steps=LS_STORY.filter(s=>s.nodes.some(t=>typesPresent.has(t)));
+ const rows=steps.map((s,i)=>{
+  const covered=s.evs.filter(id=>have.has(id)).length;
+  const evs=s.evs.map(id=>`<span class="ls-story-ev ${have.has(id)?'on':'gap'}" data-tip="${have.has(id)?'This map can catch this step':'Not collected on this map yet - turn it on'}">${have.has(id)?'✓':'⚠'} ${id}</span>`).join('');
+  const hosts=[...new Set(labelsFor(s.nodes))].slice(0,4);
+  return `<div class="ls-story-step${covered?'':' blind'}">
+    <div class="ls-story-h"><span class="ls-story-n">${i+1}</span><b>${s.stage}</b>${covered?'':'<span class="ls-story-blindtag">blind spot</span>'}</div>
+    <div class="ls-story-tell">${s.tell}</div>
+    <div class="ls-story-watch"><b>Watch for:</b> ${s.watch}</div>
+    <div class="ls-story-evs">${evs}</div>
+    ${hosts.length?`<div class="ls-story-hosts">on ${hosts.map(esc).join(', ')}</div>`:''}
+  </div>`;
+ }).join('');
+ const blind=steps.filter(s=>!s.evs.some(id=>have.has(id))).length;
+ return `<div class="ls-story">
+   <h3>How an attack would play out here</h3>
+   <p class="ls-story-sub">Across the hosts you've mapped, with the Event IDs that catch each step.${blind?` <b style="color:var(--amber)">${blind} stage${blind===1?'':'s'} you can't currently see</b> - turn those on before you rely on this coverage.`:''}</p>
+   ${rows}
+ </div>`;
+}
 /* All unique events across the current topology */
 function lsTopoEvents(){
  const set=new Map();
@@ -291,10 +350,18 @@ function lsTopologyHTML(){
        </div>`;})()}
      </div>
      <aside class="ls-topo-side">
-       ${sel?lsEventDetailHTML(sel):`<div class="ls-side-intro"><h3>Which logs cover this map</h3><p>These are the <b>${events.length} Event IDs your hosts can actually produce</b>. Click one to light up the hosts it comes from \u2014 use it to check a technique is visible before you rely on it, or to spot which segments log nothing.</p></div>`}
-       <div class="ls-evpicker">
-         ${cats.map(c=>`<div class="ls-evcat"><div class="ls-evcat-h">${c}</div>${byCat[c].map(e=>`<button class="ls-evchip${sel===e.id?' on':''}" onclick="lsSelectEvent('${e.id}')" data-tip="${esc(e.why)}">${e.id}<span class="ls-evchip-noise" style="color:${lsNoiseColor(e.noise)}">${'●'.repeat(e.noise)}</span></button>`).join('')}</div>`).join('')}
-       </div>
+       ${(()=>{
+         const picker=`<div class="ls-evpicker">
+           ${cats.map(c=>`<div class="ls-evcat"><div class="ls-evcat-h">${c}</div>${byCat[c].map(e=>`<button class="ls-evchip${sel===e.id?" on":""}" onclick="lsSelectEvent('${e.id}')" data-tip="${esc(e.why)}">${e.id}<span class="ls-evchip-noise" style="color:${lsNoiseColor(e.noise)}">${"●".repeat(e.noise)}</span></button>`).join("")}</div>`).join("")}
+         </div>`;
+         if(sel)return lsEventDetailHTML(sel)+picker;
+         const toggle=`<div class="ls-side-toggle">
+           <button class="${lsSideView==='story'?"on":""}" onclick="lsSetSideView('story')">Attack story</button>
+           <button class="${lsSideView==='logs'?"on":""}" onclick="lsSetSideView('logs')">Log coverage</button>
+         </div>`;
+         if(lsSideView==='story')return toggle+lsStoryHTML();
+         return toggle+`<div class="ls-side-intro"><h3>Which logs cover this map</h3><p>The <b>${events.length} Event IDs your hosts can actually produce</b>. Click one to light up the hosts it comes from - check a technique is visible before you rely on it, or spot which segments log nothing.</p></div>`+picker;
+       })()}
      </aside>
    </div>
    <div class="ls-topo-foot">
