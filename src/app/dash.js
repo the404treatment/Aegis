@@ -82,11 +82,33 @@ function dashCard(key){
   techniques:dashCardTechniques, tickets:dashCardTickets, cases:dashCardCases,
   agents:dashCardAgents, companion:dashCardCompanion, activity:dashCardActivity,
  }[key]||(()=>''))();
- return`<div class="dcard dcard-${key}">
-   <div class="dcard-h"><span>${esc(meta.label)}</span></div>
+ return`<div class="dcard dcard-${key}" draggable="true" data-key="${key}"
+   ondragstart="dashDragStart(event,'${key}')" ondragover="dashDragOver(event,'${key}')"
+   ondrop="dashDrop(event,'${key}')" ondragend="dashDragEnd(event)" ondragleave="dashDragLeave(event)">
+   <div class="dcard-h"><span class="dcard-grip" data-tip="Drag to rearrange">⠿</span><span>${esc(meta.label)}</span></div>
    <div class="dcard-b">${body}</div>
  </div>`;
 }
+
+/* ---- drag to rearrange the dashboard ---- */
+let _dashDragKey=null;
+function dashDragStart(e,key){_dashDragKey=key;e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',key);}catch{}
+ const c=e.currentTarget;if(c)setTimeout(()=>c.classList.add('dragging'),0);}
+function dashDragOver(e,key){
+ if(!_dashDragKey||key===_dashDragKey)return;
+ e.preventDefault();e.dataTransfer.dropEffect='move';
+ const c=e.currentTarget;if(c){document.querySelectorAll('.dcard.drop-into').forEach(x=>x.classList.remove('drop-into'));c.classList.add('drop-into');}
+}
+function dashDragLeave(e){const c=e.currentTarget;if(c)c.classList.remove('drop-into');}
+function dashDrop(e,targetKey){
+ e.preventDefault();
+ const from=_dashDragKey;if(!from||from===targetKey)return;
+ const arr=dashCards.filter(k=>k!==from);
+ const at=arr.indexOf(targetKey);
+ arr.splice(at<0?arr.length:at,0,from);
+ dashCards=arr;dashSave();renderDash();
+}
+function dashDragEnd(){_dashDragKey=null;document.querySelectorAll('.dcard.dragging,.dcard.drop-into').forEach(x=>x.classList.remove('dragging','drop-into'));}
 
 const dashEmpty=t=>`<div class="dash-empty">${esc(t)}</div>`;
 
