@@ -161,7 +161,29 @@ function liveOpenStream(){
  es.onopen=()=>{LIVE.connected=true;liveBadge();};
 }
 /* agents become nodes on the map, laid out in their zone, never duplicated */
+/* Map mode: 'live' shows the real hosts your agents report (auto-populated,
+   and the map can't be deleted server-side); 'planning' is a hand-drawn
+   scenario board with live hosts kept out of the way. Persisted; when unset it
+   resolves to live if agents are reporting, planning otherwise. */
+let lsMapMode = read('aegis-mapmode','') || '';
+function lsResolveMapMode(){ if(!lsMapMode) lsMapMode = (LIVE.connected && (LIVE.agents||[]).length) ? 'live' : 'planning'; return lsMapMode; }
+function lsSetMapMode(m){
+ if(m!=='live'&&m!=='planning')return;
+ lsMapMode=m; store('aegis-mapmode',m);
+ if(m==='planning'){
+  // Drop live-agent nodes (they rebuild from LIVE.agents in live mode) so the
+  // planning board is just what you drew. Hand-drawn nodes have no agentId.
+  lsNodes=lsNodes.filter(n=>!n.agentId);
+  lsEdges=lsEdges.filter(e=>lsNodes.some(n=>n.uid===e.a)&&lsNodes.some(n=>n.uid===e.b));
+  persistAll();
+ }else if(LIVE.connected){
+  liveApplyAgents();
+ }
+ renderLogSrc();
+ toast(m==='live'?'Live mode - real hosts from your agents':'Planning mode - hand-drawn scenario, live hosts hidden');
+}
 function liveApplyAgents(){
+ if(lsResolveMapMode()==='planning')return;   // planning board: keep live hosts out
  LIVE.agents.forEach(a=>{
   let n=lsNodes.find(x=>x.agentId===a.id);
   if(!n){

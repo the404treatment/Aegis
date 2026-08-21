@@ -288,13 +288,18 @@ function lsTopologyHTML(){
  const cats=Object.keys(byCat).sort();
  return`<div class="ls-topo">
    <div class="ls-quiz-head">
-     <div class="ls-topo-title"><span class="ls-topo-titletag">Network Map</span> - ${(typeof LIVE!=='undefined'&&LIVE.connected&&(LIVE.agents||[]).length)
-       ?`live hosts from your agents. Click one to triage what you're seeing, or use <b>Trace</b> to map how the attack spread.`
-       :`a planning board before the range is live. Drag hosts in, group them into <b>zones</b>, then use <b>Trace</b> to map the attack paths you expect. Once agents are deployed, real hosts appear here automatically.`}</div>
+     <div class="ls-topo-title"><span class="ls-topo-titletag">Network Map</span> - ${lsResolveMapMode()==='live'
+       ?`<b>Live mode.</b> Real hosts from your agents appear here automatically. Click one to triage what you're seeing, or use <b>Trace</b> to map how the attack spread.`
+       :`<b>Planning mode.</b> A hand-drawn scenario board - drag hosts in, group them into <b>zones</b>, then use <b>Trace</b> to map the attack paths you expect. Switch to Live to see real agent hosts.`}</div>
    </div>
    <div class="ls-topo-grid">
      <div class="ls-topo-canvaswrap">
        <div class="ls-topo-toolbar">
+         <div class="ls-modeseg" data-tip="Live shows real hosts from your agents. Planning is a hand-drawn scenario board.">
+           <button class="${lsResolveMapMode()==='live'?'on live':''}" onclick="lsSetMapMode('live')">\u25cf Live</button>
+           <button class="${lsResolveMapMode()==='planning'?'on':''}" onclick="lsSetMapMode('planning')">\u270e Planning</button>
+         </div>
+         <span class="ls-tb-div"></span>
          <button class="ls-toolbtn primary" onclick="openLsAddMenu()" data-tip="Add a host to the map">\uff0b Add host</button>
          <button class="ls-toolbtn" onclick="lsAddZoneAt()" data-tip="Draw a network segment (zone) - group hosts into DMZ, OT cell, VLANs, etc. No need to open a host first.">\u25a4 Add zone</button>
          <button class="ls-toolbtn" onclick="openLsTemplates()" data-tip="Start from a named template">\u29c9 Templates</button>

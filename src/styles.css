@@ -1748,6 +1748,11 @@ body.touch [data-tip]::after,body.touch [data-tip]::before{display:none !importa
 .ui-dlg-btn.go.danger{background:var(--magenta);border-color:var(--magenta);color:#0a0a12;}
 
 /* pan tool + toolbar groups */
+.ls-modeseg{display:inline-flex;background:var(--panel);border:1px solid var(--line2);border-radius:8px;overflow:hidden;}
+.ls-modeseg button{background:none;border:none;color:var(--t2);font-size:11px;padding:6px 11px;cursor:pointer;transition:.12s;white-space:nowrap;}
+.ls-modeseg button:hover{color:var(--t1);}
+.ls-modeseg button.on{background:var(--violet-soft);color:var(--violet);font-weight:600;}
+.ls-modeseg button.on.live{background:rgba(61,220,151,.16);color:var(--mint);}
 .ls-toolgrp{display:inline-flex;background:var(--panel);border:1px solid var(--line2);border-radius:8px;overflow:hidden;}
 .ls-toolgrp button{font-size:11px;padding:6px 11px;background:none;border:none;color:var(--t3);cursor:pointer;transition:.13s;}
 .ls-toolgrp button.on{background:var(--violet);color:#0a0a12;font-weight:600;}
