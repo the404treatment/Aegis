@@ -940,6 +940,15 @@ const server = http.createServer(async (req, res) => {
         body: String(b.body || '').slice(0, 20000),
         status: 'open',
         severity: ['low', 'medium', 'high', 'critical'].includes(b.severity) ? b.severity : 'medium',
+        // Priority is how prominent a ticket is for everyone; only a lead sets
+        // it, so on create it can only be raised above normal by a lead.
+        priority: ((actor.role === 'lead' || actor.shared) && ['low', 'normal', 'high', 'urgent'].includes(b.priority)) ? b.priority : 'normal',
+        // Investigation detail an analyst fills in as they triage.
+        description: String(b.description || '').slice(0, 20000),
+        eventTime: String(b.eventTime || '').slice(0, 40),      // when it happened (from the event)
+        detectedTime: String(b.detectedTime || '').slice(0, 40),// when it was caught
+        spl: String(b.spl || '').slice(0, 8000),                // the query that found it
+        closeReason: '', mitigations: '',
         // Auto-assign to whoever raised it, rather than making them type a name.
         // A shared-token creator has no identity to own it, so it stays open.
         assignee: actor.shared ? (b.assignee || '') : actor.name,
@@ -992,10 +1001,23 @@ const server = http.createServer(async (req, res) => {
       // ticket to 'contained' to signal it is dealt with; a lead closes it.
       // Enforced here, not just hidden in the UI, so a hand-rolled PATCH cannot
       // walk around it.
-      if (b.status === 'closed' && t.status !== 'closed' && !can(actor.role, 'ticket.editAny')) {
-        return json(res, 403, { error: 'only a lead can close a ticket - set it to Contained and a lead will sign it off' });
+      const lead = can(actor.role, 'ticket.editAny');
+      // Closing or discarding a ticket is a lead's sign-off. Analysts move a
+      // ticket to 'review'; a lead closes or discards it.
+      if ((b.status === 'closed' || b.status === 'discarded') && t.status !== b.status && !lead) {
+        return json(res, 403, { error: `only a lead can ${b.status === 'closed' ? 'close' : 'discard'} a ticket - move it to Review and a lead signs it off` });
       }
-      for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'assigneeId', 'host', 'technique', 'caseId']) {
+      // Assigning a ticket to someone ELSE is lead-only; anyone may self-assign
+      // (handled above) or a lead may assign anyone.
+      if (!selfAssignOnly && b.assignee !== undefined && b.assignee && b.assignee !== actor.name && !lead) {
+        return json(res, 403, { error: 'only a lead can assign a ticket to someone else - you can assign it to yourself' });
+      }
+      // Priority changes prominence for everyone, so it is a lead's call.
+      if (b.priority !== undefined && !lead) return json(res, 403, { error: 'only a lead can set ticket priority' });
+      if (b.priority !== undefined && !['low', 'normal', 'high', 'urgent'].includes(b.priority)) return json(res, 400, { error: 'bad priority' });
+      // Capture the close reason / mitigations when a lead closes it.
+      for (const k of ['title', 'body', 'status', 'severity', 'assignee', 'assigneeId', 'host', 'technique', 'caseId',
+        'priority', 'description', 'eventTime', 'detectedTime', 'spl', 'closeReason', 'mitigations']) {
         if (b[k] !== undefined) t[k] = b[k];
       }
       // On a self-assign, the id is the session's, never whatever the body

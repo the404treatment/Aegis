@@ -296,25 +296,34 @@ function renderTickets(){
   return;
  }
  const all=LIVE.tickets.slice().reverse();
- const shown=tkFilter==='all'?all:all.filter(t=>tkFilter==='open'?t.status!=='closed':t.status===tkFilter);
- const count=s=>all.filter(t=>s==='all'?1:s==='open'?t.status!=='closed':t.status===s).length;
+ // Open view = anything not closed AND not discarded (the active queue).
+ const isActive=t=>t.status!=='closed'&&t.status!=='discarded';
+ const match=(t,f)=>f==='all'?true:f==='open'?isActive(t):t.status===f;
+ const shown=all.filter(t=>match(t,tkFilter));
+ const count=f=>all.filter(t=>match(t,f)).length;
+ const lead=authCan('ticket.editAny');
+ // Discard is a lead-only bin; analysts never see the tab or its tickets.
+ const tabs=['open','review','closed'].concat(lead?['discarded']:[]).concat(['all']);
+ // Priority ranks the active queue so urgent work floats to the top.
+ const prioRank={urgent:0,high:1,normal:2,low:3};
+ if(tkFilter==='open')shown.sort((a,b)=>(prioRank[a.priority||'normal']-prioRank[b.priority||'normal']));
  host.innerHTML=`
   <div class="tk-head">
     <div class="tk-tabs">
-      ${['open','contained','closed','all'].map(s=>`<button class="${tkFilter===s?'on':''}" onclick="tkFilter='${s}';renderTickets()">${s[0].toUpperCase()+s.slice(1)} <span>${count(s)}</span></button>`).join('')}
+      ${tabs.map(s=>`<button class="${tkFilter===s?'on':''}" onclick="tkFilter='${s}';renderTickets()">${s[0].toUpperCase()+s.slice(1)} <span>${count(s)}</span></button>`).join('')}
     </div>
     <button class="btn violet" onclick="tkNew()">\uff0b New ticket</button>
   </div>
-  ${shown.length?shown.map(t=>`<div class="tk-card sev-${t.severity}" onclick="tkOpen('${t.id}')">
+  ${shown.length?shown.map(t=>`<div class="tk-card sev-${t.severity}${t.priority&&t.priority!=='normal'?' prio-'+esc(t.priority):''}" onclick="tkOpen('${t.id}')">
     <div class="tk-num">#${t.num}</div>
     <div class="tk-main">
-      <div class="tk-title">${esc(t.title)}</div>
+      <div class="tk-title">${t.priority&&t.priority!=='normal'?`<span class="tk-prio tk-prio-${esc(t.priority)}">${esc(t.priority)}</span> `:''}${esc(t.title)}</div>
       <div class="tk-meta">
         <span class="tk-sev ${t.severity}">${t.severity}</span>
-        <span class="tk-status ${t.status}">${t.status}</span>
+        <span class="tk-status tk-st tk-st-${esc(t.status)}">${esc(t.status)}</span>
         ${t.host?`<span>\u25a3 ${esc(t.host)}</span>`:''}
         ${t.technique?`<span>${esc(t.technique)}</span>`:''}
-        ${t.assignee?userChip(t.assignee):''}
+        ${t.assignee?userChip(t.assignee):'<span class="tk-unassigned">unassigned</span>'}
         ${t.comments&&t.comments.length?`<span>\u25cb ${t.comments.length}</span>`:''}
         <span class="tk-when">${fmtDateTime(t.updatedAt)}</span>
       </div>
@@ -405,7 +414,15 @@ async function tkNew(prefill){
   <textarea class="ui-dlg-input" id="tk-new-body" style="min-height:70px;resize:vertical" placeholder="What was seen, where it came from, what you've checked so far">${esc(prefill.body||'')}</textarea>
   <label class="ls-ne-label">Severity</label>
   <select class="ui-dlg-input" id="tk-new-sev">${['low','medium','high','critical'].map(s=>`<option ${((prefill.severity||'medium')===s)?'selected':''}>${s}</option>`).join('')}</select>
-  <div class="tk-new-assignnote">You'll be assigned automatically as ${ME&&!ME.shared?`<b>${esc(ME.name)}</b>`:'the raiser'} - reassign from the ticket once it's open.</div>
+  <div class="tk-new-grid">
+    <div><label class="ls-ne-label">Event time (when it happened)</label>
+      <input class="ui-dlg-input" id="tk-new-evtime" placeholder="e.g. 2026-08-22 14:03 UTC" value="${esc(prefill.eventTime||'')}"></div>
+    <div><label class="ls-ne-label">Detected (when caught)</label>
+      <input class="ui-dlg-input" id="tk-new-dettime" value="${esc(prefill.detectedTime||fmtDateTime(Date.now()))}"></div>
+  </div>
+  <label class="ls-ne-label">Query used to find it (SPL / KQL)</label>
+  <textarea class="ui-dlg-input" id="tk-new-spl" style="min-height:48px;resize:vertical;font-family:var(--mono);font-size:11px" placeholder="index=win EventCode=4688 Image=&quot;*\\powershell.exe&quot; ...">${esc(prefill.spl||'')}</textarea>
+  <div class="tk-new-assignnote">You'll be assigned automatically as ${ME&&!ME.shared?`<b>${esc(ME.name)}</b>`:'the raiser'} - a lead can reassign it. Only a lead can close or discard a ticket.</div>
   <button class="btn violet" style="width:100%;justify-content:center;margin-top:10px" onclick="tkCreate()">Create ticket</button>
  </div>`;
  v.classList.add('open');v.onclick=(e)=>{if(e.target===v)tkClose();};
@@ -416,9 +433,12 @@ async function tkCreate(){
  const host=(document.getElementById('tk-new-host')||{}).value||'';
  const body=(document.getElementById('tk-new-body')||{}).value||'';
  const severity=(document.getElementById('tk-new-sev')||{}).value||'medium';
+ const eventTime=(document.getElementById('tk-new-evtime')||{}).value||'';
+ const detectedTime=(document.getElementById('tk-new-dettime')||{}).value||'';
+ const spl=(document.getElementById('tk-new-spl')||{}).value||'';
  if(!title.trim()){toast('Give the ticket a title');return;}
  try{
-  await liveApi('/api/tickets',{method:'POST',body:JSON.stringify({title:title.trim(),body:body.trim()||undefined,host:host.trim()||undefined,severity})});
+  await liveApi('/api/tickets',{method:'POST',body:JSON.stringify({title:title.trim(),body:body.trim()||undefined,host:host.trim()||undefined,severity,eventTime:eventTime.trim()||undefined,detectedTime:detectedTime.trim()||undefined,spl:spl.trim()||undefined})});
   tkClose();toast('Ticket created');
  }catch(e){toast('Failed: '+e.message);}
 }
@@ -445,18 +465,27 @@ async function tkOpen(id){
  if(!v){v=document.createElement('div');v.id='tk-veil';v.className='ls-quick-veil';document.body.appendChild(v);}
  v.innerHTML=`<div class="ls-det-sheet">
   <div class="ls-ne-grip" onclick="tkClose()"></div>
-  <div class="tk-d-head">#${t.num} \u00b7 ${esc(t.title)}</div>
+  <div class="tk-d-head">#${t.num} \u00b7 ${esc(t.title)}
+   ${t.priority&&t.priority!=='normal'?`<span class="tk-prio tk-prio-${esc(t.priority)}">${esc(t.priority)} priority</span>`:''}</div>
   <div class="tk-d-row">
    ${(() => {
-     // Only a lead may close. For everyone else, drop 'closed' from the choices
-     // (unless it is already closed, which we still want to display) and let the
-     // server be the real gate - see the PATCH handler.
-     const canClose=authCan('ticket.editAny');
-     const opts=['open','contained'].concat((canClose||t.status==='closed')?['closed']:[]);
-     return `<select onchange="tkPatch('${t.id}',{status:this.value})">${opts.map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}</select>`;
+     // Hide-not-deny: analysts only ever see open/review; a lead also gets
+     // Close and Discard. The server is still the real gate.
+     const lead=authCan('ticket.editAny');
+     const opts=lead?['open','review','closed','discarded']
+       :['open','review'].concat(['closed','discarded','contained'].includes(t.status)?[t.status]:[]);
+     return `<select onchange="tkStatusChange('${t.id}',this.value)">${opts.map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}</select>`;
    })()}
    <select onchange="tkPatch('${t.id}',{severity:this.value})">${['low','medium','high','critical'].map(s=>`<option ${t.severity===s?'selected':''}>${s}</option>`).join('')}</select>
+   ${authCan('ticket.editAny')?`<select onchange="tkPatch('${t.id}',{priority:this.value})" data-tip="Priority - how prominent this ticket is for everyone">${['low','normal','high','urgent'].map(pr=>`<option value="${pr}" ${((t.priority||'normal')===pr)?'selected':''}>${pr==='normal'?'normal':pr} priority</option>`).join('')}</select>`:''}
   </div>
+  ${(t.eventTime||t.detectedTime||t.description||t.spl)?`<div class="tk-fields">
+   ${t.eventTime?`<div class="tk-f"><span>Event time</span><b>${esc(t.eventTime)}</b></div>`:''}
+   ${t.detectedTime?`<div class="tk-f"><span>Detected</span><b>${esc(t.detectedTime)}</b></div>`:''}
+   ${t.description?`<div class="tk-f full"><span>What happened</span><div>${linkifyRefs(esc(t.description)).replace(/\n/g,'<br>')}</div></div>`:''}
+   ${t.spl?`<div class="tk-f full"><span>Query used to find it</span><pre class="tk-spl">${esc(t.spl)}</pre></div>`:''}
+  </div>`:''}
+  ${t.status==='closed'&&t.closeReason?`<div class="tk-closed-note"><b>Closed:</b> ${esc(t.closeReason)}${t.mitigations?`<br><b>Mitigations:</b> ${esc(t.mitigations)}`:'<br><span style="color:var(--t3)">No mitigations recorded.</span>'}</div>`:''}
   <div class="tk-assign">
    <span class="tk-assign-lbl">On it</span>
    ${t.assignee?userChip(t.assignee):'<span class="tk-unassigned">unassigned</span>'}
@@ -473,7 +502,7 @@ async function tkOpen(id){
      return btns.join('');
    })()}
   </div>
-  ${authCan('ticket.editAny')?'':'<div class="ls-det-sub" style="margin:-2px 0 6px">Set it to <b>Contained</b> when handled - a lead signs off the close.</div>'}
+  ${authCan('ticket.editAny')?'':'<div class="ls-det-sub" style="margin:-2px 0 6px">Move it to <b>Review</b> when handled - a lead closes or discards it.</div>'}
   ${t.host?tkHostFacts(t.host):''}
   ${t.technique?`<div class="tk-d-tags"><span>${esc(t.technique)}</span></div>`:''}
   ${csTicketSelectHTML(t)}
@@ -490,6 +519,24 @@ async function tkPatch(id,patch){
  try{await liveApi('/api/tickets/'+id,{method:'PATCH',body:JSON.stringify(patch)});renderTickets();
   const v=document.getElementById('tk-veil');if(v&&v.classList.contains('open'))tkOpen(id);}
  catch(e){toast(e.message);const v=document.getElementById('tk-veil');if(v&&v.classList.contains('open'))tkOpen(id);}
+}
+/* Closing or discarding prompts for a reason (and, on close, whether any
+   mitigation was made) so the record captures WHY - not just that it happened.
+   Other status moves apply straight away. Cancelling reverts the dropdown. */
+async function tkStatusChange(id,status){
+ if(status==='closed'||status==='discarded'){
+  const reason=await uiPrompt(status==='closed'?'Closing this ticket - what was the resolution?':'Discarding this ticket - why? (e.g. false positive, duplicate)','',
+    {title:status==='closed'?'Close ticket':'Discard ticket',ok:status==='closed'?'Close':'Discard',danger:status==='discarded'});
+  if(reason===null){tkOpen(id);return;}   // cancelled: revert the select
+  let mitigations='';
+  if(status==='closed'){
+   const m=await uiPrompt('What mitigations were made? (leave blank if none, or if the agent captured them automatically)','',{title:'Mitigations',ok:'Done'});
+   mitigations=m===null?'':m;
+  }
+  tkPatch(id,{status,closeReason:reason.trim(),mitigations:mitigations.trim()});
+  return;
+ }
+ tkPatch(id,{status});
 }
 /* Lead assigns a ticket to a chosen user (name + id from the session-verified
    list). Analysts never reach this - they only ever self-assign via tkPatch. */

@@ -310,9 +310,27 @@ section('accounts enabled (requireLogin on)');
     const list = await (await api(S.base, '/api/tickets', withTok(ana.token))).json();
     eq('the ticket is still contained after the refused close', list.find(x => x.id === anaTicket.id).status, 'contained');
     r = await api(S.base, `/api/tickets/${anaTicket.id}`, withTok(lead.token, {
-      method: 'PATCH', body: JSON.stringify({ status: 'closed' }),
+      method: 'PATCH', body: JSON.stringify({ status: 'closed', closeReason: 'resolved', mitigations: 'account reset' }),
     }));
     eq('a lead CAN close it', r.status, 200);
+    const closed = await (await api(S.base, '/api/tickets', withTok(lead.token))).json();
+    eq('the close reason is captured', closed.find(x => x.id === anaTicket.id).closeReason, 'resolved');
+
+    /* --- discard, priority and assigning others are all lead-only --- */
+    r = await api(S.base, '/api/tickets', withTok(ana.token, { method: 'POST', body: JSON.stringify({ title: 'perms probe' }) }));
+    const probe = await r.json();
+    r = await api(S.base, `/api/tickets/${probe.id}`, withTok(ana.token, { method: 'PATCH', body: JSON.stringify({ status: 'discarded' }) }));
+    eq('an analyst CANNOT discard a ticket', r.status, 403);
+    r = await api(S.base, `/api/tickets/${probe.id}`, withTok(ana.token, { method: 'PATCH', body: JSON.stringify({ priority: 'urgent' }) }));
+    eq('an analyst CANNOT set priority', r.status, 403);
+    r = await api(S.base, `/api/tickets/${probe.id}`, withTok(ana.token, { method: 'PATCH', body: JSON.stringify({ assignee: 'somebody-else' }) }));
+    eq('an analyst CANNOT assign a ticket to someone else', r.status, 403);
+    r = await api(S.base, `/api/tickets/${probe.id}`, withTok(ana.token, { method: 'PATCH', body: JSON.stringify({ assignee: 'ana1' }) }));
+    eq('...but an analyst CAN assign it to themselves', r.status, 200);
+    r = await api(S.base, `/api/tickets/${probe.id}`, withTok(lead.token, { method: 'PATCH', body: JSON.stringify({ priority: 'urgent' }) }));
+    eq('a lead CAN set priority', r.status, 200);
+    r = await api(S.base, `/api/tickets/${probe.id}`, withTok(lead.token, { method: 'PATCH', body: JSON.stringify({ status: 'discarded' }) }));
+    eq('a lead CAN discard', r.status, 200);
 
     r = await api(S.base, '/api/tickets', withTok(lead.token, {
       method: 'POST', body: JSON.stringify({ title: 'lead ticket' }),
