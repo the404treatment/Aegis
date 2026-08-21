@@ -59,7 +59,22 @@ function linkifyRefs(html){
  s=s.replace(/(^|[\s(>])#(\d{1,6})\b/g,(m,pre,num)=>`${pre}<a class="ref-link" onclick="refOpenTicket('${num}')">#${num}</a>`);
  // technique ID -> its strategy page (skip if already inside an anchor/tag attr)
  s=s.replace(/\b(T\d{4}(?:\.\d{3})?)\b/g,(m,id)=>MITRE&&MITRE[id]?`<a class="ref-link" onclick="refOpenTech('${id}')">${id}</a>`:m);
+ // enrolled hostnames -> jump to that host on the map. Only names that look
+ // like real hostnames (contain a digit or dash, 3+ chars) so we don't turn
+ // ordinary words into links or collide with HTML.
+ const hosts=[...new Set(((typeof LIVE!=='undefined'&&LIVE.agents)||[]).map(a=>a&&a.hostname).filter(h=>h&&h.length>=3&&/[\d-]/.test(h)))];
+ if(hosts.length){
+  const q=h=>h.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const re=new RegExp('(^|[\\s(>])('+hosts.sort((a,b)=>b.length-a.length).map(q).join('|')+')\\b','g');
+  s=s.replace(re,(m,pre,h)=>`${pre}<a class="ref-link ref-host" onclick="refOpenHost(this.textContent)">${h}</a>`);
+ }
  return s;
+}
+function refOpenHost(name){
+ const n=(typeof lsNodes!=='undefined'?lsNodes:[]).find(x=>(x.label||'').toLowerCase()===String(name||'').toLowerCase());
+ go('logsrc');
+ if(n&&typeof lsOpenNodeEdit==='function')setTimeout(()=>{try{lsOpenNodeEdit(n.uid);}catch{}},60);
+ else toast('Host "'+name+'" not on the map yet');
 }
 function refOpenTicket(num){
  const t=(typeof LIVE!=='undefined'&&LIVE.tickets||[]).find(x=>String(x.num)===String(num));

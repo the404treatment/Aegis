@@ -795,6 +795,7 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px;align-items:start;}
 .dcard{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:opacity .12s,border-color .12s,transform .12s;}
 .ref-link{color:var(--sky);cursor:pointer;border-bottom:1px dashed rgba(92,200,255,.5);}
+.ref-host{color:var(--mint);border-bottom-color:rgba(61,220,151,.5);}
 .ref-link:hover{border-bottom-style:solid;}
 .dcard.dragging{opacity:.4;}
 .dcard.drop-into{border-color:var(--violet);box-shadow:0 0 0 2px var(--violet-soft);}
