@@ -171,9 +171,9 @@ export const DEFAULT_ACCOUNTS = [
   { name: 'admin1', password: STANDARD_PASSWORD, role: 'lead' },
   { name: 'admin2', password: STANDARD_PASSWORD, role: 'lead' },
   { name: 'admin3', password: STANDARD_PASSWORD, role: 'lead' },
-  { name: 'user1', password: STANDARD_PASSWORD, role: 'analyst' },
-  { name: 'user2', password: STANDARD_PASSWORD, role: 'analyst' },
-  { name: 'user3', password: STANDARD_PASSWORD, role: 'analyst' },
+  { name: 'analyst1', password: STANDARD_PASSWORD, role: 'analyst' },
+  { name: 'analyst2', password: STANDARD_PASSWORD, role: 'analyst' },
+  { name: 'analyst3', password: STANDARD_PASSWORD, role: 'analyst' },
 ];
 export function seedDefaultAccounts(users) {
   let added = 0;

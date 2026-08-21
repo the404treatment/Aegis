@@ -234,7 +234,12 @@ function adminUsers(){
 }
 
 async function adminNewUser(){
- const name=await uiPrompt('Name - colleagues will see this on everything they do','',{title:'Add someone',ok:'Next'});
+ // Re-prompt on a name that's already taken rather than failing at the end, so
+ // an admin picking Analyst1, Analyst2, ... just gets nudged to the next free one.
+ let name=await uiPrompt('Username - unique, and shown on everything they do (e.g. Analyst1)','',{title:'Add someone',ok:'Next'});
+ while(name&&name.trim()&&(ADMIN.users||[]).some(u=>u.name.toLowerCase()===name.trim().toLowerCase())){
+  name=await uiPrompt(`"${name.trim()}" is already taken. Pick a different username:`,'',{title:'Add someone',ok:'Next'});
+ }
  if(!name||!name.trim())return;
  // Default to the standard local password so adding people is one field, not
  // a password-invention exercise. It is pre-filled and editable - clear it to

@@ -193,7 +193,7 @@ const saveUsers = () => writeJson(F.users, USERS);
 // account-creation form. Skipped once any account exists, so it never
 // resurrects a deleted default or overrides a real deployment's own accounts.
 if (CFG.requireLogin && CFG.seedDefaultAccounts && USERS.length === 0) {
-  if (seedDefaultAccounts(USERS)) { saveUsers(); console.log('[aegis] seeded default logins: admin1/2/3 (lead) and user1/2/3 (analyst), all password Password123! - change these for any networked deployment'); }
+  if (seedDefaultAccounts(USERS)) { saveUsers(); console.log('[aegis] seeded default logins: admin1/2/3 (lead) and analyst1/2/3 (analyst), all password Password123! - change these for any networked deployment'); }
 }
 const SESSIONS = new Sessions().load(readJson(F.sessions, []));
 const saveSessions = () => writeJson(F.sessions, SESSIONS.all());

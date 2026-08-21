@@ -94,6 +94,8 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .case-menu{position:relative;}
 .case-pop{display:none;position:absolute;top:38px;right:0;background:var(--panel);border:1px solid var(--line-hi);border-radius:10px;padding:6px;box-shadow:var(--sh-hi);z-index:60;min-width:190px;}
 .case-pop.open{display:block;}
+.case-pop-note{font-size:9.5px;color:var(--t3);line-height:1.45;padding:2px 11px 7px;max-width:230px;}
+.case-pop-note b{color:var(--t2);}
 .case-pop button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--t2);font-size:11.5px;padding:8px 11px;border-radius:7px;cursor:pointer;transition:.12s;}
 .case-pop button:hover{background:var(--hover);color:var(--t1);}
 .ls-ne-stageoffer{background:var(--mint-bg);border:1px solid var(--mint-line);border-radius:9px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:var(--t1);line-height:1.5;}

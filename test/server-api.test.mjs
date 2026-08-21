@@ -178,7 +178,7 @@ section('seeded default accounts (the product default)');
     eq('a seeded server is not in first-run setup', mode.needsSetup, false);
     eq('it reports the six seeded accounts', mode.accounts, 6);
     const names = (mode.defaults || []).map(d => d.name).sort();
-    eq('the defaults are advertised by name', names.join(','), 'admin1,admin2,admin3,user1,user2,user3');
+    eq('the defaults are advertised by name', names.join(','), 'admin1,admin2,admin3,analyst1,analyst2,analyst3');
     // The public probe must still not leak anything but name+role per default.
     const leak = (mode.defaults || []).some(d => Object.keys(d).some(k => !['name', 'role'].includes(k)));
     ok('the defaults advertisement carries no password/hash/id', !leak, JSON.stringify(mode.defaults));
@@ -195,25 +195,25 @@ section('seeded default accounts (the product default)');
     eq('a second/third admin logs in too', r.status, 200);
 
     r = await api(S.base, '/api/auth/login', {
-      method: 'POST', body: JSON.stringify({ name: 'user2', password: STD }),
+      method: 'POST', body: JSON.stringify({ name: 'analyst2', password: STD }),
     });
-    eq('user2 signs in with the standard password', r.status, 200);
-    eq('user2 is an analyst', (await r.json()).user.role, 'analyst');
+    eq('analyst2 signs in with the standard password', r.status, 200);
+    eq('analyst2 is an analyst', (await r.json()).user.role, 'analyst');
 
     // Changing one account's password retires it from the advertised defaults.
     const users = await (await api(S.base, '/api/users', withTok(admin.token))).json();
-    const userId = users.find(x => x.name === 'user1').id;
+    const userId = users.find(x => x.name === 'analyst1').id;
     r = await api(S.base, `/api/users/${userId}`, withTok(admin.token, {
       method: 'PATCH', body: JSON.stringify({ password: 'a-real-password-123' }),
     }));
     eq('a lead can change a seeded password', r.status, 200);
     const after = await (await api(S.base, '/api/auth/mode')).json();
     eq('the changed account is no longer advertised as a default', (after.defaults || []).length, 5);
-    ok('...and user1 is gone from the defaults', !(after.defaults || []).some(d => d.name === 'user1'), JSON.stringify(after.defaults));
+    ok('...and analyst1 is gone from the defaults', !(after.defaults || []).some(d => d.name === 'analyst1'), JSON.stringify(after.defaults));
 
     // The old standard password must no longer work for that account.
     r = await api(S.base, '/api/auth/login', {
-      method: 'POST', body: JSON.stringify({ name: 'user1', password: STD }),
+      method: 'POST', body: JSON.stringify({ name: 'analyst1', password: STD }),
     });
     eq('the retired default password is rejected', r.status, 401);
   } finally { S.stop(); }

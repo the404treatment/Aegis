@@ -163,7 +163,8 @@
         <button class="tips-toggle" onclick="document.getElementById('case-pop').classList.toggle('open')" data-tip="Save or load a full case (map, observations, coverage)" data-tip-pos="bottom">🗂</button>
         <div class="case-pop" id="case-pop">
           <button onclick="exportCase();document.getElementById('case-pop').classList.remove('open')">↓ Export case (.json)</button>
-          <button onclick="document.getElementById('case-file').click();document.getElementById('case-pop').classList.remove('open')">↑ Import case</button>
+          <button onclick="document.getElementById('case-file').click();document.getElementById('case-pop').classList.remove('open')" data-tip="Load a case .json previously exported from AEGIS (Export case). Restores the map, observations, notes and coverage.">↑ Import case (.json)</button>
+          <div class="case-pop-note">Import accepts a case <b>.json</b> exported from AEGIS - it restores the map, observations and coverage. Not for raw logs; ingest those from the Network Map.</div>
           <button onclick="newCase();document.getElementById('case-pop').classList.remove('open')">✦ New case</button>
           <input type="file" id="case-file" accept="application/json,.json" style="display:none" onchange="importCaseFile(this)">
         </div>

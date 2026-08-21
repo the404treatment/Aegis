@@ -56,7 +56,7 @@ function openLogin(msg,opts){
   <label class="ls-ne-label">Server URL</label>
   <input class="ui-dlg-input" id="auth-url" value="${esc(LIVE.url||location.origin)}" placeholder="https://aegis.internal:8787">
   <label class="ls-ne-label">Name</label>
-  <input class="ui-dlg-input" id="auth-name" autocomplete="off" value="" placeholder="${first?'your name - colleagues will see it':'e.g. admin1 or user1'}">
+  <input class="ui-dlg-input" id="auth-name" autocomplete="off" value="" placeholder="${first?'your name - colleagues will see it':'e.g. admin1 or analyst1'}">
   <label class="ls-ne-label">Password</label>
   <input class="ui-dlg-input" id="auth-pw" type="password" autocomplete="off" value="" placeholder="${first?'at least 10 characters':'password'}"
     onkeydown="if(event.key==='Enter')${first?'doBootstrap()':'doLogin()'}">
