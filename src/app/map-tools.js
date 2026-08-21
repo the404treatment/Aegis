@@ -125,6 +125,29 @@ async function lsBulkDelete(){
  lsEdges=lsEdges.filter(e=>!lsSel.has(e.a)&&!lsSel.has(e.b));
  lsSel.clear();persistAll();lsSnapshot();renderLogSrc();
 }
+/* ===== copy / paste selected nodes ===== */
+let lsClipboard=[];
+function lsCopyNodes(){
+ lsClipboard=[...lsSel].map(uid=>lsNodes.find(x=>x.uid===uid)).filter(Boolean)
+   .map(n=>{const c=JSON.parse(JSON.stringify(n));delete c.uid;delete c.obs;delete c.agentId;delete c.live;delete c.stale;return c;});
+ if(lsClipboard.length)toast(`${lsClipboard.length} node${lsClipboard.length===1?'':'s'} copied - Ctrl+V to paste`);
+}
+function lsPasteNodes(){
+ if(!lsClipboard.length)return;
+ // Offset the whole group from its own top-left so relative layout is kept.
+ const minx=Math.min(...lsClipboard.map(n=>n.x)),miny=Math.min(...lsClipboard.map(n=>n.y));
+ const newSel=new Set();
+ lsClipboard.forEach(src=>{
+  const c=JSON.parse(JSON.stringify(src));
+  c.uid='n'+(lsNodeSeq++);
+  c.x=(src.x-minx)+minx+40; c.y=(src.y-miny)+miny+40;
+  c.obs=[];
+  c.label=(src.label||NODE_TYPES[src.type].label).replace(/-copy.*$/,'')+'-copy';
+  lsNodes.push(c);newSel.add(c.uid);
+ });
+ lsSel=newSel;persistAll();lsSnapshot();renderLogSrc();
+ toast(`Pasted ${newSel.size} node${newSel.size===1?'':'s'}`);
+}
 /* ===== NEW: 3. duplicate a host ===== */
 function lsDuplicate(uid){
  const n=lsNodes.find(x=>x.uid===uid);if(!n)return;
@@ -141,6 +164,8 @@ function lsKeys(e){
  if(e.key==='Delete'||e.key==='Backspace'){if(lsSel.size){e.preventDefault();lsBulkDelete();}}
  else if(e.key==='Escape'){lsSel.clear();lsZoneSel=null;lsConnectMode=false;lsChainMode=false;renderLogSrc();}
  else if((e.ctrlKey||e.metaKey)&&e.key==='d'){if(lsSel.size===1){e.preventDefault();lsDuplicate([...lsSel][0]);}}
+ else if((e.ctrlKey||e.metaKey)&&e.key==='c'){if(lsSel.size){e.preventDefault();lsCopyNodes();}}
+ else if((e.ctrlKey||e.metaKey)&&e.key==='v'){if(lsClipboard.length){e.preventDefault();lsPasteNodes();}}
  else if((e.ctrlKey||e.metaKey)&&e.key==='a'){e.preventDefault();lsSelAll();}
  else if(e.key==='f'&&!e.ctrlKey&&!e.metaKey){const s=document.getElementById('ls-find');if(s){e.preventDefault();s.focus();}}
 }

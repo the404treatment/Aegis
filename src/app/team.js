@@ -97,6 +97,12 @@ function renderActivityButton(){
  b.onclick=LIVE.connected?activityToggle:null;
 }
 
+/* Follow an activity item to whatever it's about. */
+function activityGo(kind,targetId){
+ if(kind==='ticket'){const t=(LIVE.tickets||[]).find(x=>x.id===targetId);go('tickets');if(t)setTimeout(()=>{try{tkOpen(t.id);}catch{}},60);return;}
+ if(kind==='case'||kind==='evidence'||kind==='report'){go('cases');const c=(LIVE.cases||[]).find(x=>x.id===targetId);if(c&&typeof csOpen==='function')setTimeout(()=>{try{csOpen(c.id);}catch{}},60);return;}
+ if((kind==='user'||kind==='auth')&&authCan('user.manage')){go('admin');}
+}
 function renderActivity(){
  renderActivityButton();
  if(typeof renderCompanionButton==='function')renderCompanionButton();  // keep the floating AI button clear of this panel
@@ -111,8 +117,13 @@ function renderActivity(){
   </div>
   ${!activityIntact?`<div class="lint err" style="margin:10px 12px">The audit chain does not verify. Someone has edited the record on disk - treat this feed, and the case files, as untrusted until that is explained.</div>`:''}
   <div class="act-body">
-    ${activityItems.length?activityItems.map(a=>`
-      <div class="act-row act-${esc(a.kind)}">
+    ${activityItems.length?activityItems.map(a=>{
+      // Clickable to follow, EXCEPT admin-only actions (accounts, sign-ins) for
+      // a non-admin, who can neither see nor do them.
+      const adminOnly=(a.kind==='user'||a.kind==='auth');
+      const nav=['ticket','case','evidence','report'].includes(a.kind)||(adminOnly&&authCan('user.manage'));
+      return `
+      <div class="act-row act-${esc(a.kind)}${nav?' act-nav':''}" ${nav?`onclick="activityGo('${esc(a.kind)}','${esc(a.targetId)}')"`:''}>
         <span class="who-dot sm" style="--who:${whoColor(a.actor)}">${esc(initialsOf(a.actor))}</span>
         <div class="act-txt">
           <b>${esc(a.actor)}</b> ${esc(a.verb)}${a.noun?' '+esc(a.noun):''}
@@ -120,7 +131,7 @@ function renderActivity(){
           ${a.detail?`<span class="act-detail">${esc(a.detail)}</span>`:''}
         </div>
         <span class="act-ago">${agoOf(a.at)}</span>
-      </div>`).join('')
+      </div>`;}).join('')
      :'<div class="chat-empty">Nothing yet. Raise a ticket or open a case and it shows up here for the whole team.</div>'}
   </div>
   <div class="act-foot">Read from the hash-chained audit log - the same record the formal report is signed against.</div>`;
