@@ -339,7 +339,7 @@ async function lsClearMap(){
  // write the empty state straight to storage so a reload cannot resurrect anything
  try{
   store('aegis-nodes','[]');store('aegis-edges','[]');store('aegis-nodeseq','1');
-  store('aegis-lastchain','');store('aegis-snaps','[]');
+  store('aegis-lastchain','');store('aegis-snaps','[]');store('aegis-zones','{}');
  }catch(e){}
  const f=document.getElementById('ls-find');if(f)f.value='';
  persistAll();renderLogSrc();

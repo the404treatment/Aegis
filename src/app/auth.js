@@ -62,7 +62,7 @@ function openLogin(msg,opts){
     onkeydown="if(event.key==='Enter')${first?'doBootstrap()':'doLogin()'}">
   <button class="btn violet" style="width:100%;justify-content:center;margin-top:12px" id="auth-go"
     onclick="${first?'doBootstrap()':'doLogin()'}">${first?'Create account &amp; sign in':'Sign in'}</button>
-  ${hint?`<div class="auth-hint">Accounts on this box: <b>${hint.map(d=>esc(d.name)).join('</b>, <b>')}</b>. Shared password <code>Password123!</code> - change it in Admin.</div>`:''}
+  ${hint?`<div class="auth-hint">Accounts on this box: <b>${hint.map(d=>esc(d.name)).join('</b>, <b>')}</b>. The shared default password is in the install docs (README / INSTALL.md) - change it in Admin.</div>`:''}
   <div class="ls-det-sub" style="margin-top:12px">${first
     ?'Already have an account on another server? <a href="#" onclick="authSwitchServer();return false">Change the server URL</a> above and try again.'
     :(gate?'':'Automating something, or locked out? <a href="#" onclick="closeLogin();openLiveSetup();return false">Use an analyst token</a>.')}</div>

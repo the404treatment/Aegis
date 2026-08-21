@@ -99,6 +99,7 @@ function renderActivityButton(){
 
 function renderActivity(){
  renderActivityButton();
+ if(typeof renderCompanionButton==='function')renderCompanionButton();  // keep the floating AI button clear of this panel
  let p=document.getElementById('activity-panel');
  if(!p){p=document.createElement('div');p.id='activity-panel';document.body.appendChild(p);}
  p.className='activity-panel'+(activityOpen&&LIVE.connected?' open':'');

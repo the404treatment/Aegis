@@ -140,7 +140,10 @@ function renderCompanionButton(){
  // top-bar chip mirrors its state for anyone who prefers it there.
  const fab=document.getElementById('ai-fab');
  if(fab){
-  fab.classList.toggle('open',coOpen);
+  // Hide the floating button whenever a bottom-right panel is open, so it
+  // never sits on top of the chat compose box or the companion itself.
+  const otherOpen=(typeof chatOpen!=='undefined'&&chatOpen)||(typeof activityOpen!=='undefined'&&activityOpen);
+  fab.style.display=(coOpen||otherOpen)?'none':'';
   fab.classList.toggle('dim',LIVE.connected&&!CO.available);
   fab.title=!LIVE.connected?'Connect to a server to use the AI'
     :CO.available?`Ask the AI · ${CO.name}${CO.watch?' · watching telemetry':''}`

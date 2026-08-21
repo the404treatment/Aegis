@@ -36,6 +36,7 @@ function renderChat(){
   btn.innerHTML=LIVE.connected?`✻ Chat${chatUnread?`<i>${chatUnread>99?'99+':chatUnread}</i>`:''}`:'';
   btn.onclick=LIVE.connected?chatToggle:null;
  }
+ if(typeof renderCompanionButton==='function')renderCompanionButton();  // keep the floating AI button out from under this panel
  let p=document.getElementById('chat-panel');
  if(!p){p=document.createElement('div');p.id='chat-panel';document.body.appendChild(p);}
  p.className='chat-panel'+(chatOpen&&LIVE.connected?' open':'');
