@@ -454,6 +454,7 @@ body.no-tips [data-tip]::after,body.no-tips [data-tip]::before{display:none;}
 .ls-view-toggle button.on{background:var(--violet);color:var(--ink);font-weight:600;}
 .ls-view-toggle button:not(.on):hover{color:var(--violet);}
 .ls-canvas{background:radial-gradient(circle at 30% 20%,rgba(139,123,255,.05),transparent 60%),var(--ink2);border:1px solid var(--line);border-radius:var(--r);flex:1;min-height:360px;overflow:hidden;position:relative;background-size:22px 22px;background-image:linear-gradient(rgba(139,123,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(139,123,255,.04) 1px,transparent 1px);}
+#ls-marquee{position:absolute;display:none;border:1.5px solid var(--sky);background:rgba(92,200,255,.12);border-radius:3px;pointer-events:none;z-index:5;}
 .ls-canvas-hint{font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:8px;text-align:center;}
 .ls-canvas-hint b{color:var(--violet);}
 /* trace (attack-path) step chips */

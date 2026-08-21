@@ -199,10 +199,13 @@ function lsBindZoom(){
  cv.addEventListener('mousedown',(e)=>{
   const onNode=e.target.closest&&e.target.closest('.ls-node');
   const onZone=e.target.closest&&e.target.closest('.ls-zone');
-  if(lsTool==='pan'||_spaceHeld||(!onNode&&!onZone)){e.preventDefault();lsPanBegin(e,document.getElementById('ls-svg'));}
+  // Hand tool / space = pan. Select tool on empty canvas = marquee-select a
+  // group of nodes (drag a box round them), then drag/copy/delete them.
+  if(lsTool==='pan'||_spaceHeld){e.preventDefault();lsPanBegin(e,document.getElementById('ls-svg'));}
+  else if(!onNode&&!onZone&&!lsConnectMode&&!lsChainMode){e.preventDefault();lsMarqueeBegin(e);}
  });
- window.addEventListener('mousemove',(e)=>{if(lsPan)lsPanMove(e,document.getElementById('ls-svg'));});
- window.addEventListener('mouseup',()=>{lsPan=null;});
+ window.addEventListener('mousemove',(e)=>{if(lsPan)lsPanMove(e,document.getElementById('ls-svg'));else if(_lsMarquee)lsMarqueeMove(e);});
+ window.addEventListener('mouseup',(e)=>{lsPan=null;if(_lsMarquee)lsMarqueeEnd(e);});
  window.addEventListener('keydown',(e)=>{if(e.code==='Space'){const tag=(e.target.tagName||'').toLowerCase();if(tag!=='input'&&tag!=='textarea'){_spaceHeld=true;cv.classList.add('panning');}}});
  window.addEventListener('keyup',(e)=>{if(e.code==='Space'){_spaceHeld=false;lsPan=null;cv.classList.remove('panning');}});
  // two-finger pinch = zoom, one-finger on empty space = pan
@@ -216,6 +219,39 @@ function lsBindZoom(){
   else if(e.touches.length===2){const d=_lsDist(e.touches);lsZoom=Math.max(0.5,Math.min(3,_lsPinch.z*d/_lsPinch.d));lsApplyZoom();}
  },{passive:true});
  cv.addEventListener('touchend',(e)=>{if(e.touches.length===0)_lsPinch=null;},{passive:true});
+}
+/* ---- marquee (drag-box) multi-select ---- */
+let _lsMarquee=null;
+function lsMarqueeBegin(e){
+ const svg=document.getElementById('ls-svg');if(!svg)return;
+ _lsMarquee={sx:e.clientX,sy:e.clientY,r:svg.getBoundingClientRect(),additive:e.shiftKey||e.ctrlKey||e.metaKey};
+ if(!_lsMarquee.additive)lsSel.clear();
+ let box=document.getElementById('ls-marquee');
+ const cv=document.getElementById('ls-canvas');
+ if(!box){box=document.createElement('div');box.id='ls-marquee';cv.appendChild(box);}
+ box.style.display='block';box.style.width='0';box.style.height='0';
+}
+function lsMarqueeMove(e){
+ const m=_lsMarquee,box=document.getElementById('ls-marquee');if(!m||!box)return;
+ const cr=document.getElementById('ls-canvas').getBoundingClientRect();
+ const x=Math.min(m.sx,e.clientX),y=Math.min(m.sy,e.clientY);
+ box.style.left=(x-cr.left)+'px';box.style.top=(y-cr.top)+'px';
+ box.style.width=Math.abs(e.clientX-m.sx)+'px';box.style.height=Math.abs(e.clientY-m.sy)+'px';
+}
+function lsMarqueeEnd(e){
+ const m=_lsMarquee;_lsMarquee=null;
+ const box=document.getElementById('ls-marquee');if(box)box.style.display='none';
+ const r=m.r;
+ const x0=Math.min(m.sx,e.clientX),x1=Math.max(m.sx,e.clientX),y0=Math.min(m.sy,e.clientY),y1=Math.max(m.sy,e.clientY);
+ if(x1-x0<4&&y1-y0<4){renderLogSrc();return;}   // a click, not a drag: just the deselect
+ lsNodes.forEach(n=>{
+  // node's on-screen point = its viewBox coord (n.x*zoom+pan) mapped to the element
+  const sx=r.left+(n.x*lsZoom+lsPanX)/LS_W*r.width;
+  const sy=r.top+(n.y*lsZoom+lsPanY)/LS_H*r.height;
+  if(sx>=x0&&sx<=x1&&sy>=y0&&sy<=y1)lsSel.add(n.uid);
+ });
+ renderLogSrc();
+ if(lsSel.size)toast(`${lsSel.size} node${lsSel.size===1?'':'s'} selected - drag, Ctrl+C to copy, Del to remove`);
 }
 function _lsDist(t){const dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;return Math.hypot(dx,dy);}
 function lsZoomBy(f){lsZoom=Math.max(0.5,Math.min(3,lsZoom*f));lsApplyZoom();}
