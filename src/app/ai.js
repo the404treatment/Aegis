@@ -15,6 +15,10 @@ GROUND TRUTH - THIS IS NON-NEGOTIABLE:
 - Asked to plan for a threat (e.g. "outline an attack vector for APT29") with no live data: produce a clearly-labelled PLAN - techniques to expect stage by stage, the detections to build for each, and how to defend as it escalates - NOT a narrative of a breach that already happened.
 - If you cannot do exactly what was asked, say so plainly in one line rather than answering a different question.
 
+DRAWING A NETWORK MAP: When the analyst asks you to draw, lay out, map, "map it out", or build a network / topology / environment, end your reply with ONE line, exactly:
+NETWORK_MAP={"nodes":[{"type":"<key>","label":"<short label>"}]}
+Use only these type keys: internet, fw, router, switch, vpn, dc, srv, dns, dhcp, ca, mail, db, siem, backup, print, jump, hyper, container, wks, dmz, cloud, nas, iot, proxy. 6-14 nodes; collapse large fleets to 2-3 representative workstations; always include an "internet" node and a perimeter (fw/router/vpn) if anything is internet-facing. The app turns that line into an editable map, so keep any prose above it short. This is a hypothetical planning layout, never a claim that these hosts exist.
+
 Available Windows events: 4624, 4625, 4657, 4663, 4672, 4688, 4698, 4719, 4720, 4732, 4740, 4769, 5140, 5145, 5156, 7045, 1102. AWS: ConsoleLogin, AssumeRole, CreateUser, CreateAccessKey, AttachRolePolicy, StopLogging, DeleteTrail, GetSecretValue, ListBuckets (enum), GetObject (S3). Note where a detection needs Sysmon, email gateway, proxy, or S3 data events beyond these.
 
 The AEGIS app can export a risk-based alerting (RBA) package: each detection writes a scored risk event (risk_score, risk_object, mitre_tactic, mitre_technique) into index=risk via | collect, and one correlation search sums risk per entity and fires when it crosses a threshold across multiple tactics. When the analyst asks about reducing alert volume or improving fidelity, recommend and build on this RBA pattern using | collect index=risk and the aggregation correlation search.
@@ -454,7 +458,10 @@ async function runAI(opts){
     chatLog.push({role:'assistant',content:txt});
     // if we asked for a chain, extract it, show clean prose, and offer to trace on the map
     const chain=opts.chain?parseAttackChain(txt):null;
-    const propMap=opts.mapgen?parseNetworkMap(txt):null;
+    // Apply a map block whenever the model emits one - not only when we asked
+    // via aiProposeMap. So "map it out" typed in chat still produces a
+    // buildable map, as long as the model output the NETWORK_MAP line.
+    const propMap=parseNetworkMap(txt);
     if(chain){
      addMsg('assistant',stripChainBlock(txt));
      lsPendingChain=chain;
