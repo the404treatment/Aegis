@@ -165,6 +165,10 @@ async function doLogout(){
 /** Admin is lead-only, and hidden rather than shown-and-refused - a nav item
     you cannot use is just a reminder that you are not trusted. */
 function authRenderNav(){
+ // Toolbox is for deployment/admin tooling: hide it from a signed-in analyst,
+ // but keep it for admins and for the offline/local single-user mode (no ME).
+ const tb=document.getElementById('r-toolbox');
+ if(tb)tb.style.display=(ME&&!ME.shared&&!authCan('user.manage'))?'none':'';
  const r=document.getElementById('r-admin');if(!r)return;
  const show=LIVE.connected&&authCan('user.manage');
  r.style.display=show?'':'none';

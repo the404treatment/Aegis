@@ -88,3 +88,13 @@ const NODE_TYPES={
    note:"Unmanaged, rarely patched, and often over-trusted. A favourite foothold and pivot - visibility usually comes from the network, not the device."}
 };
 const LS_ZONES=[["external","Internet / Untrusted"],["edge","Edge / Perimeter"],["dmz","DMZ"],["cloud","Cloud"],["core","Core / Identity"],["internal","Internal"]];
+
+/* Grouping for the "Add host" menu. Every NODE_TYPES key belongs to exactly
+   one group; the menu renders these in order. Referenced by openLsAddMenu -
+   without it that menu rendered nothing. */
+const NODE_GROUPS=[
+  ["Identity & servers",["dc","srv","dns","dhcp","ca","mail","db","siem","backup","print"]],
+  ["Endpoints & compute",["wks","jump","hyper","container"]],
+  ["Network & edge",["fw","router","switch","vpn","proxy","dmz","internet"]],
+  ["Storage, cloud & other",["nas","cloud","iot"]],
+];
