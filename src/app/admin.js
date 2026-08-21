@@ -163,10 +163,10 @@ function adminDeploy(){
    +step(3,'Schedule it to keep reporting','The <code>--once</code> form is meant for a cron job or systemd timer every 5 minutes - see <code>deploy/aegis-agent.timer</code> for a ready unit.')
    +step(4,'Watch it appear','The host joins your Network Map as it starts reporting.');
  }else{
-  steps=step(1,'From any machine that can reach the targets, scan the network',cmd('node discover.mjs --json targets.json'))
-   +step(2,'Review what it found','Open <code>targets.json</code> and remove anything you should not touch.')
-   +step(3,'Push the agent to everything in the list',cmd('node deploy-agents.mjs --targets targets.json'))
-   +step(4,'Watch them appear','Each enrolled host joins the map, and links between enrolled hosts draw themselves.');
+  steps=step(1,'For domain fleets, deploy by GPO / Intune / Ansible','This is the reliable way to reach many endpoints - a push tool that scans and connects to each host will not work if the endpoints can\'t be reached back. Windows domain: a Startup <b>GPO</b> or Intune script running <code>agents\\aegis-agent.ps1 -Server &lt;url&gt; -EnrollmentToken &lt;token&gt; -Install</code> from a share. Linux fleet: an <b>Ansible</b> play or config-management task running <code>python3 aegis-agent.py --server &lt;url&gt; --token &lt;token&gt; --once</code> from a cron/systemd timer.')
+   +step(2,'Or, from a box that CAN reach the targets, scan first',cmd('node discover.mjs --json targets.json'))
+   +step(3,'Review what it found, then push','Open <code>targets.json</code>, remove anything you should not touch, then:'+cmd('node deploy-agents.mjs --targets targets.json'))
+   +step(4,'Watch them appear','Each enrolled host joins the map, and links between enrolled hosts draw themselves. A host that never appears could not reach the server - check the path from THAT host back to it.');
  }
  return`<div class="adm-sec">
    <div class="adm-sec-h"><span>Deploy an agent</span></div>
@@ -177,6 +177,11 @@ function adminDeploy(){
    <div class="adm-dtabs">${tab('win','One Windows host')}${tab('nix','One Linux / macOS host')}${tab('many','Many machines at once')}</div>
    <div class="adm-dsteps">${steps}</div>
    <div class="adm-note" style="margin-top:10px">
+     Run these <b>on the endpoint</b> (or your deployment tool), not in the terminal running
+     the AEGIS server - <code>npm start</code> holds that one open. Open a second terminal, or
+     work from the target machine.
+   </div>
+   <div class="adm-note" style="margin-top:8px">
      Hiding the agent so an intruder can't find it by searching for "AEGIS": add
      <code>-Name svc-telemetry</code> (or <code>--agent-name</code> on the scanning deployer).
      Full walkthrough: <code>docs/RUNBOOK.md</code> section 7.
