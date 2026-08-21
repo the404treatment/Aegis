@@ -19,6 +19,10 @@ DRAWING A NETWORK MAP: When the analyst asks you to draw, lay out, map, "map it 
 NETWORK_MAP={"nodes":[{"type":"<key>","label":"<short label>"}]}
 Use only these type keys: internet, fw, router, switch, vpn, dc, srv, dns, dhcp, ca, mail, db, siem, backup, print, jump, hyper, container, wks, dmz, cloud, nas, iot, proxy. 6-14 nodes; collapse large fleets to 2-3 representative workstations; always include an "internet" node and a perimeter (fw/router/vpn) if anything is internet-facing. The app turns that line into an editable map, so keep any prose above it short. This is a hypothetical planning layout, never a claim that these hosts exist.
 
+CHANGING A TICKET: When the analyst asks you to change, update, comment on, close, prioritise or assign a ticket, end your reply with ONE line, exactly:
+TICKET_ACTION={"num":<ticket number>,"patch":{...}}   or   TICKET_ACTION={"num":<n>,"comment":"<text>"}
+Allowed patch keys: status ("open"/"review"/"closed"/"discarded"), severity ("low"/"medium"/"high"/"critical"), priority ("low"/"normal"/"high"/"urgent"), assignee (a name), description. The app shows the analyst a confirm button and applies it under THEIR permissions - so propose the action, never assume it succeeded. Say briefly what you're proposing above the line.
+
 Available Windows events: 4624, 4625, 4657, 4663, 4672, 4688, 4698, 4719, 4720, 4732, 4740, 4769, 5140, 5145, 5156, 7045, 1102. AWS: ConsoleLogin, AssumeRole, CreateUser, CreateAccessKey, AttachRolePolicy, StopLogging, DeleteTrail, GetSecretValue, ListBuckets (enum), GetObject (S3). Note where a detection needs Sysmon, email gateway, proxy, or S3 data events beyond these.
 
 The AEGIS app can export a risk-based alerting (RBA) package: each detection writes a scored risk event (risk_score, risk_object, mitre_tactic, mitre_technique) into index=risk via | collect, and one correlation search sums risk per entity and fires when it crosses a threshold across multiple tactics. When the analyst asks about reducing alert volume or improving fidelity, recommend and build on this RBA pattern using | collect index=risk and the aggregation correlation search.
@@ -186,6 +190,35 @@ function parseNetworkMap(text){
  return null;
 }
 function stripMapBlock(text){return text.replace(/\n?NETWORK_MAP\s*=\s*\{[\s\S]*\}\s*$/,'').trim();}
+/* A proposed ticket change the AI emitted. Parsed and offered as a confirm
+   button - never auto-applied, and always through the normal API, so the
+   analyst's own permissions still decide what actually happens. */
+function parseTicketAction(text){
+ if(!text)return null;
+ const m=text.match(/TICKET_ACTION\s*=\s*(\{[\s\S]*?\})\s*$/);
+ if(!m)return null;
+ try{const o=JSON.parse(m[1]);if(o&&o.num!=null&&(o.patch||o.comment))return o;}catch{}
+ return null;
+}
+function stripTicketBlock(text){return text.replace(/\n?TICKET_ACTION\s*=\s*\{[\s\S]*?\}\s*$/,'').trim();}
+let _aiTicketAction=null;
+function aiApplyTicketAction(){
+ const a=_aiTicketAction;_aiTicketAction=null;
+ if(!a)return;
+ const t=(LIVE.tickets||[]).find(x=>String(x.num)===String(a.num));
+ if(!t){toast('No ticket #'+a.num+' to act on');return;}
+ if(a.comment){
+  liveApi('/api/tickets/'+t.id+'/comments',{method:'POST',body:JSON.stringify({text:String(a.comment).slice(0,8000)})})
+   .then(()=>{toast('Comment added to #'+a.num);if(typeof renderTickets==='function')renderTickets();})
+   .catch(e=>toast(e.message));
+  return;
+ }
+ // Only pass fields the ticket API accepts; the server still gates each one.
+ const allowed=['status','severity','priority','assignee','description','host','technique'];
+ const patch={};Object.keys(a.patch||{}).forEach(k=>{if(allowed.includes(k))patch[k]=a.patch[k];});
+ if(!Object.keys(patch).length){toast('Nothing to apply');return;}
+ if(typeof tkPatch==='function')tkPatch(t.id,patch);   // enforces permissions, surfaces any 403
+}
 /* ---- #16 detection-to-node binding: which staged detections fire on which nodes ---- */
 /* returns staged techniques whose mapped events this node actually emits */
 function lsNodeDetections(n){
@@ -462,6 +495,7 @@ async function runAI(opts){
     // via aiProposeMap. So "map it out" typed in chat still produces a
     // buildable map, as long as the model output the NETWORK_MAP line.
     const propMap=parseNetworkMap(txt);
+    const tkAction=parseTicketAction(txt);
     if(chain){
      addMsg('assistant',stripChainBlock(txt));
      lsPendingChain=chain;
@@ -474,6 +508,14 @@ async function runAI(opts){
      const el=addMsg('assistant','');
      const summary=propMap.map(n=>NODE_TYPES[n.type].glyph).join(' ');
      el.querySelector('.m-body').innerHTML=`<div class="ai-trace-cta"><div><b>${propMap.length}-node map proposed.</b> ${summary}<br>Build it on the Network Map (replaces the current one).</div><button class="btn violet" onclick="lsBuildProposedMap()">⧉ Build this map</button></div>`;
+    }else if(tkAction){
+     const clean=stripTicketBlock(txt);if(clean)addMsg('assistant',clean);
+     _aiTicketAction=tkAction;
+     const el=addMsg('assistant','');
+     const desc=tkAction.comment
+       ?`add a comment to ticket #${tkAction.num}`
+       :`update ticket #${tkAction.num}: ${Object.entries(tkAction.patch||{}).map(([k,v])=>`${esc(k)} → ${esc(String(v))}`).join(', ')}`;
+     el.querySelector('.m-body').innerHTML=`<div class="ai-trace-cta"><div><b>Proposed action:</b> ${desc}. This applies under your own permissions.</div><button class="btn violet" onclick="aiApplyTicketAction()">✓ Apply to #${tkAction.num}</button></div>`;
     }else{
      addMsg('assistant',txt);
     }
