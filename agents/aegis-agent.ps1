@@ -248,10 +248,27 @@ function Register-Agent {
     roles = $facts.roles; version = $facts.version
     machineId = $machineId
   }
-  $r = Invoke-Aegis -Path '/api/enroll' -Body $body
+  Write-Host ("  Enrolling {0} with {1} ..." -f $facts.hostname, $Server)
+  try {
+    $r = Invoke-Aegis -Path '/api/enroll' -Body $body
+  } catch {
+    # The single most common silent failure: the endpoint cannot reach the
+    # server, or the enrollment token is wrong. Say which, loudly, instead of
+    # letting the loop print "running" while nothing ever arrives server-side.
+    Write-Host ''
+    Write-Host ("  ENROLLMENT FAILED: {0}" -f $_.Exception.Message) -ForegroundColor Red
+    Write-Host ("  Could not enrol with {0}." -f $Server) -ForegroundColor Yellow
+    Write-Host  '  Check, from THIS machine:' -ForegroundColor Yellow
+    Write-Host ("    - it can reach the server:   curl.exe {0}/api/health" -f $Server)
+    Write-Host  '    - the enrollment token matches the one in the console / server startup'
+    Write-Host  '    - the server firewall allows inbound on its port'
+    throw
+  }
+  if (-not $r -or -not $r.agentId) { throw "server did not return an agent id (response: $($r | ConvertTo-Json -Compress))" }
   $state = [pscustomobject]@{ agentId = $r.agentId; agentKey = $r.agentKey; server = $Server; lastEventTime = (Get-Date).AddMinutes(-$LookbackMinutes).ToString('o'); machineId = $machineId }
   Save-State $state
   Write-Log "enrolled as $($r.agentId)"
+  Write-Host ("  enrolled as {0}  (id {1})" -f $facts.hostname, $r.agentId) -ForegroundColor Green
   return $state
 }
 

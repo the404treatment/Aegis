@@ -138,7 +138,12 @@ function adminDeploy(){
  // running .\aegis-agent.ps1, which is not there. -ExecutionPolicy Bypass
  // pre-empts the "not digitally signed" wall; the agent self-elevates for the
  // admin rights it needs, so an ordinary PowerShell is a fine place to start.
- const win=`powershell -ExecutionPolicy Bypass -File agents\\aegis-agent.ps1 -Server ${d.serverUrl} -EnrollmentToken ${d.enrollmentToken} -Install`;
+ // Self-locating: the #1 failure was a relative path that only resolved from
+ // the repo root, but people run from Downloads or system32, or download just
+ // the one (possibly renamed) script. This finds aegis-agent*.ps1 in the
+ // current folder or an .\agents subfolder and runs whichever it finds, so it
+ // works wherever the operator actually is.
+ const win=`$s='${d.serverUrl}'; $t='${d.enrollmentToken}'\n$a=Get-ChildItem -Recurse -Filter 'aegis-agent*.ps1' -ErrorAction SilentlyContinue | Select-Object -First 1\nif(-not $a){Write-Host 'aegis-agent.ps1 not found here. cd into the unzipped AEGIS folder first.' -ForegroundColor Yellow; return}\npowershell -ExecutionPolicy Bypass -File $a.FullName -Server $s -EnrollmentToken $t -Install`;
  // python3 rather than ./aegis-agent.py: a ZIP download loses the executable
  // bit and the ./ form then fails as "command not found".
  const nix=`sudo python3 agents/aegis-agent.py --server ${d.serverUrl} --token ${d.enrollmentToken} --once`;
@@ -149,9 +154,9 @@ function adminDeploy(){
  let steps='';
  if(admDeployOS==='win'){
   steps=step(1,'Get the AEGIS files onto the Windows machine you want to watch','Copy the unzipped AEGIS folder there (or to a share it can read). The agent is one file: <code>agents\\aegis-agent.ps1</code>.')
-   +step(2,'Open PowerShell in that folder and run:',cmd(win))
-   +step(3,'Approve the Windows admin prompt','It needs elevation to read the Security log. No code-signing or execution-policy fiddling - the command handles both. It installs a scheduled task that reports every 5 minutes and survives reboots.')
-   +step(4,'Watch it appear','Within a minute the host shows on your Network Map and its telemetry starts lighting the ATT&CK Matrix.');
+   +step(2,'Open PowerShell, <b>cd</b> into the AEGIS folder, and paste this','It finds the agent script wherever it is (this folder or <code>.\\agents\\</code>), so it does not matter which subfolder you are in:'+cmd(win))
+   +step(3,'Approve the Windows admin prompt','It needs elevation to read the Security log. No code-signing or execution-policy fiddling - the command handles both. It installs a scheduled task that reports every 5 minutes and survives reboots. Watch for the green <code>enrolled as &lt;host&gt;</code> line - if enrollment fails it prints the reason in red.')
+   +step(4,'Watch it appear','Within a minute the host shows on your Network Map and its telemetry starts lighting the ATT&CK Matrix. Still 0 agents? The endpoint could not reach <code>'+esc(d.serverUrl)+'</code> - check the firewall on the server and that the endpoint can curl that URL.');
  }else if(admDeployOS==='nix'){
   steps=step(1,'Get the AEGIS files onto the Linux / macOS host','Run it through <code>python3</code> (a ZIP download loses the executable bit, so <code>./</code> would fail). Stdlib only - nothing to install.')
    +step(2,'Run it as root:',cmd(nix))
