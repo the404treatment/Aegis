@@ -53,7 +53,7 @@ function renderChat(){
       const col=typeof userColor==='function'?userColor(m.from):'var(--violet)';
       return `<div class="chat-msg${mine?' mine':''}">
         <div class="chat-meta"><b style="color:${col}"><span class="chat-dot" style="background:${col}"></span>${esc(m.from)}</b><span>${typeof fmtTime==='function'?fmtTime(m.at):new Date(m.at).toLocaleTimeString()}</span></div>
-        <div class="chat-text">${highlightIocs(m.text)}</div>
+        <div class="chat-text">${linkifyRefs(highlightIocs(m.text))}</div>
       </div>`;}).join('')
      :'<div class="chat-empty">Nothing yet. Anyone connected to this server sees what you post here.</div>'}
   </div>

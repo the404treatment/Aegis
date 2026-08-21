@@ -49,6 +49,25 @@ function toast(msg){
 function store(k,v){try{localStorage.setItem(k,v)}catch{}}
 function read(k,d){try{return localStorage.getItem(k)??d}catch{return d}}
 
+/* Turn references an analyst types into clickable links: a ticket number
+   (#12), and an ATT&CK technique (T1003 / T1003.001). Input is already HTML
+   (escaped, possibly with IOC spans); we only add anchors around plain refs,
+   so it's safe to run on chat text, ticket comments and notes. */
+function linkifyRefs(html){
+ let s=String(html==null?'':html);
+ // ticket #N -> open that ticket (only when a ticket queue is around)
+ s=s.replace(/(^|[\s(>])#(\d{1,6})\b/g,(m,pre,num)=>`${pre}<a class="ref-link" onclick="refOpenTicket('${num}')">#${num}</a>`);
+ // technique ID -> its strategy page (skip if already inside an anchor/tag attr)
+ s=s.replace(/\b(T\d{4}(?:\.\d{3})?)\b/g,(m,id)=>MITRE&&MITRE[id]?`<a class="ref-link" onclick="refOpenTech('${id}')">${id}</a>`:m);
+ return s;
+}
+function refOpenTicket(num){
+ const t=(typeof LIVE!=='undefined'&&LIVE.tickets||[]).find(x=>String(x.num)===String(num));
+ go('tickets');
+ if(t)setTimeout(()=>{try{tkOpen(t.id);}catch{}},60); else toast('No ticket #'+num+' here');
+}
+function refOpenTech(id){ if(MITRE&&MITRE[id]){go('matrix');setTimeout(()=>{try{openDrawer(id);}catch{}},60);} }
+
 /* ================= SETTINGS ================= */
 /* Global, per-browser preferences - mostly the timing knobs an analyst wants
    to set once (how far back "now" looks, the clock format, the cadence the
