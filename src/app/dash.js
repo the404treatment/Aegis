@@ -170,10 +170,10 @@ function dashCardTechniques(){
 function dashCardTickets(){
  const rows=(LIVE.tickets||[]).filter(t=>t.status!=='closed').slice(-7).reverse();
  if(!rows.length)return dashEmpty(LIVE.connected?'No open tickets.':'Connect to a server to see the shared queue.');
- return rows.map(t=>`<div class="drow" onclick="go('tickets')">
+ return rows.map(t=>`<div class="drow drow-sev sev-${esc(t.severity||'info')}" onclick="go('tickets')">
    <span class="drow-k sev-${esc(t.severity||'info')}">${esc((t.severity||'').slice(0,4).toUpperCase()||'—')}</span>
    <span class="drow-m">${esc(t.title||'untitled')}</span>
-   <span class="drow-a">${esc(t.status||'')}</span>
+   <span class="drow-a tk-st tk-st-${esc(t.status||'open')}">${esc(t.status||'')}</span>
  </div>`).join('');
 }
 

@@ -188,7 +188,7 @@ function threatDetail(key){
 
 function renderChain(){
  const activeStages=new Set([...studio].map(primaryStage));
- let html='<div class="chain-wrap"><div class="chain">';
+ let html='<div class="chain-wrap" onwheel="mxWheel(event)"><div class="chain">';
  const activeIdx=TACTICS.map((_,i)=>i).filter(i=>activeStages.has(i));
  const minA=activeIdx.length?Math.min(...activeIdx):-1,maxA=activeIdx.length?Math.max(...activeIdx):-1;
  TACTICS.forEach(([tac,slug,techs],i)=>{
