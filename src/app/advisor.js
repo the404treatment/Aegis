@@ -315,6 +315,22 @@ function adviseNode(uid){
 }
 
 /* ---- UI: lazy veil, same pattern as openLiveSetup() ---- */
+/* The dynamic half of the playbook: hand the host's REAL observations to the
+   local AI and ask for a plan tailored to them. Grounded - the prompt says the
+   listed observations are the only confirmed facts, so it adapts to the actual
+   threat instead of inventing one (see the AI ground-truth rule). */
+function raAdaptWithAI(uid){
+ const n=lsNodes.find(x=>x.uid===uid);if(!n)return;
+ const obs=n.obs||[];
+ if(!obs.length){toast('No observations on this host to adapt to - log what you are seeing first');return;}
+ if(!(typeof LIVE!=='undefined'&&LIVE.connected)){toast('Connect to a server - the AI runs on the host');return;}
+ const facts=obs.map(o=>{const ev=LOGSRC.find(e=>e.id===o.evId);return `- [${o.sev}] ${o.evId||''} ${ev?ev.name:''}${o.note?': '+o.note:''}`;}).join('\n');
+ const host=`${n.label} (${n.os||'unknown OS'}${n.ip?', '+n.ip:''})`;
+ const prompt=`Host under investigation: ${host}\nObserved on it (these are the ONLY confirmed facts - do not invent anything beyond them):\n${facts}\n\nProduce an incident-specific response plan for THIS host: immediate containment, then eradication, then recovery - prioritised, with exact commands where you can, tailored to its OS. If the evidence is thin, say what to collect next rather than guessing.`;
+ closeAdvisor();
+ if(typeof quickAsk==='function')quickAsk(prompt);
+ else if(typeof ask==='function'){go('ai');const inp=document.getElementById('comp-in');if(inp){inp.value=prompt;ask();}}
+}
 function openAdvisor(id,uid){
  const node=uid?lsNodes.find(x=>x.uid===uid):null;
  const adv=uid?adviseNode(uid):adviseTechnique(id);
@@ -325,6 +341,7 @@ function openAdvisor(id,uid){
   <div class="ls-ne-grip" onclick="closeAdvisor()"></div>
   <div class="ls-det-head">Response playbook${label?` · ${esc(label)}`:''}</div>
   <div class="ls-det-sub">Deterministic, offline containment / eradication / recovery guidance. No network, no LLM - copy, paste, and adapt to your environment.</div>
+  ${(node&&(node.obs||[]).length&&typeof LIVE!=='undefined'&&LIVE.connected)?`<button class="btn violet" style="width:100%;justify-content:center;margin:2px 0 10px" onclick="raAdaptWithAI('${uid}')" data-tip="Have the local AI tailor these steps to what's actually been observed on this host - grounded in the real observations, not generic">◎ Adapt to this incident (AI)</button>`:''}
   ${adv.sections.length?adv.sections.map(s=>`
    <div class="ra-phase">
     <div class="ra-phase-h">${esc(s.label)}</div>
